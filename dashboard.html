@@ -73,6 +73,27 @@
         background: #1e293b;
         border-radius: 10px;
       }
+
+      /* Forensic Timeline Bar (Heatmap) Styles */
+      .heatmap-container {
+        height: 12px;
+        background: #1e293b;
+        border-radius: 100px;
+        display: flex;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      .heatmap-segment {
+        height: 100%;
+        transition: all 0.3s;
+      }
+      .status-green {
+        background: #10b981;
+      } /* Emerald 500 */
+      .status-red {
+        background: #ef4444;
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+      } /* Red 500 */
     </style>
   </head>
   <body class="flex min-h-screen">
@@ -202,7 +223,7 @@
         onclick="logout()"
         class="mt-4 flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-bold text-red-500/80 hover:bg-red-500/10 transition-all"
       >
-        <i class="fas fa-power-off"></i> Terminate
+        <i class="fas fa-power-off"></i> Logout
       </button>
     </nav>
 
@@ -264,6 +285,32 @@
               <h3 id="gapCount" class="text-3xl font-black">0</h3>
             </div>
           </div>
+
+          <div class="glass-card p-8">
+            <h4
+              class="text-xs font-bold uppercase text-slate-400 mb-6 tracking-widest"
+            >
+              Temporal Integrity Heatmap
+            </h4>
+            <div id="forensicHeatmap" class="heatmap-container mb-4"></div>
+            <div
+              class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase px-1"
+            >
+              <span id="heatmap-start">File Start</span>
+              <div class="flex items-center gap-4">
+                <span class="flex items-center gap-1"
+                  ><span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  Nominal</span
+                >
+                <span class="flex items-center gap-1"
+                  ><span class="w-2 h-2 rounded-full bg-red-500"></span>
+                  Anomaly</span
+                >
+              </div>
+              <span id="heatmap-end">File End</span>
+            </div>
+          </div>
+
           <div class="grid grid-cols-12 gap-8">
             <div class="col-span-12 lg:col-span-4 space-y-6">
               <div class="glass-card p-8">
@@ -310,7 +357,7 @@
                 <button
                   onclick="analyzeLogs(event)"
                   id="analyzeBtn"
-                  class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all mt-6"
+                  class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all mt-6 shadow-xl"
                 >
                   Analyze Stream
                 </button>
@@ -324,7 +371,7 @@
                 </h4>
                 <div
                   id="aiInsightContent"
-                  class="text-xs text-slate-300 italic"
+                  class="text-xs text-slate-300 italic font-light"
                 ></div>
               </div>
             </div>
@@ -384,51 +431,37 @@
             </div>
           </div>
         </div>
-
-        <div id="view-compliance" class="tab-view hidden space-y-6">
-          <div class="glass-card p-10 text-center border-2 border-blue-500/20">
-            <i class="fas fa-file-shield text-6xl text-blue-500 mb-6"></i>
-            <h3 class="text-3xl font-black uppercase italic tracking-tighter">
-              Export Center
-            </h3>
-            <p class="text-slate-400 mb-12 max-w-xl mx-auto font-light">
-              Generate chain-of-custody documentation and raw forensic delta
-              sets.
-            </p>
-            <div class="flex flex-col sm:flex-row justify-center gap-6">
-              <button
-                onclick="exportToJson()"
-                class="bg-blue-600 hover:bg-blue-500 px-10 py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-2xl transition-all"
-              >
-                <i class="fas fa-file-code mr-2"></i> Export JSON
-              </button>
-              <button
-                onclick="exportToCsv()"
-                class="border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500 hover:text-white px-10 py-4 rounded-2xl font-black uppercase text-xs tracking-widest transition-all"
-              >
-                <i class="fas fa-file-csv mr-2"></i> Export CSV
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div id="view-threats" class="tab-view hidden glass-card p-10">
-          <h4
-            class="text-xs font-bold uppercase text-slate-400 mb-6 tracking-widest"
-          >
-            Global Anomaly Distribution
-          </h4>
+        <div
+          id="view-registry"
+          class="tab-view hidden glass-card overflow-hidden"
+        >
           <div
-            class="h-80 bg-slate-900/50 rounded-2xl flex items-center justify-center border border-white/5 text-center"
+            class="p-6 border-b border-white/5 bg-slate-900/20 flex justify-between items-center"
           >
-            <div>
-              <div
-                class="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4 mx-auto"
-              ></div>
-              <p class="text-[10px] font-mono text-blue-500 uppercase">
-                Synchronizing Intelligence...
-              </p>
-            </div>
+            <h4 class="text-xs font-bold uppercase text-slate-400">
+              Verification Registry
+            </h4>
+            <span
+              id="flag-count"
+              class="text-[10px] bg-blue-600 px-3 py-1 rounded-full text-white font-black"
+              >0 Flagged</span
+            >
+          </div>
+          <div class="max-h-[600px] overflow-y-auto custom-scroll">
+            <table class="w-full text-left" id="incidentTable">
+              <thead>
+                <tr class="text-slate-500 text-[9px] uppercase tracking-widest">
+                  <th class="p-6">Time Window</th>
+                  <th class="p-6 text-center">Duration</th>
+                  <th class="p-6">Analysis</th>
+                  <th class="p-6 text-right">Triage</th>
+                </tr>
+              </thead>
+              <tbody
+                id="incidentBody"
+                class="text-[11px] text-slate-400"
+              ></tbody>
+            </table>
           </div>
         </div>
         <div id="view-nodes" class="tab-view hidden glass-card p-10">
@@ -451,7 +484,7 @@
             </div>
             <div class="border-r border-white/5">
               <p class="text-[9px] text-slate-500 uppercase mb-1">
-                Peak Intensity
+                Peak Window
               </p>
               <p id="peak-window" class="text-sm font-mono text-white">
                 --:--:--
@@ -468,48 +501,61 @@
             </div>
           </div>
         </div>
-        <div
-          id="view-registry"
-          class="tab-view hidden glass-card overflow-hidden"
-        >
-          <div
-            class="p-6 border-b border-white/5 bg-slate-900/20 flex justify-between items-center"
+        <div id="view-threats" class="tab-view hidden glass-card p-10">
+          <h4
+            class="text-xs font-bold uppercase text-slate-400 mb-6 tracking-widest"
           >
-            <h4 class="text-xs font-bold uppercase text-slate-400">Registry</h4>
-            <span
-              id="flag-count"
-              class="text-[10px] bg-blue-600 px-3 py-1 rounded-full text-white font-black"
-              >0 Flagged</span
-            >
-          </div>
-          <div class="max-h-[600px] overflow-y-auto custom-scroll">
-            <table class="w-full text-left" id="incidentTable">
-              <thead class="sticky top-0 bg-slate-900 border-b border-white/5">
-                <tr class="text-slate-500 text-[9px] uppercase tracking-widest">
-                  <th class="p-6">Time Window</th>
-                  <th class="p-6 text-center">Duration</th>
-                  <th class="p-6">Analysis</th>
-                  <th class="p-6 text-right">Triage</th>
-                </tr>
-              </thead>
-              <tbody
-                id="incidentBody"
-                class="text-[11px] text-slate-400"
-              ></tbody>
-            </table>
+            Global Anomaly Distribution
+          </h4>
+          <div
+            class="h-80 bg-slate-900/50 rounded-2xl flex items-center justify-center border border-white/5 text-center"
+          >
+            <div>
+              <div
+                class="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4 mx-auto"
+              ></div>
+              <p class="text-[10px] font-mono text-blue-500 uppercase">
+                Synchronizing Neural Intelligence...
+              </p>
+            </div>
           </div>
         </div>
         <div
           id="view-vault"
           class="tab-view hidden glass-card p-20 text-center"
         >
-          <i class="fas fa-user-shield text-5xl text-slate-800 mb-6"></i>
-          <h3 class="text-xl font-bold uppercase text-white mb-2">
-            Restricted Vault
+          <i class="fas fa-vault text-5xl text-slate-800 mb-6"></i>
+          <h3 class="text-xl font-bold uppercase text-white mb-2 italic">
+            Operator Restricted Vault
           </h3>
           <p class="text-slate-500 text-sm max-w-sm mx-auto">
-            Administrator credentials required for encrypted archives.
+            Archives locked. Administrator credentials required.
           </p>
+        </div>
+        <div
+          id="view-compliance"
+          class="tab-view hidden glass-card p-10 text-center border-2 border-blue-500/20"
+        >
+          <i class="fas fa-file-shield text-6xl text-blue-500 mb-6"></i>
+          <h3 class="text-3xl font-black uppercase italic tracking-tighter">
+            Export Center
+          </h3>
+          <p class="text-slate-400 mb-12 max-w-xl mx-auto font-light">
+            Generate raw forensic delta sets for legal chain-of-custody.
+          </p>
+          <div class="flex justify-center gap-6">
+            <button
+              onclick="exportToJson()"
+              class="bg-blue-600 hover:bg-blue-500 px-10 py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-2xl transition-all"
+            >
+              Export JSON</button
+            ><button
+              onclick="exportToCsv()"
+              class="border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500 hover:text-white px-10 py-4 rounded-2xl font-black uppercase text-xs tracking-widest transition-all"
+            >
+              Export CSV
+            </button>
+          </div>
         </div>
       </div>
     </main>
