@@ -28,11 +28,11 @@ function updateNavState() {
       terminalLink.setAttribute("onclick", "triggerTerminalTransition()");
     }
     if (loginBtn) {
-      loginBtn.innerText = "LOGOUT SESSION";
+      loginBtn.innerText = "LOGOUT";
       loginBtn.onclick = logout;
     }
     if (heroBtn) {
-      heroBtn.innerText = "ENTER TERMINAL";
+      heroBtn.innerText = "ENTER DASHBOARD";
       heroBtn.onclick = triggerTerminalTransition;
     }
   }
@@ -98,3 +98,24 @@ async function handleLogin() {
     alert("OFFLINE: Ensure Forensic Backend is running.");
   }
 }
+
+// Function to handle the keyboard "Enter" key trigger
+function handleKeyPress(event) {
+  if (event.key === "Enter") {
+    // Prevent default form behavior if inside a form tag
+    event.preventDefault();
+    // Call your existing login function
+    handleLogin();
+  }
+}
+
+// Attach listeners to input fields once the DOM is loaded
+document.addEventListener("DOMContentLoaded", () => {
+  const userInput = document.getElementById("loginUser");
+  const passInput = document.getElementById("loginPass");
+
+  if (userInput && passInput) {
+    userInput.addEventListener("keypress", handleKeyPress);
+    passInput.addEventListener("keypress", handleKeyPress);
+  }
+});

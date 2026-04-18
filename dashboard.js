@@ -15,7 +15,7 @@ const verticalLinePlugin = {
       ctx.moveTo(x, yAxis.top);
       ctx.lineTo(x, yAxis.bottom);
       ctx.lineWidth = 1;
-      ctx.strokeStyle = "rgba(59, 130, 246, 0.6)"; // Slightly brighter blue
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.6)";
       ctx.setLineDash([5, 5]);
       ctx.stroke();
       ctx.restore();
@@ -79,7 +79,7 @@ async function analyzeLogs(event) {
     ];
     for (const step of steps) {
       statusText.innerText = step;
-      await new Promise((r) => setTimeout(r, 400)); // Shorter delay for better UX
+      await new Promise((r) => setTimeout(r, 400));
     }
 
     const meta = {
@@ -110,26 +110,23 @@ function renderResults(data) {
     score.toFixed(1) + "%";
   document.getElementById("financialRisk").innerText = compromiseRisk + "%";
   document.getElementById("gapCount").innerText = data.total_gaps;
-  document.getElementById("pulseText").innerText = score.toFixed(1) + "%";
 
-  // 2. Metadata & Unique Forensic Hash
+  // 2. Metadata
   const meta = JSON.parse(localStorage.getItem("last_scan_metadata") || "{}");
   document.getElementById("lastScanTime").innerText =
     meta.timestamp || new Date().toLocaleTimeString();
   document.getElementById("lastFileName").innerText =
     meta.fileName || "Unknown Source";
 
-  // Generate a unique session ID for this specific scan
   const forensicSessionID = `FS-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
-  // 3. TACTICAL SIGNATURE GENERATOR (Dynamic Analysis)
+  // 3. TACTICAL SIGNATURE GENERATOR
   const signatureCard = document.getElementById("signatureCard");
   const reasoning = document.getElementById("tacticalReasoning");
 
   if (signatureCard && reasoning) {
     signatureCard.classList.remove("hidden");
 
-    // Calculate data behaviors
     const durations = data.incidents.map((i) => i.duration);
     const maxGap = Math.max(...durations, 0);
     const totalGapTime = durations.reduce((a, b) => a + b, 0);
@@ -139,18 +136,15 @@ function renderResults(data) {
     let signatureBody = "";
     let statusColor = "";
 
-    // LOGIC ENGINE: Tailors the result to the specific data found
     if (gapFrequency === 0) {
       statusColor = "text-emerald-500";
       signatureTitle = "LINEAR_CONTINUITY_VERIFIED";
       signatureBody = `Session ${forensicSessionID}: No temporal anomalies detected. Sequence validation confirms 100% log stream integrity.`;
     } else if (maxGap > 600) {
-      // Gaps longer than 10 minutes
       statusColor = "text-red-500";
       signatureTitle = "SHADOW_WINDOW_PURGE";
       signatureBody = `Session ${forensicSessionID}: Critical alert. A massive void of ${maxGap}s detected. This signature indicates a manual overwrite or deliberate service suspension to mask major activity.`;
     } else if (gapFrequency > 10) {
-      // Many small gaps
       statusColor = "text-amber-500";
       signatureTitle = "FRAGMENTED_LOG_SHAVING";
       signatureBody = `Session ${forensicSessionID}: Heuristic match found. Detected ${gapFrequency} micro-voids. This pattern is consistent with 'Log Shaving'—automated scripts deleting individual alert lines while leaving the rest of the file intact.`;
@@ -175,9 +169,16 @@ function renderResults(data) {
             SECURE_HASH: ${forensicSessionID} | ADMISSIBILITY: ${score > 90 ? "CERTIFIED" : "REVIEW_REQUIRED"}
         </div>
       `;
+
+    const sorter = document.getElementById("durationSorter");
+    const placeholder = document.getElementById("sortPlaceholder");
+
+    if (sorter && placeholder) {
+      placeholder.disabled = false;
+      sorter.value = "none";
+    }
   }
 
-  // 4. Update Registry, Heatmap, and Chart (Existing Functions)
   updateRegistryTable(data.incidents);
   updateHeatmapBar(data.incidents);
   updateChart(data.incidents);
@@ -186,66 +187,74 @@ function renderResults(data) {
 function updateRegistryTable(incidents) {
   const tbody = document.getElementById("incidentBody");
   if (!tbody) return;
+
   tbody.innerHTML = incidents
     .map((inc, i) => {
       const isFlagged = flaggedIncidents.has(i);
+      const startTime = inc.start.includes(" ")
+        ? inc.start.split(" ")[1]
+        : inc.start;
+      const endTime = inc.end.includes(" ") ? inc.end.split(" ")[1] : inc.end;
+
       return `
-            <tr class="border-b border-white/5 hover:bg-white/5 transition-all ${isFlagged ? "flagged-row" : ""}">
-                <td class="p-6 font-mono text-blue-400 text-[10px]">${inc.start.split(" ")[1]}</td>
-                <td class="p-6 text-center font-bold text-white">${inc.duration}s</td>
-                <td class="p-6 text-center">
-                    <span class="px-2 py-1 rounded border text-[9px] ${inc.duration > 300 ? "text-red-400 border-red-500/20" : "text-amber-400 border-amber-500/20"}">
-                        ${inc.duration > 300 ? "Critical" : "Warning"}
-                    </span>
+            <tr class="border-b border-white/5 hover:bg-white/5 transition-all">
+                <td class="p-6 font-mono">
+                    <div class="flex flex-col gap-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[8px] text-slate-600 uppercase font-bold w-8">From:</span>
+                            <span class="text-blue-400 text-[10px] tracking-wider">${startTime}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[8px] text-slate-600 uppercase font-bold w-8">To:</span>
+                            <span class="text-emerald-400 text-[10px] tracking-wider">${endTime}</span>
+                        </div>
+                    </div>
+                </td>
+                <td class="p-6 text-center font-bold text-white text-sm">
+                    ${inc.duration}<span class="text-[10px] text-slate-500 ml-1 font-light">s</span>
+                </td>
+                <td class="p-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-1.5 h-1.5 rounded-full ${inc.duration > 300 ? "bg-red-500 animate-pulse" : "bg-amber-500"}"></div>
+                        <span class="text-[10px] uppercase font-bold ${inc.duration > 300 ? "text-red-400" : "text-amber-400"}">
+                            ${inc.duration > 300 ? "Critical Void" : "Minor Anomaly"}
+                        </span>
+                    </div>
                 </td>
                 <td class="p-6 text-right">
-                    <button onclick="toggleFlag(${i})"><i class="${isFlagged ? "fas" : "far"} fa-flag"></i></button>
+                    <button onclick="toggleFlag(${i})" class="${isFlagged ? "text-blue-500" : "text-slate-700 hover:text-blue-400"} transition-colors">
+                        <i class="${isFlagged ? "fas" : "far"} fa-flag text-base"></i>
+                    </button>
                 </td>
             </tr>`;
     })
     .join("");
 }
 
-// Ensure the tab switcher actually shows the Registry
 function switchTab(tabId) {
-  // Update Nav Highlights
   document
     .querySelectorAll(".nav-item")
     .forEach((el) => el.classList.remove("active", "text-blue-500"));
   const navItem = document.getElementById(`nav-${tabId}`);
   if (navItem) navItem.classList.add("active", "text-blue-500");
 
-  // Update View Title
   const titles = {
     dashboard: "Executive Overview",
     registry: "Incident Registry",
-    lab: "Forensic Lab",
-    threats: "Neural Triage Map",
+    compliance: "Export Center",
   };
-  document.getElementById("viewTitle").innerText =
-    titles[tabId] || "System Module";
+  const titleEl = document.getElementById("viewTitle");
+  if (titleEl) titleEl.innerText = titles[tabId];
 
-  // Toggle Visibility
   document
     .querySelectorAll(".tab-view")
     .forEach((view) => view.classList.add("hidden"));
   const targetView = document.getElementById(`view-${tabId}`);
   if (targetView) targetView.classList.remove("hidden");
 
-  // Re-trigger chart resize if going back to dashboard
-  if (tabId === "dashboard" && lastScanResults) {
+  if (lastScanResults && tabId === "dashboard") {
     setTimeout(() => updateChart(lastScanResults.incidents), 50);
   }
-}
-
-function animatePulse(score) {
-  const pulsePath = document.getElementById("pulsePath");
-  // Change pulse color based on integrity
-  pulsePath.setAttribute("stroke", score < 80 ? "#ef4444" : "#3b82f6");
-  // Simple CSS animation restart
-  pulsePath.style.animation = "none";
-  pulsePath.offsetHeight;
-  pulsePath.style.animation = null;
 }
 
 function updateHeatmapBar(incidents) {
@@ -278,15 +287,8 @@ function updateChart(incidents) {
   const ctx = canvas.getContext("2d");
   if (chart) chart.destroy();
 
-  const precision =
-    document.getElementById("timePrecision")?.value || "minutes";
-  const divider =
-    precision === "seconds" ? 1 : precision === "minutes" ? 60 : 3600;
-
   const chartLabels = incidents.map((i) => i.start.split(" ")[1]);
-  const chartData = incidents.map((i) =>
-    Math.max(0, 100 - i.duration / (divider * 5)),
-  );
+  const chartData = incidents.map((i) => Math.max(0, 100 - i.duration / 300));
 
   chart = new Chart(ctx, {
     type: "line",
@@ -301,7 +303,7 @@ function updateChart(incidents) {
           fill: "origin",
           tension: 0,
           borderWidth: 2,
-          pointRadius: 0, // Keeps it clean, points appear on hover
+          pointRadius: 0,
           pointHitRadius: 20,
         },
       ],
@@ -309,10 +311,7 @@ function updateChart(incidents) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: {
-        mode: "index",
-        intersect: false, // This allows the vertical line to show anywhere along the X-axis
-      },
+      interaction: { mode: "index", intersect: false },
       scales: {
         y: {
           beginAtZero: true,
@@ -362,34 +361,22 @@ function updateChart(incidents) {
   });
 }
 
-function switchTab(tabId) {
-  document
-    .querySelectorAll(".nav-item")
-    .forEach((el) => el.classList.remove("active", "text-blue-500"));
-  const navItem = document.getElementById(`nav-${tabId}`);
-  if (navItem) navItem.classList.add("active", "text-blue-500");
-
-  const titles = {
-    dashboard: "Executive Overview",
-    lab: "Forensic Lab",
-    threats: "Neural Triage Map",
-    registry: "Incident Registry",
-    nodes: "Strategic Timeline",
-    compliance: "Export Center",
-  };
-  const titleEl = document.getElementById("viewTitle");
-  if (titleEl) titleEl.innerText = titles[tabId];
-
-  document
-    .querySelectorAll(".tab-view")
-    .forEach((view) => view.classList.add("hidden"));
-  const targetView = document.getElementById(`view-${tabId}`);
-  if (targetView) targetView.classList.remove("hidden");
-
-  // Re-init chart if switching back to dashboard
-  if (lastScanResults && tabId === "dashboard") {
-    setTimeout(() => updateChart(lastScanResults.incidents), 50);
+function handleSortChange(criteria) {
+  if (!lastScanResults || !lastScanResults.incidents) {
+    showToast("No data to sort");
+    return;
   }
+  const placeholder = document.getElementById("sortPlaceholder");
+  if (criteria === "high") {
+    lastScanResults.incidents.sort((a, b) => b.duration - a.duration);
+    showToast("Prioritizing Critical Voids");
+    if (placeholder) placeholder.disabled = true;
+  } else if (criteria === "low") {
+    lastScanResults.incidents.sort((a, b) => a.duration - b.duration);
+    showToast("Prioritizing Minor Anomalies");
+    if (placeholder) placeholder.disabled = true;
+  }
+  updateRegistryTable(lastScanResults.incidents);
 }
 
 function toggleFlag(index) {
@@ -399,7 +386,8 @@ function toggleFlag(index) {
     "flagged_items",
     JSON.stringify(Array.from(flaggedIncidents)),
   );
-  renderResults(lastScanResults);
+  updateFlagCount();
+  updateRegistryTable(lastScanResults.incidents);
 }
 
 function updateFlagCount() {
@@ -423,7 +411,6 @@ function showToast(msg) {
 function updateFileName() {
   const fileInput = document.getElementById("logFile");
   const fileNameDisplay = document.getElementById("fileNameDisplay");
-
   if (fileInput.files.length > 0) {
     fileNameDisplay.innerText = fileInput.files[0].name;
     fileNameDisplay.classList.remove("text-slate-500");
@@ -439,12 +426,8 @@ function logout() {
   window.location.href = "index.html";
 }
 
-/**
- * Button 1: Generates the technical Forensic JSON
- */
 function exportForensicJSON() {
   if (!lastScanResults) return showToast("Critical: No scan data available");
-
   const report = {
     header: {
       session_id: `CERT-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
@@ -459,7 +442,6 @@ function exportForensicJSON() {
     },
     void_data: lastScanResults.incidents,
   };
-
   const blob = new Blob([JSON.stringify(report, null, 4)], {
     type: "application/json",
   });
@@ -471,19 +453,13 @@ function exportForensicJSON() {
   showToast("Signed JSON Exported");
 }
 
-/**
- * Button 2: Generates the human-readable CSV Registry
- */
 function exportRegistryCSV() {
-  if (!lastScanResults || !lastScanResults.incidents.length) {
+  if (!lastScanResults || !lastScanResults.incidents.length)
     return showToast("Notice: Incident Registry is empty");
-  }
-
   let csv = "Incident,Start,End,Duration(s),Severity\n";
   lastScanResults.incidents.forEach((inc, i) => {
     csv += `VOID-${i + 1},${inc.start},${inc.end},${inc.duration},${inc.duration > 300 ? "CRITICAL" : "WARNING"}\n`;
   });
-
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
