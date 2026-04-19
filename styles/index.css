@@ -1,146 +1,171 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap");
 
+/* ── Theme Variables ─────────────────────────────────────────────────────── */
+:root {
+  --bg-primary:    #020617;
+  --bg-secondary:  #0f172a;
+  --bg-glass:      rgba(15, 23, 42, 0.6);
+  --bg-glass-hover:rgba(15, 23, 42, 0.8);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-hover:  rgba(59, 130, 246, 0.4);
+  --text-main:     #f8fafc;
+  --text-muted:    #94a3b8;
+  --text-faint:    #475569;
+  --accent-blue:   #3b82f6;
+  --accent-emerald:#10b981;
+  --grid-line:     rgba(30, 41, 59, 0.3);
+}
+
+html[data-theme="light"] {
+  --bg-primary:    #f1f5f9;
+  --bg-secondary:  #e2e8f0;
+  --bg-glass:      rgba(255, 255, 255, 0.7);
+  --bg-glass-hover:rgba(255, 255, 255, 0.9);
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-hover:  rgba(59, 130, 246, 0.5);
+  --text-main:     #0f172a;
+  --text-muted:    #475569;
+  --text-faint:    #94a3b8;
+  --accent-blue:   #2563eb;
+  --accent-emerald:#059669;
+  --grid-line:     rgba(148, 163, 184, 0.25);
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
 html {
   scroll-behavior: smooth;
 }
 
 body {
-  background-color: #020617;
-
+  background-color: var(--bg-primary);
+  color: var(--text-main);
   font-family: "Space Grotesk", sans-serif;
-
   overflow-x: hidden;
-
   background-attachment: fixed;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* ── Grid & Glow ─────────────────────────────────────────────────────────── */
 .bg-grid {
   background-size: 50px 50px;
-
   background-image:
-    linear-gradient(to right, rgba(30, 41, 59, 0.3) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(30, 41, 59, 0.3) 1px, transparent 1px);
-
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
   mask-image: radial-gradient(ellipse at center, black, transparent 80%);
 }
 
 .hero-glow {
   background: radial-gradient(
     circle at 50% 50%,
-
     rgba(59, 130, 246, 0.1) 0%,
-
     transparent 60%
   );
 }
 
+/* ── Glass Card ──────────────────────────────────────────────────────────── */
 .glass {
-  background: rgba(15, 23, 42, 0.6);
-
+  background: var(--bg-glass);
   backdrop-filter: blur(12px);
-
-  border: 1px solid rgba(255, 255, 255, 0.05);
-
+  border: 1px solid var(--border-subtle);
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .glass:hover {
-  border-color: rgba(59, 130, 246, 0.4);
-
+  border-color: var(--border-hover);
   transform: translateY(-10px) scale(1.02);
-
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3);
 }
 
+/* ── Typography & Buttons ────────────────────────────────────────────────── */
 .glow-text {
   text-shadow: 0 0 30px rgba(59, 130, 246, 0.6);
 }
 
 .btn-glow:hover {
   box-shadow: 0 0 25px rgba(59, 130, 246, 0.5);
-
   transform: translateY(-2px);
 }
 
+/* ── Theme Toggle Button ─────────────────────────────────────────────────── */
+#themeToggle {
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-glass);
+  color: var(--text-muted);
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+#themeToggle:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+/* ── Terminal Loader ─────────────────────────────────────────────────────── */
 #terminalLoader {
   position: fixed;
-
   inset: 0;
-
-  background: #020617;
-
+  background: var(--bg-primary);
   z-index: 10000;
-
   display: none;
-
   flex-direction: column;
-
   align-items: center;
-
   justify-content: center;
+  transition: background-color 0.3s ease;
 }
 
 .uplink-bar {
   width: 300px;
-
   height: 2px;
-
   background: rgba(59, 130, 246, 0.1);
-
   position: relative;
-
   overflow: hidden;
-
   margin-top: 24px;
 }
 
 .uplink-progress {
   position: absolute;
-
   width: 60%;
-
   height: 100%;
-
   background: linear-gradient(90deg, transparent, #3b82f6, transparent);
-
   animation: uplink 1.2s infinite ease-in-out;
 }
 
 @keyframes uplink {
-  0% {
-    transform: translateX(-150%);
-  }
-
-  100% {
-    transform: translateX(250%);
-  }
+  0%   { transform: translateX(-150%); }
+  100% { transform: translateX(250%); }
 }
 
 .status-text {
   font-family: monospace;
-
   font-size: 10px;
-
   letter-spacing: 4px;
-
-  color: #3b82f6;
-
+  color: var(--accent-blue);
   text-transform: uppercase;
-
   animation: pulseText 1.5s infinite;
 }
 
 @keyframes pulseText {
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.4;
-  }
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
 }
 
 .brand-logo {
   filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.5));
+}
+
+/* ── Light mode nav override ─────────────────────────────────────────────── */
+html[data-theme="light"] nav {
+  background: rgba(241, 245, 249, 0.85) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+html[data-theme="light"] .glass {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
