@@ -24,7 +24,7 @@ const verticalLinePlugin = {
 };
 
 window.addEventListener("DOMContentLoaded", () => {
-  if (!sessionStorage.getItem("isLoggedIn")) {
+  if (!localStorage.getItem("access_token")) {
     window.location.href = "index.html";
     return;
   }
@@ -64,10 +64,17 @@ async function analyzeLogs(event) {
   formData.append("threshold", 60);
 
   try {
+    const token = localStorage.getItem("access_token");
     const res = await fetch("http://localhost:8000/analyze", {
       method: "POST",
+      headers: { "Authorization": `Bearer ${token}` },
       body: formData,
     });
+    if (res.status === 401) {
+      localStorage.removeItem("access_token");
+      window.location.href = "index.html";
+      return;
+    }
     if (!res.ok) throw new Error("Connection Refused");
     const data = await res.json();
 
@@ -421,8 +428,7 @@ function updateFileName() {
 }
 
 function logout() {
-  sessionStorage.clear();
-  localStorage.clear();
+  localStorage.removeItem("access_token");
   window.location.href = "index.html";
 }
 
