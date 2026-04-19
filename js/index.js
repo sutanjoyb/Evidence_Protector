@@ -41,16 +41,42 @@ function updateNavState() {
   }
 }
 
+const FORENSIC_PHRASES = [
+  "Decrypting packets...",
+  "Analyzing deltas...",
+  "Bypassing Firewall...",
+  "Synchronizing Forensic Buffers...",
+  "Extracting Metadata...",
+  "Verifying Integrity...",
+  "Mapping Temporal Voids...",
+  "Detecting Anomalies...",
+  "Scanning Hash Tables...",
+  "Reconstructing Log Chains...",
+  "Isolating Malicious Signatures...",
+  "Tracing IP Origins...",
+  "Validating Node Signatures...",
+  "Hashing Data Fragments..."
+];
+
+function getRandomPhrase(exclude = []) {
+  const filtered = FORENSIC_PHRASES.filter(p => !exclude.includes(p));
+  return filtered[Math.floor(Math.random() * filtered.length)];
+}
+
 function triggerTerminalTransition() {
   const loader = document.getElementById("terminalLoader");
   if (loader) {
     loader.style.display = "flex";
     const statusText = loader.querySelector(".status-text");
+
+    const p1 = getRandomPhrase();
+    const p2 = getRandomPhrase([p1]);
+
     setTimeout(() => {
-      if (statusText) statusText.innerText = "Bypassing Firewall...";
+      if (statusText) statusText.innerText = p1;
     }, 600);
     setTimeout(() => {
-      if (statusText) statusText.innerText = "Synchronizing Forensic Buffers...";
+      if (statusText) statusText.innerText = p2;
     }, 1200);
     setTimeout(() => {
       window.location.href = "dashboard.html";
@@ -133,7 +159,7 @@ async function handleLogin() {
       updateNavState();
 
       setTimeout(() => {
-        window.location.href = "dashboard.html";
+        triggerTerminalTransition();
       }, 600);
     } else {
       alert("ACCESS DENIED: Invalid Credentials");

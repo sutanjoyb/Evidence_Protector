@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import shutil
@@ -36,13 +36,13 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 # --- AUTH SETUP ---
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Authentication setup using direct bcrypt for compatibility
 bearer_scheme = HTTPBearer()
 
 # In production, replace this with a real user database with hashed passwords.
-# To generate a hash: pwd_context.hash("your-password")
+# To generate a hash manually: bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 USERS = {
-    "admin": pwd_context.hash("admin123")
+    "admin": bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 }
 
 # --- JWT HELPERS ---
@@ -73,7 +73,7 @@ async def root():
 @app.post("/login")
 async def login(username: str = Form(...), password: str = Form(...)):
     hashed = USERS.get(username)
-    if not hashed or not pwd_context.verify(password, hashed):
+    if not hashed or not bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8')):
         raise HTTPException(status_code=401, detail="Invalid Credentials")
     token = create_access_token({"sub": username})
     return {"access_token": token, "token_type": "bearer"}
