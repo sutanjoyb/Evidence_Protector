@@ -504,3 +504,24 @@ function exportChartAsJPG() {
     link.click();
     showToast("Chart exported as JPG");
 }
+
+// Search/Filter functionality for Incident Registry
+function filterRegistry() {
+    const searchTerm = document.getElementById("searchInput").value.toLowerCase();
+    if (!lastScanResults || !lastScanResults.incidents) return;
+    
+    let filteredIncidents = lastScanResults.incidents;
+    
+    if (searchTerm) {
+        filteredIncidents = lastScanResults.incidents.filter(inc => {
+            // Search by timestamp (start or end time)
+            const timeMatch = inc.start.toLowerCase().includes(searchTerm) || 
+                              inc.end.toLowerCase().includes(searchTerm);
+            // Search by duration
+            const durationMatch = inc.duration.toString().includes(searchTerm);
+            return timeMatch || durationMatch;
+        });
+    }
+    
+    updateRegistryTable(filteredIncidents);
+}
