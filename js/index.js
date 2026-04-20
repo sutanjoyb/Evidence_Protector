@@ -13,7 +13,7 @@ AOS.init({
 window.onload = function () {
   const navEntries = performance.getEntriesByType("navigation");
   if (navEntries.length > 0 && navEntries[0].type === "reload") {
-    sessionStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("access_token");
     window.location.href = "index.html";
     return;
   }
@@ -22,13 +22,17 @@ window.onload = function () {
 
 // ─── NAV STATE ───────────────────────────────────────────────────────────────
 
+function isLoggedIn() {
+  return !!localStorage.getItem("access_token");
+}
+
 function updateNavState() {
-  const isLoggedIn = sessionStorage.getItem("isLoggedIn");
   const terminalLink = document.getElementById("terminalLink");
   const loginBtn = document.getElementById("loginBtnNav");
+  const signUpBtn = document.getElementById("signUpBtnNav");
   const heroBtn = document.getElementById("heroActionBtn");
 
-  if (isLoggedIn) {
+  if (isLoggedIn()) {
     if (terminalLink) {
       terminalLink.classList.remove("hidden");
       terminalLink.setAttribute("onclick", "triggerTerminalTransition()");
@@ -37,22 +41,58 @@ function updateNavState() {
       loginBtn.innerText = "LOGOUT";
       loginBtn.onclick = logout;
     }
+    if (signUpBtn) signUpBtn.classList.add("hidden");
     if (heroBtn) {
       heroBtn.innerText = "ENTER DASHBOARD";
       heroBtn.onclick = triggerTerminalTransition;
+    }
+  } else {
+    if (terminalLink) terminalLink.classList.add("hidden");
+    if (loginBtn) {
+      loginBtn.innerText = "LOGIN";
+      loginBtn.onclick = () => { toggleAuthMode("login"); showLogin(); };
+    }
+    if (signUpBtn) signUpBtn.classList.remove("hidden");
+    if (heroBtn) {
+      heroBtn.innerText = "INITIALIZE SCAN";
+      heroBtn.onclick = handleHeroAction;
     }
   }
 }
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────────────
 
+const FORENSIC_PHRASES = [
+  "Decrypting packets...",
+  "Analyzing deltas...",
+  "Bypassing Firewall...",
+  "Synchronizing Forensic Buffers...",
+  "Extracting Metadata...",
+  "Verifying Integrity...",
+  "Mapping Temporal Voids...",
+  "Detecting Anomalies...",
+  "Scanning Hash Tables...",
+  "Reconstructing Log Chains...",
+  "Isolating Malicious Signatures...",
+  "Tracing IP Origins...",
+  "Validating Node Signatures...",
+  "Hashing Data Fragments...",
+];
+
+function getRandomPhrase(exclude = []) {
+  const filtered = FORENSIC_PHRASES.filter((p) => !exclude.includes(p));
+  return filtered[Math.floor(Math.random() * filtered.length)];
+}
+
 function triggerTerminalTransition() {
   const loader = document.getElementById("terminalLoader");
   if (loader) {
     loader.style.display = "flex";
     const statusText = loader.querySelector(".status-text");
-    setTimeout(() => { if (statusText) statusText.innerText = "Bypassing Firewall..."; }, 600);
-    setTimeout(() => { if (statusText) statusText.innerText = "Synchronizing Forensic Buffers..."; }, 1200);
+    const p1 = getRandomPhrase();
+    const p2 = getRandomPhrase([p1]);
+    setTimeout(() => { if (statusText) statusText.innerText = p1; }, 600);
+    setTimeout(() => { if (statusText) statusText.innerText = p2; }, 1200);
     setTimeout(() => { window.location.href = "dashboard.html"; }, 2000);
   } else {
     window.location.href = "dashboard.html";
@@ -60,16 +100,16 @@ function triggerTerminalTransition() {
 }
 
 function handleHeroAction() {
-  if (sessionStorage.getItem("isLoggedIn")) triggerTerminalTransition();
+  if (isLoggedIn()) triggerTerminalTransition();
   else showLogin();
 }
 
 function logout() {
-  sessionStorage.removeItem("isLoggedIn");
+  localStorage.removeItem("access_token");
   window.location.href = "index.html";
 }
 
-// ─── LOGIN MODAL ─────────────────────────────────────────────────────────────
+// ─── AUTH MODAL ──────────────────────────────────────────────────────────────
 
 function showLogin() {
   const modal = document.getElementById("authModal");
@@ -78,24 +118,44 @@ function showLogin() {
 
   const userField = document.getElementById("loginUser");
   const passField = document.getElementById("loginPass");
-
-  // Reset fields and validation styles on every open/close
   if (userField) { userField.value = ""; userField.classList.remove("border-red-500/50"); }
   if (passField) { passField.value = ""; passField.classList.remove("border-red-500/50"); }
 
-  if (!modal.classList.contains("hidden") && userField) {
-    userField.focus();
-  }
+  if (!modal.classList.contains("hidden") && userField) userField.focus();
 }
 
 function closeLogin() {
   const modal = document.getElementById("authModal");
   if (!modal) return;
   modal.classList.add("hidden");
-  const userField = document.getElementById("loginUser");
-  const passField = document.getElementById("loginPass");
-  if (userField) userField.value = "";
-  if (passField) passField.value = "";
+
+  // Reset to login view
+  const loginView = document.getElementById("loginView");
+  const registerView = document.getElementById("registerView");
+  if (loginView) loginView.classList.remove("hidden");
+  if (registerView) registerView.classList.add("hidden");
+
+  // Clear all inputs
+  ["loginUser", "loginPass", "regUser", "regPass"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ""; el.classList.remove("border-red-500/50", "border-emerald-500/50"); }
+  });
+}
+
+function toggleAuthMode(mode) {
+  const loginView = document.getElementById("loginView");
+  const registerView = document.getElementById("registerView");
+  if (mode === "register") {
+    if (loginView) loginView.classList.add("hidden");
+    if (registerView) registerView.classList.remove("hidden");
+    const regUser = document.getElementById("regUser");
+    if (regUser) regUser.focus();
+  } else {
+    if (registerView) registerView.classList.add("hidden");
+    if (loginView) loginView.classList.remove("hidden");
+    const loginUser = document.getElementById("loginUser");
+    if (loginUser) loginUser.focus();
+  }
 }
 
 // ─── LOGIN HANDLER ───────────────────────────────────────────────────────────
@@ -106,11 +166,10 @@ async function handleLogin() {
   const u = userField.value.trim();
   const p = passField.value.trim();
 
-  // Validation
   if (!u || !p) {
-    alert("ACCESS DENIED: Please fill in all credentials.");
     if (!u) userField.classList.add("border-red-500/50");
     if (!p) passField.classList.add("border-red-500/50");
+    showToast("Access Denied: Empty Credentials");
     return;
   }
 
@@ -121,7 +180,7 @@ async function handleLogin() {
   formData.append("username", u);
   formData.append("password", p);
 
-  const loginBtn = document.querySelector("#loginView button");
+  const loginBtn = document.querySelector("#loginView button#authBtn");
 
   try {
     const res = await fetch("http://127.0.0.1:8000/login", {
@@ -130,28 +189,100 @@ async function handleLogin() {
     });
 
     if (res.ok) {
-      sessionStorage.setItem("isLoggedIn", "true");
+      const data = await res.json();
+      localStorage.setItem("access_token", data.access_token);
       if (loginBtn) {
         loginBtn.innerText = "UPLINK ESTABLISHED";
         loginBtn.classList.replace("bg-blue-600", "bg-emerald-600");
       }
       updateNavState();
-      setTimeout(() => { window.location.href = "dashboard.html"; }, 600);
+      setTimeout(() => { triggerTerminalTransition(); }, 600);
     } else {
-      alert("ACCESS DENIED: Invalid Credentials");
+      showToast("Access Denied: Invalid Credentials");
     }
   } catch (e) {
-    alert("OFFLINE: Ensure Forensic Backend is running.");
+    showToast("Offline: Check Forensic Backend");
   }
+}
+
+// ─── REGISTER HANDLER ────────────────────────────────────────────────────────
+
+async function handleRegister() {
+  const userField = document.getElementById("regUser");
+  const passField = document.getElementById("regPass");
+  const u = userField.value.trim();
+  const p = passField.value.trim();
+
+  if (!u || !p) {
+    if (!u) userField.classList.add("border-red-500/50");
+    if (!p) passField.classList.add("border-red-500/50");
+    showToast("Registration Failed: Empty Fields");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("username", u);
+  formData.append("password", p);
+
+  const regBtn = document.getElementById("regBtn");
+
+  try {
+    const res = await fetch("http://127.0.0.1:8000/register", {
+      method: "POST",
+      body: formData,
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      localStorage.setItem("access_token", data.access_token);
+      if (regBtn) {
+        regBtn.innerText = "UPLINK ESTABLISHED";
+        regBtn.classList.replace("bg-emerald-600", "bg-blue-600");
+      }
+      showToast("Registration Successful");
+      updateNavState();
+      setTimeout(() => { triggerTerminalTransition(); }, 1000);
+    } else {
+      showToast(`Error: ${data.detail || "Registration Failed"}`);
+    }
+  } catch (e) {
+    showToast("Offline: Check Forensic Backend");
+  }
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+
+function showToast(msg) {
+  const toast = document.getElementById("toast");
+  const msgEl = document.getElementById("toastMsg");
+  if (!toast || !msgEl) return;
+  msgEl.innerText = msg;
+  toast.classList.replace("translate-y-24", "translate-y-0");
+  toast.classList.replace("opacity-0", "opacity-100");
+  setTimeout(() => {
+    toast.classList.replace("translate-y-0", "translate-y-24");
+    toast.classList.replace("opacity-100", "opacity-0");
+  }, 3000);
+}
+
+// ─── TOS MODAL ───────────────────────────────────────────────────────────────
+
+function showTOS() {
+  const modal = document.getElementById("tosModal");
+  if (modal) modal.classList.add("active");
+}
+
+function closeTOS() {
+  const modal = document.getElementById("tosModal");
+  if (modal) modal.classList.remove("active");
 }
 
 // ─── SINGLE DOMContentLoaded ─────────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Auto-clear validation styles on input
-  ["loginUser", "loginPass"].forEach((id) => {
+  ["loginUser", "loginPass", "regUser", "regPass"].forEach((id) => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener("input", () => el.classList.remove("border-red-500/50"));
+    if (el) el.addEventListener("input", () => el.classList.remove("border-red-500/50", "border-emerald-500/50"));
   });
 });
 
@@ -165,10 +296,24 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
     e.stopImmediatePropagation();
-    handleLogin();
+    const isLoginView = document.getElementById("loginView") &&
+      !document.getElementById("loginView").classList.contains("hidden");
+    if (isLoginView) handleLogin();
+    else handleRegister();
   }
 
-  if (e.key === "Escape") {
-    closeLogin();
-  }
+  if (e.key === "Escape") closeLogin();
 });
+
+// ─── SCROLL TO TOP ───────────────────────────────────────────────────────────
+
+const scrollBtn = document.getElementById("scrollTopBtn");
+if (scrollBtn) {
+  window.addEventListener("scroll", () => {
+    if (document.documentElement.scrollTop > 100) scrollBtn.classList.remove("hidden");
+    else scrollBtn.classList.add("hidden");
+  });
+  scrollBtn.addEventListener("click", () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+}
