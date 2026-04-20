@@ -23,6 +23,7 @@ function isLoggedIn() {
 function updateNavState() {
   const terminalLink = document.getElementById("terminalLink");
   const loginBtn = document.getElementById("loginBtnNav");
+  const signUpBtn = document.getElementById("signUpBtnNav");
   const heroBtn = document.getElementById("heroActionBtn");
 
   if (isLoggedIn()) {
@@ -34,9 +35,25 @@ function updateNavState() {
       loginBtn.innerText = "LOGOUT";
       loginBtn.onclick = logout;
     }
+    if (signUpBtn) {
+      signUpBtn.classList.add("hidden");
+    }
     if (heroBtn) {
       heroBtn.innerText = "ENTER DASHBOARD";
       heroBtn.onclick = triggerTerminalTransition;
+    }
+  } else {
+    if (terminalLink) terminalLink.classList.add("hidden");
+    if (loginBtn) {
+      loginBtn.innerText = "LOGIN";
+      loginBtn.onclick = () => { toggleAuthMode('login'); showLogin(); };
+    }
+    if (signUpBtn) {
+      signUpBtn.classList.remove("hidden");
+    }
+    if (heroBtn) {
+      heroBtn.innerText = "INITIALIZE SCAN";
+      heroBtn.onclick = handleHeroAction;
     }
   }
 }
@@ -107,12 +124,35 @@ function showLogin() {
   }
 }
 
+function toggleAuthMode(mode) {
+  const loginView = document.getElementById("loginView");
+  const registerView = document.getElementById("registerView");
+  if (mode === "register") {
+    loginView.classList.add("hidden");
+    registerView.classList.remove("hidden");
+    document.getElementById("regUser").focus();
+  } else {
+    registerView.classList.add("hidden");
+    loginView.classList.remove("hidden");
+    document.getElementById("loginUser").focus();
+  }
+}
+
 function closeLogin() {
   const modal = document.getElementById("authModal");
   if (modal) {
     modal.classList.add("hidden");
-    document.getElementById("loginUser").value = "";
-    document.getElementById("loginPass").value = "";
+    // Reset views
+    document.getElementById("loginView").classList.remove("hidden");
+    document.getElementById("registerView").classList.add("hidden");
+    // Clear inputs
+    ["loginUser", "loginPass", "regUser", "regPass"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.value = "";
+        el.classList.remove("border-red-500/50", "border-emerald-500/50");
+      }
+    });
   }
 }
 
@@ -141,7 +181,7 @@ async function handleLogin() {
   formData.append("username", u);
   formData.append("password", p);
 
-  const loginBtn = document.querySelector("#loginView button");
+  const loginBtn = document.querySelector("#loginView button#authBtn");
 
   try {
     const res = await fetch("http://127.0.0.1:8000/login", {
@@ -169,11 +209,56 @@ async function handleLogin() {
   }
 }
 
+async function handleRegister() {
+  const userField = document.getElementById("regUser");
+  const passField = document.getElementById("regPass");
+  const u = userField.value.trim();
+  const p = passField.value.trim();
+
+  if (!u || !p) {
+    alert("REGISTRATION FAILED: All fields are required.");
+    if (!u) userField.classList.add("border-red-500/50");
+    if (!p) passField.classList.add("border-red-500/50");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("username", u);
+  formData.append("password", p);
+
+  const regBtn = document.getElementById("regBtn");
+
+  try {
+    const res = await fetch("http://127.0.0.1:8000/register", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      localStorage.setItem("access_token", data.access_token);
+      regBtn.innerText = "UPLINK ESTABLISHED";
+      regBtn.classList.replace("bg-emerald-600", "bg-blue-600");
+      
+      updateNavState();
+
+      setTimeout(() => {
+        triggerTerminalTransition();
+      }, 1000);
+    } else {
+      alert(`REGISTRATION ERROR: ${data.detail || "Unknown Error"}`);
+    }
+  } catch (e) {
+    alert("OFFLINE: Ensure Forensic Backend is running.");
+  }
+}
+
 // Auto-clear red borders on input
 document.addEventListener("DOMContentLoaded", () => {
-  ["loginUser", "loginPass"].forEach((id) => {
+  ["loginUser", "loginPass", "regUser", "regPass"].forEach((id) => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener("input", () => el.classList.remove("border-red-500/50"));
+    if (el) el.addEventListener("input", () => el.classList.remove("border-red-500/50", "border-emerald-500/50"));
   });
 });
 
@@ -186,7 +271,13 @@ document.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
       event.stopImmediatePropagation();
-      handleLogin();
+      
+      const isLoginVisible = !document.getElementById("loginView").classList.contains("hidden");
+      if (isLoginVisible) {
+        handleLogin();
+      } else {
+        handleRegister();
+      }
     }
     if (event.key === "Escape") {
       closeLogin();

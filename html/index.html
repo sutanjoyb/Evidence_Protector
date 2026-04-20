@@ -98,8 +98,16 @@
             </button>
 
             <button
+              id="signUpBtnNav"
+              onclick="toggleAuthMode('register'); showLogin();"
+              class="px-6 py-2 bg-blue-600 rounded border border-blue-500 text-xs font-bold tracking-widest hover:bg-blue-500 transition-all uppercase btn-glow"
+            >
+              Sign Up
+            </button>
+
+            <button
               id="loginBtnNav"
-              onclick="showLogin()"
+              onclick="toggleAuthMode('login'); showLogin();"
               class="px-6 py-2 bg-slate-900 rounded border border-white/10 text-xs font-bold tracking-widest hover:border-blue-500 transition-all uppercase btn-glow"
             >
               Login
@@ -604,7 +612,6 @@
             >
               Operator <span class="text-blue-500">Auth</span>
             </h3>
-
           </div>
 
           <div class="space-y-6">
@@ -668,9 +675,105 @@
             </button>
           </div>
 
+          <p class="mt-8 text-center text-[10px] uppercase tracking-widest text-slate-500">
+            No credentials? <a href="javascript:void(0)" onclick="toggleAuthMode('register')" class="text-blue-500 font-bold hover:underline">Create Account</a>
+          </p>
+
           <button
-            onclick="showLogin()"
-            class="mt-10 text-[10px] font-bold text-slate-600 uppercase block mx-auto tracking-[0.3em] transition-all hover:text-red-500 hover:tracking-[0.4em]"
+            onclick="closeLogin()"
+            class="mt-8 text-[10px] font-bold text-slate-600 uppercase block mx-auto tracking-[0.3em] transition-all hover:text-red-500 hover:tracking-[0.4em]"
+          >
+            Cancel
+          </button>
+        </div>
+
+        <div id="registerView" class="hidden relative tab-view">
+          <div
+            class="absolute -top-12 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent blur-sm"
+          ></div>
+
+          <div class="text-center mb-10">
+            <div
+              class="inline-block p-4 rounded-full bg-emerald-600/10 mb-6 text-emerald-500 text-3xl border border-emerald-500/20 shadow-[0_0_25px_rgba(16,185,129,0.15)]"
+            >
+              <i class="fas fa-user-plus animate-pulse"></i>
+            </div>
+
+            <h3
+              class="text-3xl font-black text-white uppercase tracking-tighter italic"
+            >
+              System <span class="text-emerald-500">Registration</span>
+            </h3>
+          </div>
+
+          <div class="space-y-6">
+            <div class="group relative">
+              <label
+                class="absolute -top-2.5 left-4 px-2 bg-[#020617] text-[10px] font-bold text-emerald-500 uppercase tracking-widest z-10 transition-colors group-focus-within:text-white"
+              >
+                Operator ID
+              </label>
+              <div class="relative">
+                <span
+                  class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-emerald-500 transition-colors"
+                >
+                  <i class="fas fa-id-card text-xs"></i>
+                </span>
+                <input
+                  type="text"
+                  id="regUser"
+                  placeholder="Create Username"
+                  class="w-full bg-slate-950/50 border border-white/10 rounded-xl pl-11 pr-4 py-4 text-sm text-white outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/5 transition-all font-mono placeholder:text-slate-600"
+                />
+              </div>
+            </div>
+
+            <div class="group relative">
+              <label
+                class="absolute -top-2.5 left-4 px-2 bg-[#020617] text-[10px] font-bold text-emerald-500 uppercase tracking-widest z-10 transition-colors group-focus-within:text-white"
+              >
+                Access Key
+              </label>
+              <div class="relative">
+                <span
+                  class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-emerald-500 transition-colors"
+                >
+                  <i class="fas fa-shield-alt text-xs"></i>
+                </span>
+                <input
+                  type="password"
+                  id="regPass"
+                  placeholder="Create Password"
+                  class="w-full bg-slate-950/50 border border-white/10 rounded-xl pl-11 pr-4 py-4 text-sm text-white outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/5 transition-all font-mono placeholder:text-slate-600"
+                />
+              </div>
+            </div>
+
+            <button
+              onclick="handleRegister()"
+              id="regBtn"
+              class="relative w-full group overflow-hidden bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-black uppercase tracking-[0.2em] text-[11px] transition-all mt-4 shadow-[0_15px_30px_-10px_rgba(16,185,129,0.4)] active:scale-95"
+            >
+              <span
+                class="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"
+              ></span>
+
+              <span class="relative flex items-center justify-center gap-2">
+                Initialize Uplink
+                <i
+                  class="fas fa-chevron-right text-[9px] group-hover:translate-x-1 transition-transform"
+                ></i>
+              </span>
+            </button>
+          </div>
+
+          <p class="mt-8 text-center text-[10px] uppercase tracking-widest text-slate-500">
+            Already registered? <a href="javascript:void(0)" onclick="toggleAuthMode('login')" class="text-emerald-500 font-bold hover:underline">Operator Login</a>
+          </p>
+
+          <button
+            onclick="closeLogin()"
+            class="mt-8 text-[10px] font-bold text-slate-600 uppercase block mx-auto tracking-[0.3em] transition-all hover:text-red-500 hover:tracking-[0.4em]"
           >
             Cancel
           </button>

@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import shutil
 import os
+import json
 
 load_dotenv()
 
@@ -64,14 +65,31 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 # --- AUTH SETUP ---
+USERS_FILE = "users.json"
+
+def load_users():
+    if not os.path.exists(USERS_FILE):
+        # Initial default admin user
+        default_users = {
+            "admin": bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        }
+        with open(USERS_FILE, "w") as f:
+            json.dump(default_users, f, indent=4)
+        return default_users
+    try:
+        with open(USERS_FILE, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return {}
+
+def save_user(username, hashed_password):
+    users = load_users()
+    users[username] = hashed_password
+    with open(USERS_FILE, "w") as f:
+        json.dump(users, f, indent=4)
+
 # Authentication setup using direct bcrypt for compatibility
 bearer_scheme = HTTPBearer()
-
-# In production, replace this with a real user database with hashed passwords.
-# To generate a hash manually: bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-USERS = {
-    "admin": bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-}
 
 # --- JWT HELPERS ---
 
@@ -100,11 +118,28 @@ async def root():
 
 @app.post("/login")
 async def login(username: str = Form(...), password: str = Form(...)):
-    hashed = USERS.get(username)
+    users = load_users()
+    hashed = users.get(username)
     if not hashed or not bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8')):
         raise HTTPException(status_code=401, detail="Invalid Credentials")
     token = create_access_token({"sub": username})
     return {"access_token": token, "token_type": "bearer"}
+
+@app.post("/register")
+async def register(username: str = Form(...), password: str = Form(...)):
+    users = load_users()
+    if username in users:
+        raise HTTPException(status_code=400, detail="Operator ID already registered in the system.")
+    
+    hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    save_user(username, hashed)
+    
+    token = create_access_token({"sub": username})
+    return {
+        "message": "Forensic Uplink Established. Operator Registered.",
+        "access_token": token,
+        "token_type": "bearer"
+    }
 
 @app.post("/analyze")
 async def upload_log(
