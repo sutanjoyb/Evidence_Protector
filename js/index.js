@@ -167,3 +167,21 @@ document.addEventListener("keydown", (event) => {
     }
   }
 });
+const scrollBtn = document.getElementById("scrollTopBtn");
+
+if (scrollBtn) {
+  window.addEventListener("scroll", () => {
+    if (document.documentElement.scrollTop > 100) {
+      scrollBtn.classList.remove("hidden");
+    } else {
+      scrollBtn.classList.add("hidden");
+    }
+  });
+
+  scrollBtn.addEventListener("click", () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  });
+}
