@@ -55,6 +55,12 @@ async function analyzeLogs(event) {
   const file = fileInput.files[0];
   if (!file) return showToast("Critical: No source file selected");
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > MAX_FILE_SIZE) {
+        showToast("File too large! Maximum size is 10MB");
+        return;
+    }
+
   const overlay = document.getElementById("scanOverlay");
   const statusText = document.getElementById("loaderStatus");
   overlay.classList.remove("hidden");
@@ -530,4 +536,22 @@ function filterRegistry() {
     }
     
     updateRegistryTable(filteredIncidents);
+}
+const scrollBtn = document.getElementById("scrollTopBtn");
+
+if (scrollBtn) {
+  window.addEventListener("scroll", () => {
+    if (document.documentElement.scrollTop > 100) {
+      scrollBtn.classList.remove("hidden");
+    } else {
+      scrollBtn.classList.add("hidden");
+    }
+  });
+
+  scrollBtn.addEventListener("click", () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  });
 }

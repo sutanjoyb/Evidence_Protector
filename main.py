@@ -1,8 +1,9 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Request
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import shutil
@@ -26,6 +27,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- EXCEPTION HANDLERS ---
+
+@app.exception_handler(404)
+async def custom_404_handler(request: Request, __):
+    try:
+        # Resolve path relative to this script
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(base_path, "html", "404.html")
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return HTMLResponse(content=content, status_code=404)
+    except Exception:
+        return HTMLResponse(content="<h1>404 | Data Void Detected</h1>", status_code=404)
+
+@app.exception_handler(Exception)
+async def custom_exception_handler(request: Request, exc: Exception):
+    # Log for debugging
+    print(f"CRITICAL SYSTEM ERROR: {exc}")
+    try:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(base_path, "html", "404.html")
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return HTMLResponse(content=content, status_code=500)
+    except Exception:
+        return HTMLResponse(content="<h1>500 | System Breach Detected</h1>", status_code=500)
+
 # --- CONFIGURATION ---
 UPLOAD_DIR = "uploads"
 if not os.path.exists(UPLOAD_DIR):
@@ -36,13 +64,13 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 # --- AUTH SETUP ---
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Authentication setup using direct bcrypt for compatibility
 bearer_scheme = HTTPBearer()
 
 # In production, replace this with a real user database with hashed passwords.
-# To generate a hash: pwd_context.hash("your-password")
+# To generate a hash manually: bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 USERS = {
-    "admin": pwd_context.hash("admin123")
+    "admin": bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 }
 
 # --- JWT HELPERS ---
@@ -73,7 +101,7 @@ async def root():
 @app.post("/login")
 async def login(username: str = Form(...), password: str = Form(...)):
     hashed = USERS.get(username)
-    if not hashed or not pwd_context.verify(password, hashed):
+    if not hashed or not bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8')):
         raise HTTPException(status_code=401, detail="Invalid Credentials")
     token = create_access_token({"sub": username})
     return {"access_token": token, "token_type": "bearer"}
