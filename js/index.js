@@ -1,3 +1,5 @@
+// ─── AOS INIT ────────────────────────────────────────────────────────────────
+
 AOS.init({
   duration: 1000,
   easing: "ease-out-quad",
@@ -5,6 +7,8 @@ AOS.init({
   mirror: true,
   anchorPlacement: "top-bottom",
 });
+
+// ─── PAGE LOAD ───────────────────────────────────────────────────────────────
 
 window.onload = function () {
   const navEntries = performance.getEntriesByType("navigation");
@@ -15,6 +19,8 @@ window.onload = function () {
   }
   updateNavState();
 };
+
+// ─── NAV STATE ───────────────────────────────────────────────────────────────
 
 function isLoggedIn() {
   return !!localStorage.getItem("access_token");
@@ -35,9 +41,7 @@ function updateNavState() {
       loginBtn.innerText = "LOGOUT";
       loginBtn.onclick = logout;
     }
-    if (signUpBtn) {
-      signUpBtn.classList.add("hidden");
-    }
+    if (signUpBtn) signUpBtn.classList.add("hidden");
     if (heroBtn) {
       heroBtn.innerText = "ENTER DASHBOARD";
       heroBtn.onclick = triggerTerminalTransition;
@@ -46,17 +50,17 @@ function updateNavState() {
     if (terminalLink) terminalLink.classList.add("hidden");
     if (loginBtn) {
       loginBtn.innerText = "LOGIN";
-      loginBtn.onclick = () => { toggleAuthMode('login'); showLogin(); };
+      loginBtn.onclick = () => { toggleAuthMode("login"); showLogin(); };
     }
-    if (signUpBtn) {
-      signUpBtn.classList.remove("hidden");
-    }
+    if (signUpBtn) signUpBtn.classList.remove("hidden");
     if (heroBtn) {
       heroBtn.innerText = "INITIALIZE SCAN";
       heroBtn.onclick = handleHeroAction;
     }
   }
 }
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────────────
 
 const FORENSIC_PHRASES = [
   "Decrypting packets...",
@@ -72,11 +76,11 @@ const FORENSIC_PHRASES = [
   "Isolating Malicious Signatures...",
   "Tracing IP Origins...",
   "Validating Node Signatures...",
-  "Hashing Data Fragments..."
+  "Hashing Data Fragments...",
 ];
 
 function getRandomPhrase(exclude = []) {
-  const filtered = FORENSIC_PHRASES.filter(p => !exclude.includes(p));
+  const filtered = FORENSIC_PHRASES.filter((p) => !exclude.includes(p));
   return filtered[Math.floor(Math.random() * filtered.length)];
 }
 
@@ -85,19 +89,11 @@ function triggerTerminalTransition() {
   if (loader) {
     loader.style.display = "flex";
     const statusText = loader.querySelector(".status-text");
-
     const p1 = getRandomPhrase();
     const p2 = getRandomPhrase([p1]);
-
-    setTimeout(() => {
-      if (statusText) statusText.innerText = p1;
-    }, 600);
-    setTimeout(() => {
-      if (statusText) statusText.innerText = p2;
-    }, 1200);
-    setTimeout(() => {
-      window.location.href = "dashboard.html";
-    }, 2000);
+    setTimeout(() => { if (statusText) statusText.innerText = p1; }, 600);
+    setTimeout(() => { if (statusText) statusText.innerText = p2; }, 1200);
+    setTimeout(() => { window.location.href = "dashboard.html"; }, 2000);
   } else {
     window.location.href = "dashboard.html";
   }
@@ -108,58 +104,61 @@ function handleHeroAction() {
   else showLogin();
 }
 
+function logout() {
+  localStorage.removeItem("access_token");
+  window.location.href = "index.html";
+}
+
+// ─── AUTH MODAL ──────────────────────────────────────────────────────────────
+
 function showLogin() {
   const modal = document.getElementById("authModal");
-  if (modal) {
-    modal.classList.toggle("hidden");
-    const userField = document.getElementById("loginUser");
-    const passField = document.getElementById("loginPass");
-    userField.value = "";
-    passField.value = "";
-    userField.classList.remove("border-red-500/50");
-    passField.classList.remove("border-red-500/50");
-    if (!modal.classList.contains("hidden")) {
-      userField.focus();
-    }
-  }
+  if (!modal) return;
+  modal.classList.toggle("hidden");
+
+  const userField = document.getElementById("loginUser");
+  const passField = document.getElementById("loginPass");
+  if (userField) { userField.value = ""; userField.classList.remove("border-red-500/50"); }
+  if (passField) { passField.value = ""; passField.classList.remove("border-red-500/50"); }
+
+  if (!modal.classList.contains("hidden") && userField) userField.focus();
+}
+
+function closeLogin() {
+  const modal = document.getElementById("authModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+
+  // Reset to login view
+  const loginView = document.getElementById("loginView");
+  const registerView = document.getElementById("registerView");
+  if (loginView) loginView.classList.remove("hidden");
+  if (registerView) registerView.classList.add("hidden");
+
+  // Clear all inputs
+  ["loginUser", "loginPass", "regUser", "regPass"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ""; el.classList.remove("border-red-500/50", "border-emerald-500/50"); }
+  });
 }
 
 function toggleAuthMode(mode) {
   const loginView = document.getElementById("loginView");
   const registerView = document.getElementById("registerView");
   if (mode === "register") {
-    loginView.classList.add("hidden");
-    registerView.classList.remove("hidden");
-    document.getElementById("regUser").focus();
+    if (loginView) loginView.classList.add("hidden");
+    if (registerView) registerView.classList.remove("hidden");
+    const regUser = document.getElementById("regUser");
+    if (regUser) regUser.focus();
   } else {
-    registerView.classList.add("hidden");
-    loginView.classList.remove("hidden");
-    document.getElementById("loginUser").focus();
+    if (registerView) registerView.classList.add("hidden");
+    if (loginView) loginView.classList.remove("hidden");
+    const loginUser = document.getElementById("loginUser");
+    if (loginUser) loginUser.focus();
   }
 }
 
-function closeLogin() {
-  const modal = document.getElementById("authModal");
-  if (modal) {
-    modal.classList.add("hidden");
-    // Reset views
-    document.getElementById("loginView").classList.remove("hidden");
-    document.getElementById("registerView").classList.add("hidden");
-    // Clear inputs
-    ["loginUser", "loginPass", "regUser", "regPass"].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.value = "";
-        el.classList.remove("border-red-500/50", "border-emerald-500/50");
-      }
-    });
-  }
-}
-
-function logout() {
-  localStorage.removeItem("access_token");
-  window.location.href = "index.html";
-}
+// ─── LOGIN HANDLER ───────────────────────────────────────────────────────────
 
 async function handleLogin() {
   const userField = document.getElementById("loginUser");
@@ -192,15 +191,12 @@ async function handleLogin() {
     if (res.ok) {
       const data = await res.json();
       localStorage.setItem("access_token", data.access_token);
-
-      loginBtn.innerText = "UPLINK ESTABLISHED";
-      loginBtn.classList.replace("bg-blue-600", "bg-emerald-600");
-
+      if (loginBtn) {
+        loginBtn.innerText = "UPLINK ESTABLISHED";
+        loginBtn.classList.replace("bg-blue-600", "bg-emerald-600");
+      }
       updateNavState();
-
-      setTimeout(() => {
-        triggerTerminalTransition();
-      }, 600);
+      setTimeout(() => { triggerTerminalTransition(); }, 600);
     } else {
       showToast("Access Denied: Invalid Credentials");
     }
@@ -208,6 +204,8 @@ async function handleLogin() {
     showToast("Offline: Check Forensic Backend");
   }
 }
+
+// ─── REGISTER HANDLER ────────────────────────────────────────────────────────
 
 async function handleRegister() {
   const userField = document.getElementById("regUser");
@@ -233,20 +231,17 @@ async function handleRegister() {
       method: "POST",
       body: formData,
     });
-
     const data = await res.json();
 
     if (res.ok) {
       localStorage.setItem("access_token", data.access_token);
-      regBtn.innerText = "UPLINK ESTABLISHED";
-      regBtn.classList.replace("bg-emerald-600", "bg-blue-600");
+      if (regBtn) {
+        regBtn.innerText = "UPLINK ESTABLISHED";
+        regBtn.classList.replace("bg-emerald-600", "bg-blue-600");
+      }
       showToast("Registration Successful");
-      
       updateNavState();
-
-      setTimeout(() => {
-        triggerTerminalTransition();
-      }, 1000);
+      setTimeout(() => { triggerTerminalTransition(); }, 1000);
     } else {
       showToast(`Error: ${data.detail || "Registration Failed"}`);
     }
@@ -254,6 +249,8 @@ async function handleRegister() {
     showToast("Offline: Check Forensic Backend");
   }
 }
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
 
 function showToast(msg) {
   const toast = document.getElementById("toast");
@@ -268,13 +265,7 @@ function showToast(msg) {
   }, 3000);
 }
 
-// Auto-clear red borders on input
-document.addEventListener("DOMContentLoaded", () => {
-  ["loginUser", "loginPass", "regUser", "regPass"].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener("input", () => el.classList.remove("border-red-500/50", "border-emerald-500/50"));
-  });
-});
+// ─── TOS MODAL ───────────────────────────────────────────────────────────────
 
 function showTOS() {
   const modal = document.getElementById("tosModal");
@@ -286,43 +277,43 @@ function closeTOS() {
   if (modal) modal.classList.remove("active");
 }
 
-// Keyboard controls
-document.addEventListener("keydown", (event) => {
-  const authModal = document.getElementById("authModal");
-  const isModalVisible = authModal && !authModal.classList.contains("hidden");
+// ─── SINGLE DOMContentLoaded ─────────────────────────────────────────────────
 
-  if (isModalVisible) {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      
-      const isLoginVisible = !document.getElementById("loginView").classList.contains("hidden");
-      if (isLoginVisible) {
-        handleLogin();
-      } else {
-        handleRegister();
-      }
-    }
-    if (event.key === "Escape") {
-      closeLogin();
-    }
-  }
+document.addEventListener("DOMContentLoaded", () => {
+  ["loginUser", "loginPass", "regUser", "regPass"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", () => el.classList.remove("border-red-500/50", "border-emerald-500/50"));
+  });
 });
-const scrollBtn = document.getElementById("scrollTopBtn");
 
+// ─── SINGLE KEYBOARD HANDLER ─────────────────────────────────────────────────
+
+document.addEventListener("keydown", (e) => {
+  const modal = document.getElementById("authModal");
+  const isVisible = modal && !modal.classList.contains("hidden");
+  if (!isVisible) return;
+
+  if (e.key === "Enter") {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const isLoginView = document.getElementById("loginView") &&
+      !document.getElementById("loginView").classList.contains("hidden");
+    if (isLoginView) handleLogin();
+    else handleRegister();
+  }
+
+  if (e.key === "Escape") closeLogin();
+});
+
+// ─── SCROLL TO TOP ───────────────────────────────────────────────────────────
+
+const scrollBtn = document.getElementById("scrollTopBtn");
 if (scrollBtn) {
   window.addEventListener("scroll", () => {
-    if (document.documentElement.scrollTop > 100) {
-      scrollBtn.classList.remove("hidden");
-    } else {
-      scrollBtn.classList.add("hidden");
-    }
+    if (document.documentElement.scrollTop > 100) scrollBtn.classList.remove("hidden");
+    else scrollBtn.classList.add("hidden");
   });
-
   scrollBtn.addEventListener("click", () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth"
-    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   });
 }

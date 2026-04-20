@@ -3,17 +3,61 @@ let lastScanResults = null;
 let flaggedIncidents = new Set();
 let activeCaseId = null;
 
-// ─── CASE MANAGEMENT HELPERS ────────────────────────────────────────────────
+// ─── CASE MANAGEMENT — SIZE-CAPPED WITH FIFO EVICTION ───────────────────────
 
 const CASES_KEY = "forensic_cases";
+const MAX_CASES = 50;                        // max number of stored cases
+const MAX_INCIDENTS_PER_CASE = 200;          // truncate oversized incident arrays
+const STORAGE_WARN_BYTES = 4 * 1024 * 1024; // warn at 4 MB
 
 function getCases() {
-  return JSON.parse(localStorage.getItem(CASES_KEY) || "[]");
+  try {
+    return JSON.parse(localStorage.getItem(CASES_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function getStorageUsedBytes() {
+  let total = 0;
+  for (const key in localStorage) {
+    if (Object.prototype.hasOwnProperty.call(localStorage, key)) {
+      total += (localStorage[key].length + key.length) * 2; // UTF-16
+    }
+  }
+  return total;
 }
 
 function saveCases(cases) {
-  localStorage.setItem(CASES_KEY, JSON.stringify(cases));
-  updateCaseBadge();
+  try {
+    localStorage.setItem(CASES_KEY, JSON.stringify(cases));
+    updateCaseBadge();
+    const used = getStorageUsedBytes();
+    if (used > STORAGE_WARN_BYTES) {
+      showToast(`Storage Warning: ${(used / 1024 / 1024).toFixed(1)} MB used. Consider deleting old cases.`);
+    }
+  } catch (e) {
+    if (e.name === "QuotaExceededError" || e.code === 22) {
+      // FIFO eviction: drop oldest cases until it fits
+      let evicted = 0;
+      while (cases.length > 1) {
+        cases.pop(); // remove oldest (array is newest-first)
+        evicted++;
+        try {
+          localStorage.setItem(CASES_KEY, JSON.stringify(cases));
+          updateCaseBadge();
+          showToast(`Storage full — ${evicted} oldest case(s) removed to make room.`);
+          return;
+        } catch {
+          continue;
+        }
+      }
+      showToast("Critical: Storage full. Cannot save case. Please delete old cases.");
+    } else {
+      showToast("Storage error: Case could not be saved.");
+      console.error("saveCases error:", e);
+    }
+  }
 }
 
 function generateCaseId() {
@@ -24,6 +68,12 @@ function saveNewCase(data, fileName) {
   const cases = getCases();
   const score = parseFloat(data.integrity_score);
   const id = generateCaseId();
+
+  // Truncate incidents if oversized to keep storage lean
+  const incidents = data.incidents.length > MAX_INCIDENTS_PER_CASE
+    ? data.incidents.slice(0, MAX_INCIDENTS_PER_CASE)
+    : data.incidents;
+
   const newCase = {
     id,
     name: `Case: ${fileName}`,
@@ -31,10 +81,17 @@ function saveNewCase(data, fileName) {
     timestamp: new Date().toISOString(),
     integrityScore: score,
     totalGaps: data.total_gaps,
-    incidents: data.incidents,
+    incidents,
     flagged: false,
   };
+
   cases.unshift(newCase);
+
+  // Enforce hard cap — evict oldest before even trying to save
+  while (cases.length > MAX_CASES) {
+    cases.pop();
+  }
+
   saveCases(cases);
   activeCaseId = id;
   return id;
@@ -45,8 +102,6 @@ function updateCaseBadge() {
   const badge = document.getElementById("case-count-badge");
   if (badge) badge.innerText = count;
 }
-
-// ─── VERTICAL LINE PLUGIN ────────────────────────────────────────────────────
 
 const verticalLinePlugin = {
   id: "verticalLine",
@@ -188,6 +243,22 @@ async function analyzeLogs(event) {
         return;
     }
 
+  // ── CLIENT-SIDE VALIDATION ───────────────────────────────────────────────
+  const ALLOWED_EXTS = [".log", ".txt", ".csv", ".json", ".xml", ".syslog", ".evtx"];
+  const MAX_SIZE_MB = 50;
+  const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+
+  if (!ALLOWED_EXTS.includes(ext)) {
+    return showToast(`Invalid file type: ${ext}. Allowed: ${ALLOWED_EXTS.join(", ")}`);
+  }
+  if (file.size === 0) {
+    return showToast("File is empty. Please select a valid log file.");
+  }
+  if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+    return showToast(`File too large. Maximum size is ${MAX_SIZE_MB} MB.`);
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const overlay = document.getElementById("scanOverlay");
   const statusText = document.getElementById("loaderStatus");
   overlay.classList.remove("hidden");
@@ -217,13 +288,22 @@ async function analyzeLogs(event) {
       await new Promise((r) => setTimeout(r, 400));
     }
 
-    // Save as a new case (persists forever, never overwrites)
+    const meta = {
+      timestamp: new Date().toLocaleString().toUpperCase(),
+      fileName: file.name,
+    };
+
+    // Save as a new case (size-capped, FIFO eviction on quota exceeded)
     saveNewCase(data, file.name);
 
     // Keep legacy keys for backward compat
-    const meta = { timestamp: new Date().toLocaleString().toUpperCase(), fileName: file.name };
-    localStorage.setItem("last_forensic_scan", JSON.stringify(data));
-    localStorage.setItem("last_scan_metadata", JSON.stringify(meta));
+    try {
+      localStorage.setItem("last_forensic_scan", JSON.stringify(data));
+      localStorage.setItem("last_scan_metadata", JSON.stringify(meta));
+    } catch (e) {
+      // Legacy keys are non-critical — case is already saved above
+      console.warn("Could not update legacy scan keys:", e);
+    }
 
     lastScanResults = data;
     renderResults(data);
