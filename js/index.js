@@ -168,9 +168,9 @@ async function handleLogin() {
   const p = passField.value.trim();
 
   if (!u || !p) {
-    alert("ACCESS DENIED: Please fill in all credentials.");
     if (!u) userField.classList.add("border-red-500/50");
     if (!p) passField.classList.add("border-red-500/50");
+    showToast("Access Denied: Empty Credentials");
     return;
   }
 
@@ -202,10 +202,10 @@ async function handleLogin() {
         triggerTerminalTransition();
       }, 600);
     } else {
-      alert("ACCESS DENIED: Invalid Credentials");
+      showToast("Access Denied: Invalid Credentials");
     }
   } catch (e) {
-    alert("OFFLINE: Ensure Forensic Backend is running.");
+    showToast("Offline: Check Forensic Backend");
   }
 }
 
@@ -216,9 +216,9 @@ async function handleRegister() {
   const p = passField.value.trim();
 
   if (!u || !p) {
-    alert("REGISTRATION FAILED: All fields are required.");
     if (!u) userField.classList.add("border-red-500/50");
     if (!p) passField.classList.add("border-red-500/50");
+    showToast("Registration Failed: Empty Fields");
     return;
   }
 
@@ -240,6 +240,7 @@ async function handleRegister() {
       localStorage.setItem("access_token", data.access_token);
       regBtn.innerText = "UPLINK ESTABLISHED";
       regBtn.classList.replace("bg-emerald-600", "bg-blue-600");
+      showToast("Registration Successful");
       
       updateNavState();
 
@@ -247,11 +248,24 @@ async function handleRegister() {
         triggerTerminalTransition();
       }, 1000);
     } else {
-      alert(`REGISTRATION ERROR: ${data.detail || "Unknown Error"}`);
+      showToast(`Error: ${data.detail || "Registration Failed"}`);
     }
   } catch (e) {
-    alert("OFFLINE: Ensure Forensic Backend is running.");
+    showToast("Offline: Check Forensic Backend");
   }
+}
+
+function showToast(msg) {
+  const toast = document.getElementById("toast");
+  const msgEl = document.getElementById("toastMsg");
+  if (!toast || !msgEl) return;
+  msgEl.innerText = msg;
+  toast.classList.replace("translate-y-24", "translate-y-0");
+  toast.classList.replace("opacity-0", "opacity-100");
+  setTimeout(() => {
+    toast.classList.replace("translate-y-0", "translate-y-24");
+    toast.classList.replace("opacity-100", "opacity-0");
+  }, 3000);
 }
 
 // Auto-clear red borders on input

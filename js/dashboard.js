@@ -115,8 +115,13 @@ function loadLastSession() {
 
 async function analyzeLogs(event) {
   const fileInput = document.getElementById("logFile");
+  const dropArea = document.getElementById("dropArea");
   const file = fileInput.files[0];
-  if (!file) return showToast("Critical: No source file selected");
+  
+  if (!file) {
+    if (dropArea) dropArea.classList.replace("border-slate-800", "border-red-500/50");
+    return showToast("Critical: No source file selected");
+  }
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
     if (file.size > MAX_FILE_SIZE) {
@@ -547,11 +552,15 @@ function exportChartAsJPG() {
 function updateFileName() {
   const fileInput = document.getElementById("logFile");
   const fileNameDisplay = document.getElementById("fileNameDisplay");
+  const dropArea = document.getElementById("dropArea");
+  
   if (fileInput.files.length > 0) {
     fileNameDisplay.innerText = fileInput.files[0].name;
     fileNameDisplay.classList.replace("text-slate-500", "text-blue-400");
+    if (dropArea) dropArea.classList.replace("border-red-500/50", "border-slate-800");
   } else {
     fileNameDisplay.innerText = "Select Log Source";
+    if (dropArea) dropArea.classList.replace("border-red-500/50", "border-slate-800");
   }
 }
 
