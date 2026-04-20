@@ -276,6 +276,16 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+function showTOS() {
+  const modal = document.getElementById("tosModal");
+  if (modal) modal.classList.add("active");
+}
+
+function closeTOS() {
+  const modal = document.getElementById("tosModal");
+  if (modal) modal.classList.remove("active");
+}
+
 // Keyboard controls
 document.addEventListener("keydown", (event) => {
   const authModal = document.getElementById("authModal");

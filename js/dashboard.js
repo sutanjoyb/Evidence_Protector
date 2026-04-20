@@ -70,18 +70,32 @@ const verticalLinePlugin = {
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 
+let flaggedIncidents = new Set();
+let activeCaseId = null;
+let lastScanResults = null;
+
 window.addEventListener("DOMContentLoaded", () => {
   if (!localStorage.getItem("access_token")) {
     window.location.href = "index.html";
     return;
   }
+
+  // Initial setup
   const savedFlags = localStorage.getItem("flagged_items");
   if (savedFlags) {
-    flaggedIncidents = new Set(JSON.parse(savedFlags));
-    updateFlagCount();
+    try {
+      flaggedIncidents = new Set(JSON.parse(savedFlags));
+      updateFlagCount();
+    } catch (e) {
+      console.error("Failed to parse saved flags", e);
+    }
   }
+
+  updateGreeting(); // Run immediately for better UX
   updateCaseBadge();
   loadLastSession();
+  
+  // API Polling
   checkApiStatus();
   setInterval(checkApiStatus, 5000);
 });
@@ -89,51 +103,73 @@ window.addEventListener("DOMContentLoaded", () => {
 async function checkApiStatus() {
   const indicator = document.getElementById("apiStatusIndicator");
   if (!indicator) return;
-  
+
   try {
-    const res = await fetch("http://localhost:8000/", { 
+    const res = await fetch("http://localhost:8000/", {
       method: "GET",
-      cache: "no-store",
-      signal: AbortController ? new AbortController().signal : null 
+      cache: "no-store"
     });
-    
+
     if (res.ok) {
       indicator.classList.replace("offline", "online");
     } else {
       indicator.classList.replace("online", "offline");
     }
   } catch (e) {
-    indicator.classList.replace("online", "offline");
+    // replace only works if 'online' exists; use add/remove for safety
+    indicator.classList.remove("online");
+    indicator.classList.add("offline");
   }
+} 
+
+function updateGreeting() {
+  const greetingEl = document.getElementById("userGreeting");
+  if (!greetingEl) return;
+
+  const hour = new Date().getHours();
+  let msg = "Good Evening";
+
+  if (hour < 12) msg = "Good Morning";
+  else if (hour < 18) msg = "Good Afternoon";
+
+  greetingEl.innerText = `${msg}, Operator`;
 }
 
 function loadLastSession() {
-  const cases = getCases();
+  const cases = typeof getCases === "function" ? getCases() : [];
+  const timeEl = document.getElementById("lastScanTime");
+  const fileEl = document.getElementById("lastFileName");
+
   if (cases.length > 0) {
     const latest = cases[0];
     activeCaseId = latest.id;
-    const timeEl = document.getElementById("lastScanTime");
-    const fileEl = document.getElementById("lastFileName");
+    
     if (timeEl) timeEl.innerText = new Date(latest.timestamp).toLocaleString().toUpperCase();
     if (fileEl) fileEl.innerText = latest.fileName;
-    lastScanResults = { incidents: latest.incidents, integrity_score: latest.integrityScore, total_gaps: latest.totalGaps };
+    
+    lastScanResults = { 
+      incidents: latest.incidents, 
+      integrity_score: latest.integrityScore, 
+      total_gaps: latest.totalGaps 
+    };
     renderResults(lastScanResults);
   } else {
-    // fallback to legacy single-scan keys
     const savedData = localStorage.getItem("last_forensic_scan");
     const savedMeta = localStorage.getItem("last_scan_metadata");
+    
     if (savedData && savedMeta) {
-      lastScanResults = JSON.parse(savedData);
-      const meta = JSON.parse(savedMeta);
-      const timeEl = document.getElementById("lastScanTime");
-      const fileEl = document.getElementById("lastFileName");
-      if (timeEl) timeEl.innerText = meta.timestamp;
-      if (fileEl) fileEl.innerText = meta.fileName;
-      renderResults(lastScanResults);
+      try {
+        lastScanResults = JSON.parse(savedData);
+        const meta = JSON.parse(savedMeta);
+        if (timeEl) timeEl.innerText = meta.timestamp;
+        if (fileEl) fileEl.innerText = meta.fileName;
+        renderResults(lastScanResults);
+      } catch (e) {
+        console.error("Legacy data corruption", e);
+      }
     }
   }
 }
-
 // ─── SCAN ────────────────────────────────────────────────────────────────────
 
 async function analyzeLogs(event) {
@@ -639,4 +675,14 @@ if (scrollBtn) {
       behavior: "smooth"
     });
   });
+}
+
+function showTOS() {
+  const modal = document.getElementById("tosModal");
+  if (modal) modal.classList.add("active");
+}
+
+function closeTOS() {
+  const modal = document.getElementById("tosModal");
+  if (modal) modal.classList.remove("active");
 }
