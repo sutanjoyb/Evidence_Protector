@@ -281,29 +281,113 @@ function updateHeatmapBar(incidents) {
   container.innerHTML = barHtml.join("");
 }
 
+// ─── CHART VIEW STATE ────────────────────────────────────────────────────────
+
+let currentChartView = "line"; // 'line' | 'scatter' | 'dual'
+
+function setChartView(view) {
+  currentChartView = view;
+  // Update toggle button styles
+  document.querySelectorAll(".chart-view-btn").forEach((btn) => {
+    btn.classList.remove("active", "text-blue-400", "bg-blue-600/20");
+    btn.classList.add("text-slate-500");
+  });
+  const active = document.getElementById(`view-btn-${view}`);
+  if (active) {
+    active.classList.add("active", "text-blue-400", "bg-blue-600/20");
+    active.classList.remove("text-slate-500");
+  }
+  if (lastScanResults) updateChart(lastScanResults.incidents);
+}
+
+function resetChartZoom() {
+  if (chart) chart.resetZoom();
+}
+
+// ─── CHART ───────────────────────────────────────────────────────────────────
+
 function updateChart(incidents) {
   const canvas = document.getElementById("timelineChart");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   if (chart) chart.destroy();
 
-  const chartLabels = incidents.map((i) => i.start.split(" ")[1]);
-  const chartData = incidents.map((i) => Math.max(0, 100 - i.duration / 300));
+  if (!incidents || incidents.length === 0) return;
 
-  chart = new Chart(ctx, {
+  if (currentChartView === "scatter") {
+    chart = buildScatterChart(ctx, incidents);
+  } else if (currentChartView === "dual") {
+    chart = buildDualChart(ctx, incidents);
+  } else {
+    chart = buildLineChart(ctx, incidents);
+  }
+}
+
+// ── Shared zoom/pan plugin config ────────────────────────────────────────────
+
+function zoomPlugin() {
+  return {
+    zoom: {
+      wheel: { enabled: true },
+      pinch: { enabled: true },
+      mode: "x",
+    },
+    pan: {
+      enabled: true,
+      mode: "x",
+    },
+  };
+}
+
+// ── Shared tooltip base ───────────────────────────────────────────────────────
+
+const tooltipBase = {
+  backgroundColor: "rgba(15, 23, 42, 0.97)",
+  titleFont: { size: 11, family: "JetBrains Mono" },
+  bodyFont: { size: 11, family: "JetBrains Mono" },
+  padding: 12,
+  displayColors: true,
+  borderColor: "rgba(59,130,246,0.3)",
+  borderWidth: 1,
+};
+
+// ── 1. LINE VIEW — Integrity score + color zones ──────────────────────────────
+
+function buildLineChart(ctx, incidents) {
+  const labels = incidents.map((i) => i.start.split(" ")[1]);
+  const integrityData = incidents.map((i) => Math.max(0, 100 - i.duration / 300));
+
+  // Background color zones: red where integrity drops below 70
+  const bgColors = integrityData.map((v) =>
+    v < 50 ? "rgba(239,68,68,0.18)" : v < 75 ? "rgba(245,158,11,0.12)" : "rgba(16,185,129,0.08)"
+  );
+
+  return new Chart(ctx, {
     type: "line",
     data: {
-      labels: chartLabels,
+      labels,
       datasets: [
         {
-          label: "Integrity",
-          data: chartData,
+          label: "Integrity Score",
+          data: integrityData,
           borderColor: "#3b82f6",
-          backgroundColor: "rgba(59, 130, 246, 0.15)",
+          backgroundColor: (context) => {
+            const chart = context.chart;
+            const { ctx: c, chartArea } = chart;
+            if (!chartArea) return "rgba(59,130,246,0.15)";
+            const gradient = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            gradient.addColorStop(0, "rgba(59,130,246,0.25)");
+            gradient.addColorStop(0.5, "rgba(245,158,11,0.1)");
+            gradient.addColorStop(1, "rgba(239,68,68,0.2)");
+            return gradient;
+          },
           fill: "origin",
-          tension: 0,
+          tension: 0.3,
           borderWidth: 2,
-          pointRadius: 0,
+          pointRadius: integrityData.map((v) => (v < 70 ? 5 : 2)),
+          pointBackgroundColor: integrityData.map((v) =>
+            v < 50 ? "#ef4444" : v < 75 ? "#f59e0b" : "#3b82f6"
+          ),
           pointHitRadius: 20,
         },
       ],
@@ -314,50 +398,201 @@ function updateChart(incidents) {
       interaction: { mode: "index", intersect: false },
       scales: {
         y: {
-          beginAtZero: true,
-          min: 0,
-          max: 100,
-          ticks: {
-            callback: (v) => v + "%",
-            color: "#64748b",
-            font: { family: "JetBrains Mono" },
-          },
+          beginAtZero: true, min: 0, max: 100,
+          ticks: { callback: (v) => v + "%", color: "#64748b", font: { family: "JetBrains Mono" } },
           grid: { color: "rgba(255,255,255,0.03)" },
         },
         x: {
-          ticks: {
-            color: "#64748b",
-            autoSkip: true,
-            maxTicksLimit: 10,
-            font: { family: "JetBrains Mono" },
-          },
+          ticks: { color: "#64748b", autoSkip: true, maxTicksLimit: 10, font: { family: "JetBrains Mono" } },
           grid: { display: false },
         },
       },
       plugins: {
         legend: { display: false },
         tooltip: {
-          enabled: true,
-          backgroundColor: "rgba(15, 23, 42, 0.95)",
-          titleFont: { size: 13, family: "JetBrains Mono" },
-          bodyFont: { size: 12, family: "JetBrains Mono" },
-          padding: 12,
-          displayColors: false,
+          ...tooltipBase,
           callbacks: {
-            title: (items) => `Timestamp: ${items[0].label}`,
+            title: (items) => `⏱ ${items[0].label}`,
             label: (item) => {
-              const index = item.dataIndex;
-              const gap = incidents[index].duration;
+              const inc = incidents[item.dataIndex];
               return [
-                `Integrity: ${item.parsed.y.toFixed(1)}%`,
-                `Gap Duration: ${gap}s`,
+                ` Integrity: ${item.parsed.y.toFixed(1)}%`,
+                ` Gap Start: ${inc.start}`,
+                ` Gap End:   ${inc.end}`,
+                ` Duration:  ${inc.duration}s`,
+                ` Severity:  ${inc.severity}`,
               ];
             },
           },
         },
+        zoom: zoomPlugin(),
       },
     },
     plugins: [verticalLinePlugin],
+  });
+}
+
+// ── 2. SCATTER VIEW — Each gap as a bubble sized by duration ─────────────────
+
+function buildScatterChart(ctx, incidents) {
+  const scatterData = incidents.map((inc, i) => ({
+    x: i,
+    y: inc.duration,
+    r: Math.min(30, Math.max(5, inc.duration / 120)), // bubble radius
+    inc,
+  }));
+
+  return new Chart(ctx, {
+    type: "bubble",
+    data: {
+      datasets: [
+        {
+          label: "Detected Gaps",
+          data: scatterData,
+          backgroundColor: scatterData.map((d) =>
+            d.y > 3600 ? "rgba(239,68,68,0.7)" :
+            d.y > 600  ? "rgba(245,158,11,0.7)" :
+                         "rgba(59,130,246,0.6)"
+          ),
+          borderColor: scatterData.map((d) =>
+            d.y > 3600 ? "#ef4444" : d.y > 600 ? "#f59e0b" : "#3b82f6"
+          ),
+          borderWidth: 1.5,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          title: { display: true, text: "Gap Duration (s)", color: "#64748b", font: { family: "JetBrains Mono", size: 10 } },
+          ticks: { color: "#64748b", font: { family: "JetBrains Mono" } },
+          grid: { color: "rgba(255,255,255,0.03)" },
+        },
+        x: {
+          title: { display: true, text: "Gap Index", color: "#64748b", font: { family: "JetBrains Mono", size: 10 } },
+          ticks: { color: "#64748b", font: { family: "JetBrains Mono" } },
+          grid: { display: false },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...tooltipBase,
+          callbacks: {
+            label: (item) => {
+              const inc = item.raw.inc;
+              return [
+                ` Gap #${item.dataIndex + 1}`,
+                ` Start:    ${inc.start}`,
+                ` End:      ${inc.end}`,
+                ` Duration: ${inc.duration}s`,
+                ` Severity: ${inc.severity}`,
+                ` Details:  ${inc.details}`,
+              ];
+            },
+          },
+        },
+        zoom: zoomPlugin(),
+      },
+    },
+  });
+}
+
+// ── 3. DUAL VIEW — Integrity (left axis) + Gap Duration bars (right axis) ────
+
+function buildDualChart(ctx, incidents) {
+  const labels = incidents.map((i) => i.start.split(" ")[1]);
+  const integrityData = incidents.map((i) => Math.max(0, 100 - i.duration / 300));
+  const durationData = incidents.map((i) => i.duration);
+
+  return new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          type: "line",
+          label: "Integrity Score",
+          data: integrityData,
+          borderColor: "#3b82f6",
+          backgroundColor: "transparent",
+          tension: 0.3,
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: "#3b82f6",
+          yAxisID: "y",
+          order: 1,
+        },
+        {
+          type: "bar",
+          label: "Gap Duration (s)",
+          data: durationData,
+          backgroundColor: durationData.map((d) =>
+            d > 3600 ? "rgba(239,68,68,0.5)" :
+            d > 600  ? "rgba(245,158,11,0.5)" :
+                       "rgba(16,185,129,0.4)"
+          ),
+          borderColor: durationData.map((d) =>
+            d > 3600 ? "#ef4444" : d > 600 ? "#f59e0b" : "#10b981"
+          ),
+          borderWidth: 1,
+          yAxisID: "y2",
+          order: 2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      scales: {
+        y: {
+          type: "linear",
+          position: "left",
+          min: 0, max: 100,
+          ticks: { callback: (v) => v + "%", color: "#3b82f6", font: { family: "JetBrains Mono" } },
+          grid: { color: "rgba(255,255,255,0.03)" },
+          title: { display: true, text: "Integrity %", color: "#3b82f6", font: { family: "JetBrains Mono", size: 9 } },
+        },
+        y2: {
+          type: "linear",
+          position: "right",
+          ticks: { callback: (v) => v + "s", color: "#10b981", font: { family: "JetBrains Mono" } },
+          grid: { display: false },
+          title: { display: true, text: "Gap Duration (s)", color: "#10b981", font: { family: "JetBrains Mono", size: 9 } },
+        },
+        x: {
+          ticks: { color: "#64748b", autoSkip: true, maxTicksLimit: 10, font: { family: "JetBrains Mono" } },
+          grid: { display: false },
+        },
+      },
+      plugins: {
+        legend: {
+          display: true,
+          labels: { color: "#64748b", font: { family: "JetBrains Mono", size: 9 }, boxWidth: 12 },
+        },
+        tooltip: {
+          ...tooltipBase,
+          callbacks: {
+            title: (items) => `⏱ ${items[0].label}`,
+            label: (item) => {
+              const inc = incidents[item.dataIndex];
+              if (item.dataset.label === "Integrity Score") {
+                return ` Integrity: ${item.parsed.y.toFixed(1)}%`;
+              }
+              return [
+                ` Duration: ${inc.duration}s`,
+                ` Start: ${inc.start}`,
+                ` End:   ${inc.end}`,
+              ];
+            },
+          },
+        },
+        zoom: zoomPlugin(),
+      },
+    },
   });
 }
 
