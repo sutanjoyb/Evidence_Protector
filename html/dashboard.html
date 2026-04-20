@@ -12,7 +12,7 @@
     />
     <link rel="stylesheet" href="../styles/dashboard.css" />
   </head>
-  <body class="flex min-h-screen">
+  <body class="flex min-h-screen overflow-x-hidden">
     <!-- Scan Overlay -->
     <div id="scanOverlay" class="hidden fixed inset-0 bg-[#020617]/95 backdrop-blur-xl z-[100] flex items-center justify-center">
       <div class="text-center">
@@ -28,13 +28,21 @@
     </div>
 
     <!-- Toast -->
-    <div id="toast" class="fixed bottom-10 right-10 transform translate-y-24 opacity-0 z-[200] bg-blue-600 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3">
+    <div id="toast" class="fixed bottom-4 right-4 sm:bottom-10 sm:right-10 transform translate-y-24 opacity-0 z-[200] bg-blue-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-xl shadow-2xl flex items-center gap-3 max-w-[90vw]">
       <i class="fas fa-shield-check"></i>
       <span id="toastMsg">System Ready</span>
     </div>
 
+    <!-- Mobile menu toggle button -->
+    <button id="sidebarToggle" onclick="toggleSidebar()" class="lg:hidden fixed top-4 left-4 z-[60] bg-slate-900 border border-white/10 p-2.5 rounded-xl text-slate-400 hover:text-blue-400 transition-all">
+      <i class="fas fa-bars text-sm"></i>
+    </button>
+
+    <!-- Sidebar overlay (mobile) -->
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"></div>
+
     <!-- Sidebar -->
-    <nav class="w-64 border-r border-white/5 bg-slate-950/50 flex flex-col p-6 shrink-0 z-50">
+    <nav id="sidebar" class="fixed lg:relative -translate-x-full lg:translate-x-0 transition-transform duration-300 w-64 h-full border-r border-white/5 bg-slate-950/95 lg:bg-slate-950/50 flex flex-col p-6 shrink-0 z-50">
       <div class="flex items-center gap-3 mb-10 px-2">
         <i class="fas fa-shield-halved text-blue-500 text-2xl"></i>
         <span class="font-black tracking-tighter uppercase italic text-lg leading-tight">Evidence <br /><span class="text-blue-500 text-sm">Protector Pro</span></span>
@@ -60,6 +68,13 @@
     </nav>
 
     <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-screen overflow-hidden lg:ml-0">
+      <header class="h-16 sm:h-20 border-b border-white/5 bg-slate-950/20 backdrop-blur-md flex items-center justify-between px-4 sm:px-8 shrink-0 pl-16 lg:pl-8">
+        <h2 id="viewTitle" class="text-base sm:text-lg font-bold truncate">Executive Overview</h2>
+        <div class="bg-slate-900 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full border border-white/5 text-[9px] font-bold text-slate-500 uppercase shrink-0">Status: <span class="text-emerald-500">Active</span></div>
+      </header>
+
+      <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 custom-scroll">
     <main class="flex-1 flex flex-col h-screen overflow-hidden">
       <header class="h-20 border-b border-white/5 bg-slate-950/20 backdrop-blur-md flex items-center justify-between px-8 shrink-0">
         <h2 id="viewTitle" class="text-lg font-bold">Executive Overview</h2>
@@ -87,7 +102,7 @@
         <!-- DASHBOARD TAB -->
         <div id="view-dashboard" class="tab-view space-y-6">
           <!-- KPI Cards -->
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div class="glass-card p-5 border-t-2 border-blue-500"><p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Integrity Score</p><h3 id="integrityScoreCard" class="text-2xl font-black text-white">--%</h3></div>
             <div class="glass-card p-5 border-t-2 border-red-500"><p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Compromise Risk</p><h3 id="financialRisk" class="text-2xl font-black text-red-400">0%</h3></div>
             <div class="glass-card p-5 border-t-2 border-purple-500"><p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Gaps Detected</p><h3 id="gapCount" class="text-2xl font-black text-white">0</h3></div>
@@ -95,8 +110,8 @@
           </div>
 
           <!-- Heatmap -->
-          <div class="glass-card p-6">
-            <div class="flex justify-between items-center mb-4"><h4 class="text-[10px] font-bold uppercase text-slate-500 tracking-[0.2em]">Forensic Timeline Scrubber</h4><div class="flex gap-4 text-[8px] font-bold uppercase"><span class="text-emerald-500">● Nominal</span><span class="text-red-500">● Anomaly</span></div></div>
+          <div class="glass-card p-4 sm:p-6">
+            <div class="flex flex-wrap justify-between items-center gap-2 mb-4"><h4 class="text-[10px] font-bold uppercase text-slate-500 tracking-[0.2em]">Forensic Timeline Scrubber</h4><div class="flex gap-4 text-[8px] font-bold uppercase"><span class="text-emerald-500">● Nominal</span><span class="text-red-500">● Anomaly</span></div></div>
             <div id="forensicHeatmap" class="heatmap-container mb-3"></div>
             <div class="flex justify-between text-[9px] font-mono text-slate-600 uppercase"><span id="heatmap-start">00:00:00</span><span id="heatmap-end">23:59:59</span></div>
           </div>
@@ -118,15 +133,15 @@
 
             <!-- Right Column - Chart -->
             <div class="col-span-12 lg:col-span-8">
-              <div class="glass-card p-6 min-h-[500px]">
-                <div class="flex justify-between items-center mb-6">
+              <div class="glass-card p-4 sm:p-6">
+                <div class="flex flex-wrap justify-between items-center gap-2 mb-4 sm:mb-6">
                   <h4 class="text-[10px] font-bold uppercase text-slate-500 tracking-widest">Integrity Delta Visualization</h4>
                   <div class="flex gap-2">
                     <button onclick="exportChartAsPNG()" class="text-[9px] bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 font-bold uppercase tracking-wider"><i class="fas fa-file-image text-xs"></i> PNG</button>
                     <button onclick="exportChartAsJPG()" class="text-[9px] bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 font-bold uppercase tracking-wider"><i class="fas fa-camera text-xs"></i> JPG</button>
                   </div>
                 </div>
-                <div class="h-[400px] w-full"><canvas id="timelineChart"></canvas></div>
+                <div class="h-[250px] sm:h-[320px] lg:h-[400px] w-full"><canvas id="timelineChart"></canvas></div>
               </div>
             </div>
           </div>
@@ -134,8 +149,8 @@
 
         <!-- REGISTRY TAB -->
         <div id="view-registry" class="tab-view hidden glass-card overflow-hidden">
-          <div class="p-6 border-b border-white/5 bg-slate-900/20 flex justify-between items-center flex-wrap gap-3">
-            <div class="flex items-center gap-4 flex-wrap">
+          <div class="p-4 sm:p-6 border-b border-white/5 bg-slate-900/20 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+            <div class="flex items-center gap-3 flex-wrap">
               <h4 class="text-xs font-bold uppercase text-slate-400">Incident Registry</h4>
               <select id="durationSorter" onchange="handleSortChange(this.value)" class="bg-slate-950 border border-white/10 text-[10px] text-blue-400 font-bold uppercase py-1 px-3 rounded-lg outline-none focus:border-blue-500 transition-all cursor-pointer">
                 <option id="sortPlaceholder" value="none">Sort By</option>
@@ -143,15 +158,14 @@
                 <option value="low">Shortest Gaps First (Minor)</option>
               </select>
             </div>
-            <!-- SEARCH INPUT -->
-            <div class="flex items-center gap-2">
-              <i class="fas fa-search text-slate-500 text-xs"></i>
-              <input type="text" id="searchInput" placeholder="Search by time or duration..." onkeyup="filterRegistry()" class="bg-slate-950 border border-white/10 text-xs text-slate-300 px-3 py-1.5 rounded-lg outline-none focus:border-blue-500 transition-all w-64">
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <i class="fas fa-search text-slate-500 text-xs shrink-0"></i>
+              <input type="text" id="searchInput" placeholder="Search by time or duration..." onkeyup="filterRegistry()" class="bg-slate-950 border border-white/10 text-xs text-slate-300 px-3 py-1.5 rounded-lg outline-none focus:border-blue-500 transition-all w-full sm:w-48 lg:w-64">
             </div>
-            <span id="flag-count" class="text-[10px] bg-blue-600 px-3 py-1 rounded-full text-white font-black">0 Flagged</span>
+            <span id="flag-count" class="text-[10px] bg-blue-600 px-3 py-1 rounded-full text-white font-black self-start sm:self-auto">0 Flagged</span>
           </div>
-          <div class="max-h-[600px] overflow-y-auto custom-scroll">
-            <table class="w-full text-left" id="incidentTable">
+          <div class="max-h-[600px] overflow-y-auto overflow-x-auto custom-scroll">
+            <table class="w-full min-w-[520px] text-left" id="incidentTable">
               <thead class="sticky top-0 bg-slate-900 border-b border-white/5">
                 <tr class="text-slate-500 text-[9px] uppercase tracking-widest">
                   <th class="p-6">Time Window</th>
