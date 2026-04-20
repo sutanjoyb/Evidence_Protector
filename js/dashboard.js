@@ -82,7 +82,30 @@ window.addEventListener("DOMContentLoaded", () => {
   }
   updateCaseBadge();
   loadLastSession();
+  checkApiStatus();
+  setInterval(checkApiStatus, 5000);
 });
+
+async function checkApiStatus() {
+  const indicator = document.getElementById("apiStatusIndicator");
+  if (!indicator) return;
+  
+  try {
+    const res = await fetch("http://localhost:8000/", { 
+      method: "GET",
+      cache: "no-store",
+      signal: AbortController ? new AbortController().signal : null 
+    });
+    
+    if (res.ok) {
+      indicator.classList.replace("offline", "online");
+    } else {
+      indicator.classList.replace("online", "offline");
+    }
+  } catch (e) {
+    indicator.classList.replace("online", "offline");
+  }
+}
 
 function loadLastSession() {
   const cases = getCases();
