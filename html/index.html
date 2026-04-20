@@ -565,7 +565,7 @@
         class="max-w-7xl mx-auto px-6 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6"
       >
         <p class="text-slate-600 text-[10px] uppercase tracking-[0.4em]">
-          © 2026 EVIDENCE PROTECTOR v2.0
+          © 2026 EVIDENCE PROTECTOR v2.0 | <a href="javascript:void(0)" onclick="showTOS()" class="hover:text-blue-500 transition-colors">Terms of Service</a>
         </p>
 
         <div class="flex gap-8 text-slate-500 text-lg">
@@ -789,6 +789,38 @@
   ↑
 </button>
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <!-- Terms of Service Modal -->
+    <div id="tosModal" class="tos-modal">
+      <div class="tos-content custom-scroll">
+        <button onclick="closeTOS()" class="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+        <div class="flex items-center gap-3 mb-8">
+          <i class="fas fa-file-contract text-blue-500 text-2xl"></i>
+          <h2 class="text-2xl font-black uppercase tracking-tight italic">Terms of Service</h2>
+        </div>
+        <div class="space-y-6 text-slate-400 text-sm leading-relaxed font-light">
+          <section>
+            <h4 class="text-white font-bold uppercase text-xs tracking-widest mb-2">1. Forensic Educational Purpose</h4>
+            <p>Evidence Protector is a forensic analysis tool developed strictly for educational and training purposes. It is designed to demonstrate pattern recognition in log files and identify temporal anomalies (voids) that may occur during system events.</p>
+          </section>
+          <section>
+            <h4 class="text-white font-bold uppercase text-xs tracking-widest mb-2">2. Responsible Use</h4>
+            <p>Users agree to use this tool only for lawful activities. It must not be deployed in unauthorized environments or used to facilitate illegal surveillance, data tampering, or unauthorized forensic investigations.</p>
+          </section>
+          <section>
+            <h4 class="text-white font-bold uppercase text-xs tracking-widest mb-2">3. No Warranty</h4>
+            <p>The tool is provided "as is" without warranty of any kind. While it uses forensic heuristics, results should not be considered legally binding or 100% accurate without secondary verification by a certified forensics expert.</p>
+          </section>
+          <section>
+            <h4 class="text-white font-bold uppercase text-xs tracking-widest mb-2">4. Limitation of Liability</h4>
+            <p>The developers and Evidence Protector suite contributors are not liable for any damages resulting from the use or misuse of this software in real-world scenarios.</p>
+          </section>
+        </div>
+        <button onclick="closeTOS()" class="w-full mt-10 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl uppercase text-xs tracking-widest transition-all">I Understand & Accept</button>
+      </div>
+    </div>
+
     <script src="../js/theme.js"></script>
     <script src="../js/index.js"></script>
   </body>
