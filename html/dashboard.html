@@ -82,9 +82,13 @@
             <div class="col-span-12 lg:col-span-4 space-y-6">
               <div class="glass-card p-6 border-l-4 border-blue-500">
                 <h4 class="text-[10px] font-bold uppercase text-slate-500 mb-4 tracking-widest">Evidence Ingestion</h4>
-                <div class="border-2 border-dashed border-slate-800 rounded-xl p-6 text-center hover:border-blue-500 transition-all cursor-pointer">
-                  <input type="file" id="logFile" class="hidden" onchange="updateFileName()" />
-                  <label for="logFile" class="cursor-pointer"><i class="fas fa-cloud-arrow-up text-xl text-slate-600 mb-2 block"></i><p id="fileNameDisplay" class="text-[10px] text-slate-500 font-bold uppercase">Select Log Source</p></label>
+                <div id="dropArea" class="border-2 border-dashed border-slate-800 rounded-xl p-6 text-center hover:border-blue-500 transition-all cursor-pointer">
+                  <input type="file" id="logFile" class="hidden" accept=".log,.txt,.csv,.json,.xml,.syslog,.evtx" />
+                  <label for="logFile" class="cursor-pointer block">
+                    <i class="fas fa-cloud-arrow-up text-xl text-slate-600 mb-2 block"></i>
+                    <p id="fileNameDisplay" class="text-[10px] text-slate-500 font-bold uppercase">Select or Drop Log File</p>
+                    <p class="text-[9px] text-slate-700 mt-1 font-mono">.log .txt .csv .json .xml .syslog .evtx</p>
+                  </label>
                 </div>
                 <button onclick="analyzeLogs(event)" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all mt-4">Analyze stream</button>
               </div>
