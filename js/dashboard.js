@@ -55,6 +55,12 @@ async function analyzeLogs(event) {
   const file = fileInput.files[0];
   if (!file) return showToast("Critical: No source file selected");
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > MAX_FILE_SIZE) {
+        showToast("File too large! Maximum size is 10MB");
+        return;
+    }
+
   const overlay = document.getElementById("scanOverlay");
   const statusText = document.getElementById("loaderStatus");
   overlay.classList.remove("hidden");
