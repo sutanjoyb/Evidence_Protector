@@ -45,6 +45,11 @@
         <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2">Analysis Engine</p>
         <div onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item active flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-chart-pie w-4"></i> Dashboard</div>
         <div onclick="switchTab('registry')" id="nav-registry" class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-list-check w-4"></i> Registry</div>
+        <div onclick="switchTab('history')" id="nav-history" class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium">
+          <i class="fas fa-clock-rotate-left w-4"></i>
+          Case History
+          <span id="case-count-badge" class="ml-auto bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full min-w-[20px] text-center">0</span>
+        </div>
         <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2">Governance</p>
         <div onclick="switchTab('compliance')" id="nav-compliance" class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-file-contract w-4"></i> Export Center</div>
       </div>
@@ -140,6 +145,51 @@
               </thead>
               <tbody id="incidentBody" class="text-[11px] text-slate-400"></tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- CASE HISTORY TAB -->
+        <div id="view-history" class="tab-view hidden space-y-4">
+          <div class="glass-card overflow-hidden">
+            <!-- Header -->
+            <div class="p-6 border-b border-white/5 bg-slate-900/20 flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-4 flex-wrap">
+                <h4 class="text-xs font-bold uppercase text-slate-400 tracking-widest">Case History</h4>
+                <select onchange="sortCaseHistory(this.value)" class="bg-slate-950 border border-white/10 text-[10px] text-blue-400 font-bold uppercase py-1 px-3 rounded-lg outline-none focus:border-blue-500 transition-all cursor-pointer">
+                  <option value="date-desc">Newest First</option>
+                  <option value="date-asc">Oldest First</option>
+                  <option value="score-desc">Highest Integrity</option>
+                  <option value="score-asc">Lowest Integrity</option>
+                </select>
+              </div>
+              <div class="flex items-center gap-2">
+                <i class="fas fa-search text-slate-500 text-xs"></i>
+                <input type="text" id="caseSearchInput" placeholder="Search cases..." oninput="filterCaseHistory()" class="bg-slate-950 border border-white/10 text-xs text-slate-300 px-3 py-1.5 rounded-lg outline-none focus:border-blue-500 transition-all w-56">
+              </div>
+            </div>
+
+            <!-- Empty state -->
+            <div id="caseHistoryEmpty" class="hidden p-16 text-center">
+              <i class="fas fa-folder-open text-slate-700 text-4xl mb-4 block"></i>
+              <p class="text-slate-500 text-sm font-bold uppercase tracking-widest">No Cases Yet</p>
+              <p class="text-slate-600 text-[10px] mt-2">Run your first scan to create a case.</p>
+            </div>
+
+            <!-- Table -->
+            <div class="max-h-[600px] overflow-y-auto custom-scroll">
+              <table class="w-full text-left">
+                <thead class="sticky top-0 bg-slate-900 border-b border-white/5">
+                  <tr class="text-slate-500 text-[9px] uppercase tracking-widest">
+                    <th class="p-4">Case Name</th>
+                    <th class="p-4">Timestamp</th>
+                    <th class="p-4 text-center">Integrity</th>
+                    <th class="p-4 text-center">Gaps</th>
+                    <th class="p-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="caseHistoryBody" class="text-[11px] text-slate-400"></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
