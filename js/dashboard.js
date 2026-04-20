@@ -24,7 +24,10 @@ const verticalLinePlugin = {
 };
 
 window.addEventListener("DOMContentLoaded", () => {
-  if (!sessionStorage.getItem("isLoggedIn")) {
+  // Support both JWT (access_token) and legacy session auth (isLoggedIn)
+  const hasJwt = !!localStorage.getItem("access_token");
+  const hasSession = !!sessionStorage.getItem("isLoggedIn");
+  if (!hasJwt && !hasSession) {
     window.location.href = "index.html";
     return;
   }
@@ -242,9 +245,10 @@ function switchTab(tabId) {
     dashboard: "Executive Overview",
     registry: "Incident Registry",
     compliance: "Export Center",
+    history: "Case History",
   };
   const titleEl = document.getElementById("viewTitle");
-  if (titleEl) titleEl.innerText = titles[tabId];
+  if (titleEl) titleEl.innerText = titles[tabId] || tabId;
 
   document
     .querySelectorAll(".tab-view")
@@ -421,8 +425,12 @@ function updateFileName() {
 }
 
 function logout() {
+  // Clear auth tokens — preserve case history (forensic_cases key)
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("last_forensic_scan");
+  localStorage.removeItem("last_scan_metadata");
+  localStorage.removeItem("flagged_items");
   sessionStorage.clear();
-  localStorage.clear();
   window.location.href = "index.html";
 }
 
