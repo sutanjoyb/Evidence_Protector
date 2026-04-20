@@ -232,6 +232,17 @@ function updateRegistryTable(incidents) {
 }
 
 function switchTab(tabId) {
+  // Close mobile sidebar when navigating
+  if (window.innerWidth < 1024) {
+    const sidebar = document.getElementById("sidebar");
+    const overlay = document.getElementById("sidebarOverlay");
+    if (sidebar && sidebar.classList.contains("open")) {
+      sidebar.classList.remove("open");
+      if (overlay) overlay.classList.add("hidden");
+      document.body.classList.remove("sidebar-open");
+    }
+  }
+
   document
     .querySelectorAll(".nav-item")
     .forEach((el) => el.classList.remove("active", "text-blue-500"));
@@ -424,6 +435,28 @@ function logout() {
   sessionStorage.clear();
   localStorage.clear();
   window.location.href = "index.html";
+}
+
+// ─── MOBILE SIDEBAR TOGGLE ───────────────────────────────────────────────────
+
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  const isOpen = sidebar.classList.contains("open");
+  if (isOpen) {
+    sidebar.classList.remove("open");
+    overlay.classList.add("hidden");
+    document.body.classList.remove("sidebar-open");
+  } else {
+    sidebar.classList.add("open");
+    overlay.classList.remove("hidden");
+    document.body.classList.add("sidebar-open");
+  }
+}
+
+// Close sidebar when a nav item is tapped on mobile
+function closeSidebarOnMobile() {
+  if (window.innerWidth < 1024) toggleSidebar();
 }
 
 function exportForensicJSON() {

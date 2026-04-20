@@ -113,3 +113,79 @@ body {
   padding: 12px;
   border-radius: 0 12px 12px 0;
 }
+
+/* ─── RESPONSIVE — MOBILE & TABLET ─────────────────────────────────────────── */
+
+/* Sidebar: off-canvas on mobile, always visible on lg+ */
+#sidebar {
+  min-height: 100vh;
+}
+
+#sidebar.open {
+  transform: translateX(0) !important;
+}
+
+/* Prevent body scroll when mobile sidebar is open */
+body.sidebar-open {
+  overflow: hidden;
+}
+
+/* KPI cards: 2-col on mobile, 4-col on desktop */
+@media (max-width: 639px) {
+  .glass-card {
+    border-radius: 0.875rem;
+  }
+
+  /* Reduce hover lift on touch devices */
+  .glass-card:hover {
+    transform: none;
+  }
+
+  /* Table cells: tighter padding on mobile */
+  #incidentTable td,
+  #incidentTable th {
+    padding: 0.75rem 1rem;
+  }
+
+  /* Compliance tab heading */
+  #view-compliance h2 {
+    font-size: 2rem;
+    line-height: 1.1;
+  }
+}
+
+@media (max-width: 1023px) {
+  /* Main content takes full width when sidebar is hidden */
+  main {
+    width: 100%;
+  }
+
+  /* Chart height on tablet */
+  #timelineChart {
+    max-height: 320px;
+  }
+}
+
+/* Ensure chart canvas never overflows its container */
+#timelineChart {
+  max-width: 100%;
+}
+
+/* Horizontal scroll hint for registry table on small screens */
+.table-scroll-hint {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  .table-scroll-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 9px;
+    color: #475569;
+    padding: 6px 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+  }
+}
