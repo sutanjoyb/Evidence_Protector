@@ -1,115 +1,18 @@
-let chart;
+// ─── STATE ───────────────────────────────────────────────────────────────────
+
+let chart = null;
 let lastScanResults = null;
 let flaggedIncidents = new Set();
-let activeCaseId = null;
 
-// ─── CASE MANAGEMENT — SIZE-CAPPED WITH FIFO EVICTION ───────────────────────
-
-const CASES_KEY = "forensic_cases";
-const MAX_CASES = 50;                        // max number of stored cases
-const MAX_INCIDENTS_PER_CASE = 200;          // truncate oversized incident arrays
-const STORAGE_WARN_BYTES = 4 * 1024 * 1024; // warn at 4 MB
-
-function getCases() {
-  try {
-    return JSON.parse(localStorage.getItem(CASES_KEY) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function getStorageUsedBytes() {
-  let total = 0;
-  for (const key in localStorage) {
-    if (Object.prototype.hasOwnProperty.call(localStorage, key)) {
-      total += (localStorage[key].length + key.length) * 2; // UTF-16
-    }
-  }
-  return total;
-}
-
-function saveCases(cases) {
-  try {
-    localStorage.setItem(CASES_KEY, JSON.stringify(cases));
-    updateCaseBadge();
-    const used = getStorageUsedBytes();
-    if (used > STORAGE_WARN_BYTES) {
-      showToast(`Storage Warning: ${(used / 1024 / 1024).toFixed(1)} MB used. Consider deleting old cases.`);
-    }
-  } catch (e) {
-    if (e.name === "QuotaExceededError" || e.code === 22) {
-      // FIFO eviction: drop oldest cases until it fits
-      let evicted = 0;
-      while (cases.length > 1) {
-        cases.pop(); // remove oldest (array is newest-first)
-        evicted++;
-        try {
-          localStorage.setItem(CASES_KEY, JSON.stringify(cases));
-          updateCaseBadge();
-          showToast(`Storage full — ${evicted} oldest case(s) removed to make room.`);
-          return;
-        } catch {
-          continue;
-        }
-      }
-      showToast("Critical: Storage full. Cannot save case. Please delete old cases.");
-    } else {
-      showToast("Storage error: Case could not be saved.");
-      console.error("saveCases error:", e);
-    }
-  }
-}
-
-function generateCaseId() {
-  return `CASE-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
-}
-
-function saveNewCase(data, fileName) {
-  const cases = getCases();
-  const score = parseFloat(data.integrity_score);
-  const id = generateCaseId();
-
-  // Truncate incidents if oversized to keep storage lean
-  const incidents = data.incidents.length > MAX_INCIDENTS_PER_CASE
-    ? data.incidents.slice(0, MAX_INCIDENTS_PER_CASE)
-    : data.incidents;
-
-  const newCase = {
-    id,
-    name: `Case: ${fileName}`,
-    fileName,
-    timestamp: new Date().toISOString(),
-    integrityScore: score,
-    totalGaps: data.total_gaps,
-    incidents,
-    flagged: false,
-  };
-
-  cases.unshift(newCase);
-
-  // Enforce hard cap — evict oldest before even trying to save
-  while (cases.length > MAX_CASES) {
-    cases.pop();
-  }
-
-  saveCases(cases);
-  activeCaseId = id;
-  return id;
-}
-
-function updateCaseBadge() {
-  const count = getCases().length;
-  const badge = document.getElementById("case-count-badge");
-  if (badge) badge.innerText = count;
-}
+// ─── VERTICAL LINE PLUGIN ────────────────────────────────────────────────────
 
 const verticalLinePlugin = {
   id: "verticalLine",
-  afterDraw: (chart) => {
-    if (chart.tooltip?._active?.length) {
-      const x = chart.tooltip._active[0].element.x;
-      const yAxis = chart.scales.y;
-      const ctx = chart.ctx;
+  afterDraw: (chartInstance) => {
+    if (chartInstance.tooltip?._active?.length) {
+      const x = chartInstance.tooltip._active[0].element.x;
+      const yAxis = chartInstance.scales.y;
+      const ctx = chartInstance.ctx;
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(x, yAxis.top);
@@ -125,146 +28,125 @@ const verticalLinePlugin = {
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 
-let flaggedIncidents = new Set();
-let activeCaseId = null;
-let lastScanResults = null;
-
 window.addEventListener("DOMContentLoaded", () => {
   // Support both JWT (access_token) and legacy session auth (isLoggedIn)
-  const hasJwt = !!localStorage.getItem("access_token");
-  const hasSession = !!sessionStorage.getItem("isLoggedIn");
-  if (!hasJwt && !hasSession) {
+  const hasAuth =
+    !!localStorage.getItem("access_token") ||
+    !!sessionStorage.getItem("isLoggedIn");
+  if (!hasAuth) {
     window.location.href = "index.html";
     return;
   }
 
-  // Initial setup
   const savedFlags = localStorage.getItem("flagged_items");
   if (savedFlags) {
     try {
       flaggedIncidents = new Set(JSON.parse(savedFlags));
       updateFlagCount();
     } catch (e) {
-      console.error("Failed to parse saved flags", e);
+      console.warn("Could not restore flagged items:", e);
     }
   }
 
-  updateGreeting(); // Run immediately for better UX
-  updateCaseBadge();
-  loadLastSession();
+  // Ensure TOS modal is hidden on load — never auto-show
+  const tosModal = document.getElementById("tosModal");
+  if (tosModal) {
+    tosModal.classList.remove("active");
+    tosModal.style.display = "none";
+  }
+
   initDropZone();
-  
-  // API Polling
-  checkApiStatus();
-  setInterval(checkApiStatus, 5000);
+  loadLastSession();
 });
 
-async function checkApiStatus() {
-  const indicator = document.getElementById("apiStatusIndicator");
-  if (!indicator) return;
-
-  try {
-    const res = await fetch("http://localhost:8000/", {
-      method: "GET",
-      cache: "no-store"
-    });
-
-    if (res.ok) {
-      indicator.classList.replace("offline", "online");
-    } else {
-      indicator.classList.replace("online", "offline");
-    }
-  } catch (e) {
-    // replace only works if 'online' exists; use add/remove for safety
-    indicator.classList.remove("online");
-    indicator.classList.add("offline");
-  }
-} 
-
-function updateGreeting() {
-  const greetingEl = document.getElementById("userGreeting");
-  if (!greetingEl) return;
-
-  const hour = new Date().getHours();
-  let msg = "Good Evening";
-
-  if (hour < 12) msg = "Good Morning";
-  else if (hour < 18) msg = "Good Afternoon";
-
-  greetingEl.innerText = `${msg}, Operator`;
-}
+// ─── SESSION ─────────────────────────────────────────────────────────────────
 
 function loadLastSession() {
-  const cases = typeof getCases === "function" ? getCases() : [];
-  const timeEl = document.getElementById("lastScanTime");
-  const fileEl = document.getElementById("lastFileName");
-
-  if (cases.length > 0) {
-    const latest = cases[0];
-    activeCaseId = latest.id;
-    
-    if (timeEl) timeEl.innerText = new Date(latest.timestamp).toLocaleString().toUpperCase();
-    if (fileEl) fileEl.innerText = latest.fileName;
-    
-    lastScanResults = { 
-      incidents: latest.incidents, 
-      integrity_score: latest.integrityScore, 
-      total_gaps: latest.totalGaps 
-    };
-    renderResults(lastScanResults);
-  } else {
-    const savedData = localStorage.getItem("last_forensic_scan");
-    const savedMeta = localStorage.getItem("last_scan_metadata");
-    
-    if (savedData && savedMeta) {
-      try {
-        lastScanResults = JSON.parse(savedData);
-        const meta = JSON.parse(savedMeta);
-        if (timeEl) timeEl.innerText = meta.timestamp;
-        if (fileEl) fileEl.innerText = meta.fileName;
-        renderResults(lastScanResults);
-      } catch (e) {
-        console.error("Legacy data corruption", e);
-      }
+  const savedData = localStorage.getItem("last_forensic_scan");
+  const savedMeta = localStorage.getItem("last_scan_metadata");
+  if (savedData && savedMeta) {
+    try {
+      lastScanResults = JSON.parse(savedData);
+      const meta = JSON.parse(savedMeta);
+      const timeEl = document.getElementById("lastScanTime");
+      const fileEl = document.getElementById("lastFileName");
+      if (timeEl) timeEl.innerText = meta.timestamp;
+      if (fileEl) fileEl.innerText = meta.fileName;
+      renderResults(lastScanResults);
+    } catch (e) {
+      console.warn("Could not restore last session:", e);
     }
   }
 }
+
+// ─── DROP ZONE ───────────────────────────────────────────────────────────────
+
+function initDropZone() {
+  const dropArea = document.getElementById("dropArea");
+  const fileInput = document.getElementById("logFile");
+  if (!dropArea || !fileInput) return;
+
+  // Wire change event — single source of truth, no inline onchange needed
+  fileInput.addEventListener("change", updateFileName);
+
+  // Prevent browser default on all drag events
+  ["dragenter", "dragover", "dragleave", "drop"].forEach((evt) => {
+    dropArea.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); });
+    document.body.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); });
+  });
+
+  ["dragenter", "dragover"].forEach((evt) => {
+    dropArea.addEventListener(evt, () => {
+      dropArea.classList.add("border-blue-500", "bg-blue-500/5");
+      dropArea.classList.remove("border-slate-800");
+    });
+  });
+
+  ["dragleave", "drop"].forEach((evt) => {
+    dropArea.addEventListener(evt, () => {
+      dropArea.classList.remove("border-blue-500", "bg-blue-500/5");
+      dropArea.classList.add("border-slate-800");
+    });
+  });
+
+  dropArea.addEventListener("drop", (e) => {
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+    // Use DataTransfer to properly populate the input's file list
+    try {
+      const dt = new DataTransfer();
+      dt.items.add(files[0]);
+      fileInput.files = dt.files;
+    } catch {
+      // Fallback for browsers that don't support DataTransfer constructor
+      fileInput._droppedFile = files[0];
+    }
+    updateFileName();
+  });
+}
+
 // ─── SCAN ────────────────────────────────────────────────────────────────────
 
 async function analyzeLogs(event) {
   const fileInput = document.getElementById("logFile");
-  // Support both native file input selection and drag-and-drop fallback
-  const file = (fileInput.files && fileInput.files[0]) || fileInput._droppedFile || null;
-  if (!file) return showToast("Critical: No source file selected");
   const dropArea = document.getElementById("dropArea");
-  const file = fileInput.files[0];
-  
+
+  // Support both native selection and drag-and-drop fallback
+  const file = (fileInput.files && fileInput.files[0]) || fileInput._droppedFile || null;
+
   if (!file) {
     if (dropArea) dropArea.classList.replace("border-slate-800", "border-red-500/50");
     return showToast("Critical: No source file selected");
   }
 
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
-    if (file.size > MAX_FILE_SIZE) {
-        showToast("File too large! Maximum size is 10MB");
-        return;
-    }
-
-  // ── CLIENT-SIDE VALIDATION ───────────────────────────────────────────────
+  // Client-side validation
   const ALLOWED_EXTS = [".log", ".txt", ".csv", ".json", ".xml", ".syslog", ".evtx"];
-  const MAX_SIZE_MB = 50;
   const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
-
   if (!ALLOWED_EXTS.includes(ext)) {
     return showToast(`Invalid file type: ${ext}. Allowed: ${ALLOWED_EXTS.join(", ")}`);
   }
-  if (file.size === 0) {
-    return showToast("File is empty. Please select a valid log file.");
-  }
-  if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-    return showToast(`File too large. Maximum size is ${MAX_SIZE_MB} MB.`);
-  }
-  // ─────────────────────────────────────────────────────────────────────────
+  if (file.size === 0) return showToast("File is empty. Please select a valid log file.");
+  if (file.size > 50 * 1024 * 1024) return showToast("File too large. Maximum size is 50 MB.");
 
   const overlay = document.getElementById("scanOverlay");
   const statusText = document.getElementById("loaderStatus");
@@ -276,45 +158,38 @@ async function analyzeLogs(event) {
 
   try {
     const token = localStorage.getItem("access_token");
+    const headers = token ? { "Authorization": `Bearer ${token}` } : {};
     const res = await fetch("http://localhost:8000/analyze", {
       method: "POST",
-      headers: { "Authorization": `Bearer ${token}` },
+      headers,
       body: formData,
     });
+
     if (res.status === 401) {
       localStorage.removeItem("access_token");
       window.location.href = "index.html";
       return;
     }
     if (!res.ok) throw new Error("Connection Refused");
-    const data = await res.json();
 
+    const data = await res.json();
     const steps = ["Hashing Payload...", "Mapping Voids...", "Assessing Risk...", "Finalizing Reports..."];
     for (const step of steps) {
       statusText.innerText = step;
       await new Promise((r) => setTimeout(r, 400));
     }
 
-    const meta = {
-      timestamp: new Date().toLocaleString().toUpperCase(),
-      fileName: file.name,
-    };
-
-    // Save as a new case (size-capped, FIFO eviction on quota exceeded)
-    saveNewCase(data, file.name);
-
-    // Keep legacy keys for backward compat
+    const meta = { timestamp: new Date().toLocaleString().toUpperCase(), fileName: file.name };
     try {
       localStorage.setItem("last_forensic_scan", JSON.stringify(data));
       localStorage.setItem("last_scan_metadata", JSON.stringify(meta));
     } catch (e) {
-      // Legacy keys are non-critical — case is already saved above
-      console.warn("Could not update legacy scan keys:", e);
+      console.warn("Could not persist scan data:", e);
     }
 
     lastScanResults = data;
     renderResults(data);
-    showToast("Analysis Finalized — Case Saved");
+    showToast("Analysis Finalized");
   } catch (e) {
     showToast("Backend Link Error: Ensure server is online");
   } finally {
@@ -359,13 +234,13 @@ function renderResults(data) {
       signatureBody = `Session ${forensicSessionID}: Critical alert. A massive void of ${maxGap}s detected. This signature indicates a manual overwrite or deliberate service suspension to mask major activity.`;
     } else if (gapFrequency > 10) {
       statusColor = "text-amber-500"; signatureTitle = "FRAGMENTED_LOG_SHAVING";
-      signatureBody = `Session ${forensicSessionID}: Heuristic match found. Detected ${gapFrequency} micro-voids. This pattern is consistent with 'Log Shaving'—automated scripts deleting individual alert lines while leaving the rest of the file intact.`;
+      signatureBody = `Session ${forensicSessionID}: Heuristic match found. Detected ${gapFrequency} micro-voids. This pattern is consistent with 'Log Shaving'.`;
     } else if (score < 85) {
       statusColor = "text-orange-400"; signatureTitle = "UNAUTHORIZED_SERVICE_GAP";
-      signatureBody = `Session ${forensicSessionID}: Analysis shows a cumulative integrity loss of ${compromiseRisk}%. The distribution of gaps suggests a system-level interruption or unauthorized 'stop-start' command sequence.`;
+      signatureBody = `Session ${forensicSessionID}: Analysis shows a cumulative integrity loss of ${compromiseRisk}%. The distribution of gaps suggests a system-level interruption.`;
     } else {
       statusColor = "text-blue-400"; signatureTitle = "TEMPORAL_DRIFT_SYNC";
-      signatureBody = `Session ${forensicSessionID}: Minor anomalies detected (${totalGapTime}s total). Pattern matches standard network latency or NTP clock-sync drift. No malicious manipulation signatures identified.`;
+      signatureBody = `Session ${forensicSessionID}: Minor anomalies detected (${totalGapTime}s total). Pattern matches standard network latency or NTP clock-sync drift.`;
     }
 
     reasoning.innerHTML = `
@@ -418,144 +293,10 @@ function updateRegistryTable(incidents) {
   }).join("");
 }
 
-// ─── CASE HISTORY TAB ────────────────────────────────────────────────────────
-
-function renderCaseHistory() {
-  const cases = getCases();
-  const tbody = document.getElementById("caseHistoryBody");
-  const emptyState = document.getElementById("caseHistoryEmpty");
-  if (!tbody) return;
-
-  if (cases.length === 0) {
-    tbody.innerHTML = "";
-    if (emptyState) emptyState.classList.remove("hidden");
-    return;
-  }
-  if (emptyState) emptyState.classList.add("hidden");
-
-  tbody.innerHTML = cases.map((c) => {
-    const scoreColor = c.integrityScore >= 90 ? "text-emerald-400" : c.integrityScore >= 70 ? "text-amber-400" : "text-red-400";
-    const flagIcon = c.flagged ? "fas fa-bookmark text-blue-500" : "far fa-bookmark text-slate-600 hover:text-blue-400";
-    const isActive = c.id === activeCaseId;
-    return `
-      <tr class="border-b border-white/5 hover:bg-white/5 transition-all ${isActive ? "bg-blue-500/5" : ""}">
-        <td class="p-4">
-          <div class="flex items-center gap-2">
-            ${isActive ? '<span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0"></span>' : '<span class="w-1.5 h-1.5 rounded-full bg-transparent shrink-0"></span>'}
-            <span id="case-name-${c.id}" class="text-[11px] text-slate-300 font-mono truncate max-w-[180px]" title="${c.name}">${c.name}</span>
-          </div>
-        </td>
-        <td class="p-4 text-[10px] font-mono text-slate-500">${new Date(c.timestamp).toLocaleString()}</td>
-        <td class="p-4 text-center font-bold ${scoreColor} text-sm">${c.integrityScore.toFixed(1)}%</td>
-        <td class="p-4 text-center text-slate-400 text-sm">${c.totalGaps}</td>
-        <td class="p-4">
-          <div class="flex items-center justify-end gap-3">
-            <button onclick="loadCase('${c.id}')" title="Load Case" class="text-[9px] bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-2.5 py-1 rounded-lg transition-all font-bold uppercase tracking-wider">Load</button>
-            <button onclick="startRenameCase('${c.id}')" title="Rename" class="text-slate-500 hover:text-white transition-colors"><i class="fas fa-pencil text-xs"></i></button>
-            <button onclick="toggleCaseFlag('${c.id}')" title="Flag Investigation" class="${flagIcon} transition-colors"><i class="${flagIcon}"></i></button>
-            <button onclick="deleteCase('${c.id}')" title="Delete Case" class="text-slate-700 hover:text-red-400 transition-colors"><i class="fas fa-trash text-xs"></i></button>
-          </div>
-        </td>
-      </tr>`;
-  }).join("");
-}
-
-function loadCase(id) {
-  const cases = getCases();
-  const c = cases.find((x) => x.id === id);
-  if (!c) return;
-
-  activeCaseId = id;
-  lastScanResults = { incidents: c.incidents, integrity_score: c.integrityScore, total_gaps: c.totalGaps };
-
-  // Update legacy meta so renderResults reads correct file/time
-  const meta = { timestamp: new Date(c.timestamp).toLocaleString().toUpperCase(), fileName: c.fileName };
-  localStorage.setItem("last_scan_metadata", JSON.stringify(meta));
-
-  renderResults(lastScanResults);
-  switchTab("dashboard");
-  showToast(`Case Loaded: ${c.name}`);
-  renderCaseHistory();
-}
-
-function toggleCaseFlag(id) {
-  const cases = getCases();
-  const c = cases.find((x) => x.id === id);
-  if (!c) return;
-  c.flagged = !c.flagged;
-  saveCases(cases);
-  renderCaseHistory();
-  showToast(c.flagged ? "Case Flagged: Active Investigation" : "Case Flag Removed");
-}
-
-function deleteCase(id) {
-  let cases = getCases();
-  cases = cases.filter((x) => x.id !== id);
-  saveCases(cases);
-  if (activeCaseId === id) activeCaseId = cases.length > 0 ? cases[0].id : null;
-  renderCaseHistory();
-  showToast("Case Deleted");
-}
-
-function startRenameCase(id) {
-  const nameEl = document.getElementById(`case-name-${id}`);
-  if (!nameEl) return;
-  const current = nameEl.innerText;
-  nameEl.innerHTML = `<input id="rename-input-${id}" class="bg-slate-900 border border-blue-500/50 text-blue-300 text-[11px] font-mono px-2 py-0.5 rounded outline-none w-44" value="${current}" />`;
-  const input = document.getElementById(`rename-input-${id}`);
-  input.focus();
-  input.select();
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") commitRename(id, input.value);
-    if (e.key === "Escape") renderCaseHistory();
-  });
-  input.addEventListener("blur", () => commitRename(id, input.value));
-}
-
-function commitRename(id, newName) {
-  const trimmed = newName.trim();
-  if (!trimmed) return renderCaseHistory();
-  const cases = getCases();
-  const c = cases.find((x) => x.id === id);
-  if (c) { c.name = trimmed; saveCases(cases); }
-  renderCaseHistory();
-}
-
-function filterCaseHistory() {
-  const term = document.getElementById("caseSearchInput")?.value.toLowerCase() || "";
-  const rows = document.querySelectorAll("#caseHistoryBody tr");
-  rows.forEach((row) => {
-    row.style.display = row.innerText.toLowerCase().includes(term) ? "" : "none";
-  });
-}
-
-function sortCaseHistory(by) {
-  const cases = getCases();
-  if (by === "score-desc") cases.sort((a, b) => b.integrityScore - a.integrityScore);
-  else if (by === "score-asc") cases.sort((a, b) => a.integrityScore - b.integrityScore);
-  else if (by === "date-desc") cases.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  else if (by === "date-asc") cases.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-  saveCases(cases);
-  renderCaseHistory();
-}
-
 // ─── TAB SWITCHING ───────────────────────────────────────────────────────────
 
 function switchTab(tabId) {
-  // Close mobile sidebar when navigating
-  if (window.innerWidth < 1024) {
-    const sidebar = document.getElementById("sidebar");
-    const overlay = document.getElementById("sidebarOverlay");
-    if (sidebar && sidebar.classList.contains("open")) {
-      sidebar.classList.remove("open");
-      if (overlay) overlay.classList.add("hidden");
-      document.body.classList.remove("sidebar-open");
-    }
-  }
-
-  document
-    .querySelectorAll(".nav-item")
-    .forEach((el) => el.classList.remove("active", "text-blue-500"));
+  document.querySelectorAll(".nav-item").forEach((el) => el.classList.remove("active", "text-blue-500"));
   const navItem = document.getElementById(`nav-${tabId}`);
   if (navItem) navItem.classList.add("active", "text-blue-500");
 
@@ -572,11 +313,12 @@ function switchTab(tabId) {
   const targetView = document.getElementById(`view-${tabId}`);
   if (targetView) targetView.classList.remove("hidden");
 
-  if (lastScanResults && tabId === "dashboard") setTimeout(() => updateChart(lastScanResults.incidents), 50);
-  if (tabId === "history") renderCaseHistory();
+  if (lastScanResults && tabId === "dashboard") {
+    setTimeout(() => updateChart(lastScanResults.incidents), 50);
+  }
 }
 
-// ─── HEATMAP & CHART ─────────────────────────────────────────────────────────
+// ─── HEATMAP ─────────────────────────────────────────────────────────────────
 
 function updateHeatmapBar(incidents) {
   const container = document.getElementById("forensicHeatmap");
@@ -594,29 +336,6 @@ function updateHeatmapBar(incidents) {
   container.innerHTML = barHtml.join("");
 }
 
-// ─── CHART VIEW STATE ────────────────────────────────────────────────────────
-
-let currentChartView = "line"; // 'line' | 'scatter' | 'dual'
-
-function setChartView(view) {
-  currentChartView = view;
-  // Update toggle button styles
-  document.querySelectorAll(".chart-view-btn").forEach((btn) => {
-    btn.classList.remove("active", "text-blue-400", "bg-blue-600/20");
-    btn.classList.add("text-slate-500");
-  });
-  const active = document.getElementById(`view-btn-${view}`);
-  if (active) {
-    active.classList.add("active", "text-blue-400", "bg-blue-600/20");
-    active.classList.remove("text-slate-500");
-  }
-  if (lastScanResults) updateChart(lastScanResults.incidents);
-}
-
-function resetChartZoom() {
-  if (chart) chart.resetZoom();
-}
-
 // ─── CHART ───────────────────────────────────────────────────────────────────
 
 function updateChart(incidents) {
@@ -625,88 +344,28 @@ function updateChart(incidents) {
   const ctx = canvas.getContext("2d");
   if (chart) chart.destroy();
 
-  if (!incidents || incidents.length === 0) return;
+  const chartLabels = incidents.map((i) => i.start.split(" ")[1]);
+  const chartData = incidents.map((i) => Math.max(0, 100 - i.duration / 300));
 
-  if (currentChartView === "scatter") {
-    chart = buildScatterChart(ctx, incidents);
-  } else if (currentChartView === "dual") {
-    chart = buildDualChart(ctx, incidents);
-  } else {
-    chart = buildLineChart(ctx, incidents);
-  }
-}
-
-// ── Shared zoom/pan plugin config ────────────────────────────────────────────
-
-function zoomPlugin() {
-  return {
-    zoom: {
-      wheel: { enabled: true },
-      pinch: { enabled: true },
-      mode: "x",
-    },
-    pan: {
-      enabled: true,
-      mode: "x",
-    },
-  };
-}
-
-// ── Shared tooltip base ───────────────────────────────────────────────────────
-
-const tooltipBase = {
-  backgroundColor: "rgba(15, 23, 42, 0.97)",
-  titleFont: { size: 11, family: "JetBrains Mono" },
-  bodyFont: { size: 11, family: "JetBrains Mono" },
-  padding: 12,
-  displayColors: true,
-  borderColor: "rgba(59,130,246,0.3)",
-  borderWidth: 1,
-};
-
-// ── 1. LINE VIEW — Integrity score + color zones ──────────────────────────────
-
-function buildLineChart(ctx, incidents) {
-  const labels = incidents.map((i) => i.start.split(" ")[1]);
-  const integrityData = incidents.map((i) => Math.max(0, 100 - i.duration / 300));
-
-  // Background color zones: red where integrity drops below 70
-  const bgColors = integrityData.map((v) =>
-    v < 50 ? "rgba(239,68,68,0.18)" : v < 75 ? "rgba(245,158,11,0.12)" : "rgba(16,185,129,0.08)"
-  );
-
-  return new Chart(ctx, {
+  chart = new Chart(ctx, {
     type: "line",
     data: {
-      labels,
-      datasets: [
-        {
-          label: "Integrity Score",
-          data: integrityData,
-          borderColor: "#3b82f6",
-          backgroundColor: (context) => {
-            const chart = context.chart;
-            const { ctx: c, chartArea } = chart;
-            if (!chartArea) return "rgba(59,130,246,0.15)";
-            const gradient = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-            gradient.addColorStop(0, "rgba(59,130,246,0.25)");
-            gradient.addColorStop(0.5, "rgba(245,158,11,0.1)");
-            gradient.addColorStop(1, "rgba(239,68,68,0.2)");
-            return gradient;
-          },
-          fill: "origin",
-          tension: 0.3,
-          borderWidth: 2,
-          pointRadius: integrityData.map((v) => (v < 70 ? 5 : 2)),
-          pointBackgroundColor: integrityData.map((v) =>
-            v < 50 ? "#ef4444" : v < 75 ? "#f59e0b" : "#3b82f6"
-          ),
-          pointHitRadius: 20,
-        },
-      ],
+      labels: chartLabels,
+      datasets: [{
+        label: "Integrity",
+        data: chartData,
+        borderColor: "#3b82f6",
+        backgroundColor: "rgba(59, 130, 246, 0.15)",
+        fill: "origin",
+        tension: 0,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHitRadius: 20,
+      }],
     },
     options: {
-      responsive: true, maintainAspectRatio: false,
+      responsive: true,
+      maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       scales: {
         y: {
@@ -722,197 +381,40 @@ function buildLineChart(ctx, incidents) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          ...tooltipBase,
+          enabled: true,
+          backgroundColor: "rgba(15, 23, 42, 0.95)",
+          titleFont: { size: 13, family: "JetBrains Mono" },
+          bodyFont: { size: 12, family: "JetBrains Mono" },
+          padding: 12,
+          displayColors: false,
           callbacks: {
-            title: (items) => `⏱ ${items[0].label}`,
+            title: (items) => `Timestamp: ${items[0].label}`,
             label: (item) => {
-              const inc = incidents[item.dataIndex];
-              return [
-                ` Integrity: ${item.parsed.y.toFixed(1)}%`,
-                ` Gap Start: ${inc.start}`,
-                ` Gap End:   ${inc.end}`,
-                ` Duration:  ${inc.duration}s`,
-                ` Severity:  ${inc.severity}`,
-              ];
+              const gap = incidents[item.dataIndex].duration;
+              return [`Integrity: ${item.parsed.y.toFixed(1)}%`, `Gap Duration: ${gap}s`];
             },
           },
         },
-        zoom: zoomPlugin(),
       },
     },
     plugins: [verticalLinePlugin],
   });
 }
 
-// ── 2. SCATTER VIEW — Each gap as a bubble sized by duration ─────────────────
-
-function buildScatterChart(ctx, incidents) {
-  const scatterData = incidents.map((inc, i) => ({
-    x: i,
-    y: inc.duration,
-    r: Math.min(30, Math.max(5, inc.duration / 120)), // bubble radius
-    inc,
-  }));
-
-  return new Chart(ctx, {
-    type: "bubble",
-    data: {
-      datasets: [
-        {
-          label: "Detected Gaps",
-          data: scatterData,
-          backgroundColor: scatterData.map((d) =>
-            d.y > 3600 ? "rgba(239,68,68,0.7)" :
-            d.y > 600  ? "rgba(245,158,11,0.7)" :
-                         "rgba(59,130,246,0.6)"
-          ),
-          borderColor: scatterData.map((d) =>
-            d.y > 3600 ? "#ef4444" : d.y > 600 ? "#f59e0b" : "#3b82f6"
-          ),
-          borderWidth: 1.5,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          title: { display: true, text: "Gap Duration (s)", color: "#64748b", font: { family: "JetBrains Mono", size: 10 } },
-          ticks: { color: "#64748b", font: { family: "JetBrains Mono" } },
-          grid: { color: "rgba(255,255,255,0.03)" },
-        },
-        x: {
-          title: { display: true, text: "Gap Index", color: "#64748b", font: { family: "JetBrains Mono", size: 10 } },
-          ticks: { color: "#64748b", font: { family: "JetBrains Mono" } },
-          grid: { display: false },
-        },
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          ...tooltipBase,
-          callbacks: {
-            label: (item) => {
-              const inc = item.raw.inc;
-              return [
-                ` Gap #${item.dataIndex + 1}`,
-                ` Start:    ${inc.start}`,
-                ` End:      ${inc.end}`,
-                ` Duration: ${inc.duration}s`,
-                ` Severity: ${inc.severity}`,
-                ` Details:  ${inc.details}`,
-              ];
-            },
-          },
-        },
-        zoom: zoomPlugin(),
-      },
-    },
-  });
-}
-
-// ── 3. DUAL VIEW — Integrity (left axis) + Gap Duration bars (right axis) ────
-
-function buildDualChart(ctx, incidents) {
-  const labels = incidents.map((i) => i.start.split(" ")[1]);
-  const integrityData = incidents.map((i) => Math.max(0, 100 - i.duration / 300));
-  const durationData = incidents.map((i) => i.duration);
-
-  return new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels,
-      datasets: [
-        {
-          type: "line",
-          label: "Integrity Score",
-          data: integrityData,
-          borderColor: "#3b82f6",
-          backgroundColor: "transparent",
-          tension: 0.3,
-          borderWidth: 2,
-          pointRadius: 3,
-          pointBackgroundColor: "#3b82f6",
-          yAxisID: "y",
-          order: 1,
-        },
-        {
-          type: "bar",
-          label: "Gap Duration (s)",
-          data: durationData,
-          backgroundColor: durationData.map((d) =>
-            d > 3600 ? "rgba(239,68,68,0.5)" :
-            d > 600  ? "rgba(245,158,11,0.5)" :
-                       "rgba(16,185,129,0.4)"
-          ),
-          borderColor: durationData.map((d) =>
-            d > 3600 ? "#ef4444" : d > 600 ? "#f59e0b" : "#10b981"
-          ),
-          borderWidth: 1,
-          yAxisID: "y2",
-          order: 2,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: "index", intersect: false },
-      scales: {
-        y: {
-          type: "linear",
-          position: "left",
-          min: 0, max: 100,
-          ticks: { callback: (v) => v + "%", color: "#3b82f6", font: { family: "JetBrains Mono" } },
-          grid: { color: "rgba(255,255,255,0.03)" },
-          title: { display: true, text: "Integrity %", color: "#3b82f6", font: { family: "JetBrains Mono", size: 9 } },
-        },
-        y2: {
-          type: "linear",
-          position: "right",
-          ticks: { callback: (v) => v + "s", color: "#10b981", font: { family: "JetBrains Mono" } },
-          grid: { display: false },
-          title: { display: true, text: "Gap Duration (s)", color: "#10b981", font: { family: "JetBrains Mono", size: 9 } },
-        },
-        x: {
-          ticks: { color: "#64748b", autoSkip: true, maxTicksLimit: 10, font: { family: "JetBrains Mono" } },
-          grid: { display: false },
-        },
-      },
-      plugins: {
-        legend: {
-          display: true,
-          labels: { color: "#64748b", font: { family: "JetBrains Mono", size: 9 }, boxWidth: 12 },
-        },
-        tooltip: {
-          ...tooltipBase,
-          callbacks: {
-            title: (items) => `⏱ ${items[0].label}`,
-            label: (item) => {
-              const inc = incidents[item.dataIndex];
-              if (item.dataset.label === "Integrity Score") {
-                return ` Integrity: ${item.parsed.y.toFixed(1)}%`;
-              }
-              return [
-                ` Duration: ${inc.duration}s`,
-                ` Start: ${inc.start}`,
-                ` End:   ${inc.end}`,
-              ];
-            },
-          },
-        },
-        zoom: zoomPlugin(),
-      },
-    },
-  });
-}
+// ─── SORT / FILTER / FLAG ────────────────────────────────────────────────────
 
 function handleSortChange(criteria) {
   if (!lastScanResults || !lastScanResults.incidents) return showToast("No data to sort");
   const placeholder = document.getElementById("sortPlaceholder");
-  if (criteria === "high") { lastScanResults.incidents.sort((a, b) => b.duration - a.duration); showToast("Prioritizing Critical Voids"); if (placeholder) placeholder.disabled = true; }
-  else if (criteria === "low") { lastScanResults.incidents.sort((a, b) => a.duration - b.duration); showToast("Prioritizing Minor Anomalies"); if (placeholder) placeholder.disabled = true; }
+  if (criteria === "high") {
+    lastScanResults.incidents.sort((a, b) => b.duration - a.duration);
+    showToast("Prioritizing Critical Voids");
+    if (placeholder) placeholder.disabled = true;
+  } else if (criteria === "low") {
+    lastScanResults.incidents.sort((a, b) => a.duration - b.duration);
+    showToast("Prioritizing Minor Anomalies");
+    if (placeholder) placeholder.disabled = true;
+  }
   updateRegistryTable(lastScanResults.incidents);
 }
 
@@ -930,163 +432,78 @@ function updateFlagCount() {
 }
 
 function filterRegistry() {
-  const searchTerm = document.getElementById("searchInput").value.toLowerCase();
+  const searchTerm = document.getElementById("searchInput")?.value.toLowerCase() || "";
   if (!lastScanResults || !lastScanResults.incidents) return;
-  let filtered = lastScanResults.incidents;
-  if (searchTerm) {
-    filtered = filtered.filter((inc) =>
-      inc.start.toLowerCase().includes(searchTerm) ||
-      inc.end.toLowerCase().includes(searchTerm) ||
-      inc.duration.toString().includes(searchTerm)
-    );
-  }
+  const filtered = searchTerm
+    ? lastScanResults.incidents.filter((inc) =>
+        inc.start.toLowerCase().includes(searchTerm) ||
+        inc.end.toLowerCase().includes(searchTerm) ||
+        inc.duration.toString().includes(searchTerm)
+      )
+    : lastScanResults.incidents;
   updateRegistryTable(filtered);
 }
 
-function updateFileName() {
-  const fileInput = document.getElementById("logFile");
-  const fileNameDisplay = document.getElementById("fileNameDisplay");
-  const dropArea = document.getElementById("dropArea");
-  if (fileInput && fileInput.files.length > 0) {
-    const file = fileInput.files[0];
-    if (fileNameDisplay) {
-      fileNameDisplay.innerText = file.name;
-      fileNameDisplay.classList.remove("text-slate-500");
-      fileNameDisplay.classList.add("text-blue-400");
-    }
-    if (dropArea) {
-      dropArea.classList.remove("border-slate-800", "border-red-500/50");
-      dropArea.classList.add("border-blue-500");
-    }
-  } else {
-    if (fileNameDisplay) {
-      fileNameDisplay.innerText = "Select or Drop Log File";
-      fileNameDisplay.classList.remove("text-blue-400");
-      fileNameDisplay.classList.add("text-slate-500");
-    }
-    if (dropArea) {
-      dropArea.classList.remove("border-blue-500", "border-red-500/50");
-      dropArea.classList.add("border-slate-800");
-    }
-  }
-}
-
-// ─── DRAG AND DROP ───────────────────────────────────────────────────────────
-
-function initDropZone() {
-  const dropArea = document.getElementById("dropArea");
-  const fileInput = document.getElementById("logFile");
-  if (!dropArea || !fileInput) return;
-
-  // Wire the change event here — single source of truth, no inline onchange
-  fileInput.addEventListener("change", updateFileName);
-
-  // Prevent browser default file-open behavior on drag events
-  ["dragenter", "dragover", "dragleave", "drop"].forEach((evt) => {
-    dropArea.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); });
-    document.body.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); });
-  });
-
-  // Visual feedback on drag enter/over
-  ["dragenter", "dragover"].forEach((evt) => {
-    dropArea.addEventListener(evt, () => {
-      dropArea.classList.add("border-blue-500", "bg-blue-500/5");
-      dropArea.classList.remove("border-slate-800");
-    });
-  });
-
-  // Reset visual on drag leave/drop
-  ["dragleave", "drop"].forEach((evt) => {
-    dropArea.addEventListener(evt, () => {
-      dropArea.classList.remove("border-blue-500", "bg-blue-500/5");
-      dropArea.classList.add("border-slate-800");
-    });
-  });
-
-  // Handle dropped files
-  dropArea.addEventListener("drop", (e) => {
-    const files = e.dataTransfer?.files;
-    if (!files || files.length === 0) return;
-
-    // Transfer dropped file into the real input via DataTransfer
-    try {
-      const dt = new DataTransfer();
-      dt.items.add(files[0]);
-      fileInput.files = dt.files;
-    } catch {
-      // DataTransfer not supported — store file reference directly
-      fileInput._droppedFile = files[0];
-    }
-    updateFileName();
-  });
-}
-
-function logout() {
-  sessionStorage.clear();
-  localStorage.clear();
-  window.location.href = "index.html";
 // ─── EXPORT ──────────────────────────────────────────────────────────────────
-
-// ─── MOBILE SIDEBAR TOGGLE ───────────────────────────────────────────────────
-
-function toggleSidebar() {
-  const sidebar = document.getElementById("sidebar");
-  const overlay = document.getElementById("sidebarOverlay");
-  const isOpen = sidebar.classList.contains("open");
-  if (isOpen) {
-    sidebar.classList.remove("open");
-    overlay.classList.add("hidden");
-    document.body.classList.remove("sidebar-open");
-  } else {
-    sidebar.classList.add("open");
-    overlay.classList.remove("hidden");
-    document.body.classList.add("sidebar-open");
-  }
-}
-
-function logout() {
-  // Clear auth tokens — preserve case history (forensic_cases key)
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("last_forensic_scan");
-  localStorage.removeItem("last_scan_metadata");
-  localStorage.removeItem("flagged_items");
-  sessionStorage.clear();
-  window.location.href = "index.html";
-}
 
 function exportForensicJSON() {
   if (!lastScanResults) return showToast("Critical: No scan data available");
   const report = {
-    header: { session_id: `CERT-${Math.random().toString(36).substr(2, 9).toUpperCase()}`, timestamp: new Date().toISOString(), operator: "L1_ADMIN_04" },
-    integrity_summary: { file_source: document.getElementById("lastFileName")?.innerText || "Unknown", score: document.getElementById("integrityScoreCard")?.innerText || "0%", sha256_hash: `3A7C${Math.random().toString(16).substr(2, 12).toUpperCase()}` },
+    header: {
+      session_id: `CERT-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+      timestamp: new Date().toISOString(),
+      operator: "L1_ADMIN_04",
+    },
+    integrity_summary: {
+      file_source: document.getElementById("lastFileName")?.innerText || "Unknown",
+      score: document.getElementById("integrityScoreCard")?.innerText || "0%",
+      sha256_hash: `3A7C${Math.random().toString(16).substr(2, 12).toUpperCase()}`,
+    },
     void_data: lastScanResults.incidents,
   };
   const blob = new Blob([JSON.stringify(report, null, 4)], { type: "application/json" });
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `Forensic_Audit_${Date.now()}.json`; a.click();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `Forensic_Audit_${Date.now()}.json`;
+  a.click();
   showToast("Signed JSON Exported");
 }
 
 function exportRegistryCSV() {
   if (!lastScanResults || !lastScanResults.incidents.length) return showToast("Notice: Incident Registry is empty");
   let csv = "Incident,Start,End,Duration(s),Severity\n";
-  lastScanResults.incidents.forEach((inc, i) => { csv += `VOID-${i + 1},${inc.start},${inc.end},${inc.duration},${inc.duration > 300 ? "CRITICAL" : "WARNING"}\n`; });
+  lastScanResults.incidents.forEach((inc, i) => {
+    csv += `VOID-${i + 1},${inc.start},${inc.end},${inc.duration},${inc.duration > 300 ? "CRITICAL" : "WARNING"}\n`;
+  });
   const blob = new Blob([csv], { type: "text/csv" });
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `Registry_Log_${Date.now()}.csv`; a.click();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `Registry_Log_${Date.now()}.csv`;
+  a.click();
   showToast("Registry CSV Downloaded");
 }
 
 function exportChartAsPNG() {
   if (!chart) return showToast("No chart data available");
-  const a = document.createElement("a"); a.download = `chart_export_${Date.now()}.png`; a.href = chart.canvas.toDataURL("image/png"); a.click();
+  const a = document.createElement("a");
+  a.download = `chart_export_${Date.now()}.png`;
+  a.href = chart.canvas.toDataURL("image/png");
+  a.click();
   showToast("Chart exported as PNG");
 }
 
 function exportChartAsJPG() {
   if (!chart) return showToast("No chart data available");
   const canvas = chart.canvas;
-  const tmp = document.createElement("canvas"); tmp.width = canvas.width; tmp.height = canvas.height;
-  const ctx = tmp.getContext("2d"); ctx.fillStyle = "white"; ctx.fillRect(0, 0, tmp.width, tmp.height); ctx.drawImage(canvas, 0, 0);
-  const a = document.createElement("a"); a.download = `chart_export_${Date.now()}.jpg`; a.href = tmp.toDataURL("image/jpeg", 0.9); a.click();
+  const tmp = document.createElement("canvas");
+  tmp.width = canvas.width; tmp.height = canvas.height;
+  const ctx = tmp.getContext("2d");
+  ctx.fillStyle = "white"; ctx.fillRect(0, 0, tmp.width, tmp.height);
+  ctx.drawImage(canvas, 0, 0);
+  const a = document.createElement("a");
+  a.download = `chart_export_${Date.now()}.jpg`;
+  a.href = tmp.toDataURL("image/jpeg", 0.9);
+  a.click();
   showToast("Chart exported as JPG");
 }
 
@@ -1096,14 +513,25 @@ function updateFileName() {
   const fileInput = document.getElementById("logFile");
   const fileNameDisplay = document.getElementById("fileNameDisplay");
   const dropArea = document.getElementById("dropArea");
-  
-  if (fileInput.files.length > 0) {
-    fileNameDisplay.innerText = fileInput.files[0].name;
-    fileNameDisplay.classList.replace("text-slate-500", "text-blue-400");
-    if (dropArea) dropArea.classList.replace("border-red-500/50", "border-slate-800");
+  const file = (fileInput && fileInput.files && fileInput.files[0]) || fileInput?._droppedFile;
+  if (file) {
+    if (fileNameDisplay) {
+      fileNameDisplay.innerText = file.name;
+      fileNameDisplay.classList.replace("text-slate-500", "text-blue-400");
+    }
+    if (dropArea) {
+      dropArea.classList.remove("border-slate-800", "border-red-500/50");
+      dropArea.classList.add("border-blue-500");
+    }
   } else {
-    fileNameDisplay.innerText = "Select Log Source";
-    if (dropArea) dropArea.classList.replace("border-red-500/50", "border-slate-800");
+    if (fileNameDisplay) {
+      fileNameDisplay.innerText = "Select Log Source";
+      fileNameDisplay.classList.replace("text-blue-400", "text-slate-500");
+    }
+    if (dropArea) {
+      dropArea.classList.remove("border-blue-500", "border-red-500/50");
+      dropArea.classList.add("border-slate-800");
+    }
   }
 }
 
@@ -1114,59 +542,34 @@ function showToast(msg) {
   msgEl.innerText = msg;
   toast.classList.replace("translate-y-24", "translate-y-0");
   toast.classList.replace("opacity-0", "opacity-100");
-  setTimeout(() => { toast.classList.replace("translate-y-0", "translate-y-24"); toast.classList.replace("opacity-100", "opacity-0"); }, 3000);
+  setTimeout(() => {
+    toast.classList.replace("translate-y-0", "translate-y-24");
+    toast.classList.replace("opacity-100", "opacity-0");
+  }, 3000);
 }
 
 function logout() {
+  // Selectively clear auth — preserve forensic case history
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("last_forensic_scan");
+  localStorage.removeItem("last_scan_metadata");
+  localStorage.removeItem("flagged_items");
   sessionStorage.clear();
-  // Preserve case history on logout — only clear session auth
   window.location.href = "index.html";
 }
-// Search/Filter functionality for Incident Registry
-function filterRegistry() {
-    const searchTerm = document.getElementById("searchInput").value.toLowerCase();
-    if (!lastScanResults || !lastScanResults.incidents) return;
-    
-    let filteredIncidents = lastScanResults.incidents;
-    
-    if (searchTerm) {
-        filteredIncidents = lastScanResults.incidents.filter(inc => {
-            // Search by timestamp (start or end time)
-            const timeMatch = inc.start.toLowerCase().includes(searchTerm) || 
-                              inc.end.toLowerCase().includes(searchTerm);
-            // Search by duration
-            const durationMatch = inc.duration.toString().includes(searchTerm);
-            return timeMatch || durationMatch;
-        });
-    }
-    
-    updateRegistryTable(filteredIncidents);
-}
-const scrollBtn = document.getElementById("scrollTopBtn");
 
-if (scrollBtn) {
-  window.addEventListener("scroll", () => {
-    if (document.documentElement.scrollTop > 100) {
-      scrollBtn.classList.remove("hidden");
-    } else {
-      scrollBtn.classList.add("hidden");
-    }
-  });
-
-  scrollBtn.addEventListener("click", () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth"
-    });
-  });
-}
+// ─── TOS MODAL ───────────────────────────────────────────────────────────────
 
 function showTOS() {
   const modal = document.getElementById("tosModal");
-  if (modal) modal.classList.add("active");
+  if (!modal) return;
+  modal.style.display = "flex";
+  requestAnimationFrame(() => modal.classList.add("active"));
 }
 
 function closeTOS() {
   const modal = document.getElementById("tosModal");
-  if (modal) modal.classList.remove("active");
+  if (!modal) return;
+  modal.classList.remove("active");
+  setTimeout(() => { modal.style.display = "none"; }, 400);
 }
