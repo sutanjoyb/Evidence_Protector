@@ -81,7 +81,8 @@ async function analyzeLogs(event) {
 
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("threshold", 60);
+  const thresholdValue = document.getElementById("thresholdInput")?.value || 60;
+  formData.append("threshold", thresholdValue);
 
   try {
     const token = localStorage.getItem("access_token");

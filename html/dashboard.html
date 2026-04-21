@@ -286,6 +286,26 @@
                     </p>
                   </label>
                 </div>
+                <div class="mt-4">
+                  <label class="text-[10px] text-slate-400 font-bold uppercase">
+                    Threshold
+                    <span 
+                      class="ml-2 text-blue-400 cursor-pointer"
+                      title="Maximum allowed seconds between log entries before flagging a gap."
+                    >
+                      ❓
+                    </span>
+                  </label>
+
+                  <input 
+                    type="number" 
+                    id="thresholdInput"
+                    value="60"
+                    class="w-full mt-2 px-3 py-2 bg-slate-900 border border-white/10 rounded text-white text-sm"
+                  />
+                </div> 
+
+                                
                 <button
                   onclick="analyzeLogs(event)"
                   class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest mt-4"
