@@ -43,10 +43,10 @@
         <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-3 px-2">System Access</p>
         <a href="index.html" class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-house-chimney w-4"></i> Home</a>
         <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2">Analysis Engine</p>
-        <div onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item active flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-chart-pie w-4"></i> Dashboard</div>
-        <div onclick="switchTab('registry')" id="nav-registry" class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-list-check w-4"></i> Registry</div>
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item active w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-chart-pie w-4"></i> Dashboard</button>
+        <button onclick="switchTab('registry')" id="nav-registry" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-list-check w-4"></i> Registry</button>
         <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2">Governance</p>
-        <div onclick="switchTab('compliance')" id="nav-compliance" class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-file-contract w-4"></i> Export Center</div>
+        <button onclick="switchTab('compliance')" id="nav-compliance" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-file-contract w-4"></i> Export Center</button>
       </div>
       <button onclick="logout()" class="mt-4 flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-bold text-red-500/80 hover:bg-red-500/10 transition-all"><i class="fas fa-power-off"></i> Logout</button>
     </nav>
@@ -82,9 +82,9 @@
             <div class="col-span-12 lg:col-span-4 space-y-6">
               <div class="glass-card p-6 border-l-4 border-blue-500">
                 <h4 class="text-[10px] font-bold uppercase text-slate-500 mb-4 tracking-widest">Evidence Ingestion</h4>
-                <div class="border-2 border-dashed border-slate-800 rounded-xl p-6 text-center hover:border-blue-500 transition-all cursor-pointer">
-                  <input type="file" id="logFile" class="hidden" onchange="updateFileName()" />
-                  <label for="logFile" class="cursor-pointer"><i class="fas fa-cloud-arrow-up text-xl text-slate-600 mb-2 block"></i><p id="fileNameDisplay" class="text-[10px] text-slate-500 font-bold uppercase">Select Log Source</p></label>
+                <div id="dropArea" class="border-2 border-dashed border-slate-800 rounded-xl p-6 text-center hover:border-blue-500 transition-all cursor-pointer">
+                  <input type="file" id="logFile" class="hidden" accept=".log,.txt,.csv,.json,.xml,.syslog,.evtx" />
+                  <label for="logFile" class="cursor-pointer block"><i class="fas fa-cloud-arrow-up text-xl text-slate-600 mb-2 block"></i><p id="fileNameDisplay" class="text-[10px] text-slate-500 font-bold uppercase">Select Log Source</p></label>
                 </div>
                 <button onclick="analyzeLogs(event)" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all mt-4">Analyze stream</button>
               </div>
