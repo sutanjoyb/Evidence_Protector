@@ -78,11 +78,76 @@ def analyze_logs(file_path, threshold_seconds=60, use_24_hour=True):
                 if current_time:
                     last_time = current_time
 
-    # Calculate Integrity Score
-    score = max(0, 100.00 - (len(incidents) * 5.0))
+    score = calculate_integrity_score(incidents)
 
     return {
         "total_gaps": len(incidents),
         "integrity_score": round(score, 2),
         "incidents": incidents
     }
+
+
+def calculate_integrity_score(incidents):
+    """
+    Weighted integrity scoring model.
+
+    Replaces the naive `100 - (gap_count * 5)` formula with a hybrid metric
+    that accounts for:
+      - Total missing time (penalises long blackouts)
+      - Longest single gap (catches single catastrophic voids)
+      - Gap frequency relative to log span (distribution awareness)
+      - Severity-tiered per-gap penalties (threshold-based)
+
+    Score is clamped to [0, 100].
+    """
+    if not incidents:
+        return 100.0
+
+    durations = [inc["duration"] for inc in incidents]
+    gap_count = len(durations)
+    total_gap_time = sum(durations)       # seconds
+    longest_gap = max(durations)
+    avg_gap = total_gap_time / gap_count
+
+    # ── 1. FREQUENCY PENALTY (replaces flat -5 per gap) ─────────────────────
+    # Short gaps hurt less; many gaps still accumulate pressure.
+    # Penalty per gap scales with average gap size.
+    if avg_gap < 120:           # < 2 min  → minor
+        per_gap_penalty = 1.0
+    elif avg_gap < 600:         # < 10 min → moderate
+        per_gap_penalty = 3.0
+    elif avg_gap < 3600:        # < 1 hr   → significant
+        per_gap_penalty = 6.0
+    else:                       # ≥ 1 hr   → critical
+        per_gap_penalty = 10.0
+
+    frequency_penalty = min(40.0, gap_count * per_gap_penalty)
+
+    # ── 2. TOTAL DURATION PENALTY ────────────────────────────────────────────
+    # Every hour of missing data costs ~10 points, capped at 35.
+    hours_missing = total_gap_time / 3600
+    duration_penalty = min(35.0, hours_missing * 10.0)
+
+    # ── 3. LONGEST GAP PENALTY ───────────────────────────────────────────────
+    # A single massive void is a strong tampering signal.
+    if longest_gap >= 86400:        # ≥ 24 hrs
+        longest_penalty = 25.0
+    elif longest_gap >= 3600:       # ≥ 1 hr
+        longest_penalty = 15.0
+    elif longest_gap >= 600:        # ≥ 10 min
+        longest_penalty = 8.0
+    elif longest_gap >= 300:        # ≥ 5 min
+        longest_penalty = 4.0
+    else:
+        longest_penalty = 1.0
+
+    # ── 4. CLUSTERING PENALTY ────────────────────────────────────────────────
+    # Many gaps in a short span suggests systematic deletion.
+    # Proxy: if gap_count > 10 and avg_gap < 5 min, add extra pressure.
+    clustering_penalty = 0.0
+    if gap_count > 10 and avg_gap < 300:
+        clustering_penalty = min(10.0, (gap_count - 10) * 0.5)
+
+    total_penalty = frequency_penalty + duration_penalty + longest_penalty + clustering_penalty
+    score = max(0.0, 100.0 - total_penalty)
+    return round(score, 2)
