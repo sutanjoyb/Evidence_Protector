@@ -65,7 +65,7 @@ async function analyzeLogs(event) {
 
   try {
     const token = localStorage.getItem("access_token");
-    const res = await fetch("http://localhost:8000/analyze", {
+    const res = await fetch(`${window.location.origin}/analyze`, {
       method: "POST",
       headers: { "Authorization": `Bearer ${token}` },
       body: formData,
@@ -457,6 +457,52 @@ function exportForensicJSON() {
   a.download = `Forensic_Audit_${Date.now()}.json`;
   a.click();
   showToast("Signed JSON Exported");
+}
+
+async function exportForensicPDF() {
+  if (!lastScanResults) return showToast("Critical: No scan data available");
+  
+  const token = localStorage.getItem("access_token");
+  if (!token) return showToast("Authentication Error");
+
+  const meta = JSON.parse(localStorage.getItem("last_scan_metadata") || "{}");
+  
+  const payload = {
+    file_name: meta.fileName || document.getElementById("lastFileName")?.innerText || "Unknown",
+    scan_time: meta.timestamp || document.getElementById("lastScanTime")?.innerText || new Date().toLocaleString(),
+    score: document.getElementById("integrityScoreCard")?.innerText || "0%",
+    file_hash: lastScanResults.file_hash || "(Not Available - Run Scan Again)",
+    incidents: lastScanResults.incidents || []
+  };
+
+  showToast("Generating Forensic PDF...");
+
+  try {
+    const res = await fetch(`${window.location.origin}/export_pdf`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ detail: "Unknown server error" }));
+      throw new Error(errorData.detail || "Failed to generate PDF");
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Forensic_Report_${Date.now()}.pdf`;
+    a.click();
+    showToast("PDF Report Downloaded");
+  } catch (error) {
+    console.error("PDF Export Error:", error);
+    showToast("Error: " + error.message);
+  }
 }
 
 function exportRegistryCSV() {

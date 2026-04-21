@@ -150,6 +150,7 @@
             <h2 class="text-4xl md:text-6xl font-black mb-6 tracking-tighter text-white uppercase leading-none">Secure The <br /><span class="text-blue-500 italic glow-text">Chain of Custody.</span></h2>
             <p class="text-sm text-slate-400 mb-12 leading-relaxed max-w-lg mx-auto font-light">Generate cryptographically signed evidence packages. These reports anchor your forensic findings to a unique SHA-256 hash for legal admissibility.</p>
             <div class="flex flex-col md:flex-row gap-6 justify-center">
+              <button onclick="exportForensicPDF()" class="px-10 py-4 bg-red-600 hover:bg-red-500 text-white font-black uppercase text-xs rounded shadow-[0_0_30px_rgba(220,38,38,0.3)] transition-all transform hover:scale-105 btn-glow"><i class="fas fa-file-pdf mr-2"></i> Export Report</button>
               <button onclick="exportForensicJSON()" class="px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-xs rounded shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all transform hover:scale-105 btn-glow">Download Signed JSON</button>
               <button onclick="exportRegistryCSV()" class="px-10 py-4 glass bg-white/5 text-white font-black uppercase text-xs rounded transition-all flex items-center justify-center gap-2 border border-white/10 hover:border-white/20">Export Registry CSV <i class="fas fa-file-csv text-blue-500"></i></button>
             </div>

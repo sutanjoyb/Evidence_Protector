@@ -118,7 +118,7 @@ async function handleLogin() {
   const loginBtn = document.querySelector("#loginView button");
 
   try {
-    const res = await fetch("http://127.0.0.1:8000/login", {
+    const res = await fetch(`${window.location.origin}/login`, {
       method: "POST",
       body: formData,
     });
