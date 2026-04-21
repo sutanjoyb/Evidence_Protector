@@ -561,9 +561,9 @@
       <div
         class="max-w-7xl mx-auto px-6 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6"
       >
-        <p class="text-slate-600 text-[10px] uppercase tracking-[0.4em]">
-          © 2026 EVIDENCE PROTECTOR v2.0 | <a href="javascript:void(0)" onclick="showTOS()" class="hover:text-blue-500 transition-colors">Terms of Service</a>
-        </p>
+       <p class="text-slate-600 text-[10px] uppercase tracking-[0.4em]">
+  © <span id="current-year"></span> EVIDENCE PROTECTOR v2.0 | <a href="javascript:void(0)" onclick="showTOS()" class="hover:text-blue-500 transition-colors">Terms of Service</a>
+</p>
 
         <div class="flex gap-8 text-slate-500 text-lg">
           <a href="#" class="hover:text-blue-500 transition-colors"
@@ -820,5 +820,9 @@
 
     <script src="../js/theme.js"></script>
     <script src="../js/index.js"></script>
+    <script>
+  // Dynamic Copyright Year
+  document.getElementById('current-year').textContent = new Date().getFullYear();
+</script>
   </body>
 </html>
