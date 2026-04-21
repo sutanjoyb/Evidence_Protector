@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Evidence Protector Pro | Enterprise Forensic Suite</title>
-    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
@@ -15,298 +15,488 @@
     />
     <link rel="stylesheet" href="../styles/dashboard.css" />
   </head>
-  <body class="flex min-h-screen overflow-x-hidden">
-    <!-- Scan Overlay -->
-    <div id="scanOverlay" class="hidden fixed inset-0 bg-[#020617]/95 backdrop-blur-xl z-[100] flex items-center justify-center">
+  <body class="flex min-h-screen overflow-x-hidden bg-[#020617] text-slate-300">
+    <div
+      id="scanOverlay"
+      class="hidden fixed inset-0 bg-[#020617]/95 backdrop-blur-xl z-[100] flex items-center justify-center"
+    >
       <div class="text-center">
         <div class="relative w-24 h-24 mx-auto mb-8">
-          <div class="absolute inset-0 border-4 border-blue-500/10 border-t-blue-500 rounded-full animate-spin"></div>
-          <div class="absolute inset-4 bg-blue-600/20 rounded-full flex items-center justify-center">
+          <div
+            class="absolute inset-0 border-4 border-blue-500/10 border-t-blue-500 rounded-full animate-spin"
+          ></div>
+          <div
+            class="absolute inset-4 bg-blue-600/20 rounded-full flex items-center justify-center"
+          >
             <i class="fas fa-fingerprint text-blue-500 text-3xl"></i>
           </div>
         </div>
-        <h3 class="text-white font-black tracking-[0.4em] uppercase text-sm mb-3">Forensic Deep Scan</h3>
-        <p id="loaderStatus" class="text-blue-500/60 font-mono text-[10px] uppercase">Initializing data buffers...</p>
+        <h3
+          class="text-white font-black tracking-[0.4em] uppercase text-sm mb-3"
+        >
+          Forensic Deep Scan
+        </h3>
+        <p
+          id="loaderStatus"
+          class="text-blue-500/60 font-mono text-[10px] uppercase"
+        >
+          Initializing data buffers...
+        </p>
       </div>
     </div>
 
-    <!-- Toast -->
-    <div id="toast" class="fixed bottom-4 right-4 sm:bottom-10 sm:right-10 transform translate-y-24 opacity-0 z-[200] bg-blue-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-xl shadow-2xl flex items-center gap-3 max-w-[90vw]">
+    <div
+      id="toast"
+      class="fixed bottom-10 right-10 transform translate-y-24 opacity-0 z-[200] bg-blue-600 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 transition-all duration-300"
+    >
       <i class="fas fa-shield-check"></i>
       <span id="toastMsg">System Ready</span>
     </div>
 
-    <!-- Mobile menu toggle button -->
-    <button id="sidebarToggle" onclick="toggleSidebar()" class="lg:hidden fixed top-4 left-4 z-[60] bg-slate-900 border border-white/10 p-2.5 rounded-xl text-slate-400 hover:text-blue-400 transition-all">
+    <button
+      id="sidebarToggle"
+      onclick="toggleSidebar()"
+      class="lg:hidden fixed top-4 left-4 z-[60] bg-slate-900 border border-white/10 p-2.5 rounded-xl text-slate-400 hover:text-blue-400"
+    >
       <i class="fas fa-bars text-sm"></i>
     </button>
 
-    <!-- Sidebar overlay (mobile) -->
-    <div id="sidebarOverlay" onclick="toggleSidebar()" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"></div>
+    <div
+      id="sidebarOverlay"
+      onclick="toggleSidebar()"
+      class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+    ></div>
 
-    <!-- Sidebar -->
-    <nav id="sidebar" class="fixed lg:relative -translate-x-full lg:translate-x-0 transition-transform duration-300 w-64 h-full border-r border-white/5 bg-slate-950/95 lg:bg-slate-950/50 flex flex-col p-6 shrink-0 z-50">
+    <nav
+      id="sidebar"
+      class="fixed lg:relative -translate-x-full lg:translate-x-0 transition-transform duration-300 w-64 h-full border-r border-white/5 bg-slate-950/95 flex flex-col p-6 shrink-0 z-50"
+    >
       <div class="flex items-center gap-3 mb-10 px-2">
         <i class="fas fa-shield-halved text-blue-500 text-2xl"></i>
-        <span class="font-black tracking-tighter uppercase italic text-lg leading-tight">Evidence <br /><span class="text-blue-500 text-sm">Protector Pro</span></span>
+        <span
+          class="font-black tracking-tighter uppercase italic text-lg leading-tight text-white"
+          >Evidence <br /><span class="text-blue-500 text-sm"
+            >Protector Pro</span
+          ></span
+        >
       </div>
+
       <div class="space-y-1 flex-1 custom-scroll overflow-y-auto">
-        <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-3 px-2">System Access</p>
-        <a href="index.html" class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-house-chimney w-4"></i> Home</a>
-        <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2">Analysis Engine</p>
-        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item active w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-chart-pie w-4"></i> Dashboard</button>
-        <button onclick="switchTab('registry')" id="nav-registry" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-list-check w-4"></i> Registry</button>
-        <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2">Governance</p>
-        <button onclick="switchTab('compliance')" id="nav-compliance" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-file-contract w-4"></i> Export Center</button>
-        <div onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item active flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-chart-pie w-4"></i> Dashboard</div>
-        <div onclick="switchTab('registry')" id="nav-registry" class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-list-check w-4"></i> Registry</div>
-        <div onclick="switchTab('history')" id="nav-history" class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium">
-          <i class="fas fa-clock-rotate-left w-4"></i>
-          Case History
-          <span id="case-count-badge" class="ml-auto bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full min-w-[20px] text-center">0</span>
-        </div>
-        <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2">Governance</p>
-        <button onclick="switchTab('compliance')" id="nav-compliance" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-file-contract w-4"></i> Export Center</button>
+        <p
+          class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-3 px-2"
+        >
+          System Access
+        </p>
+        <button
+          onclick="window.location.href = 'index.html'"
+          class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all w-full text-left"
+        >
+          <i class="fas fa-house-chimney w-4"></i> Home
+        </button>
+
+        <p
+          class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2"
+        >
+          Analysis Engine
+        </p>
+        <button
+          onclick="switchTab('dashboard')"
+          id="nav-dashboard"
+          class="nav-item active w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all"
+        >
+          <i class="fas fa-chart-pie w-4"></i> Dashboard
+        </button>
+        <button
+          onclick="switchTab('registry')"
+          id="nav-registry"
+          class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all"
+        >
+          <i class="fas fa-list-check w-4"></i> Registry
+        </button>
+        <button
+          onclick="switchTab('history')"
+          id="nav-history"
+          class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all"
+        >
+          <i class="fas fa-clock-rotate-left w-4"></i> Case History
+          <span
+            id="case-count-badge"
+            class="ml-auto bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full"
+            >0</span
+          >
+        </button>
+
+        <p
+          class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2"
+        >
+          Governance
+        </p>
+        <button
+          onclick="switchTab('compliance')"
+          id="nav-compliance"
+          class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all"
+        >
+          <i class="fas fa-file-contract w-4"></i> Export Center
+        </button>
       </div>
+
       <div class="px-2 mb-4">
-        <a href="javascript:void(0)" onclick="showTOS()" class="text-[9px] font-bold text-slate-700 uppercase tracking-widest hover:text-blue-500 transition-colors">Terms of Service</a>
+        <button
+          onclick="showTOS()"
+          class="text-[9px] font-bold text-slate-700 uppercase tracking-widest hover:text-blue-500 transition-colors"
+        >
+          Terms of Service
+        </button>
       </div>
-      <button onclick="logout()" class="mt-auto flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-bold text-red-500/80 hover:bg-red-500/10 transition-all"><i class="fas fa-power-off"></i> Logout</button>
+      <button
+        onclick="logout()"
+        class="mt-auto flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-bold text-red-500/80 hover:bg-red-500/10 transition-all"
+      >
+        <i class="fas fa-power-off"></i> Logout
+      </button>
     </nav>
 
-    <!-- Main Content -->
-    <main class="flex-1 flex flex-col h-screen overflow-hidden lg:ml-0">
-      <header class="h-16 sm:h-20 border-b border-white/5 bg-slate-950/20 backdrop-blur-md flex items-center justify-between px-4 sm:px-8 shrink-0 pl-16 lg:pl-8">
-        <h2 id="viewTitle" class="text-base sm:text-lg font-bold truncate">Executive Overview</h2>
-        <div class="bg-slate-900 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full border border-white/5 text-[9px] font-bold text-slate-500 uppercase shrink-0">Status: <span class="text-emerald-500">Active</span></div>
-      </header>
-
-      <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 custom-scroll">
     <main class="flex-1 flex flex-col h-screen overflow-hidden">
-      <header class="h-20 border-b border-white/5 bg-slate-950/20 backdrop-blur-md flex items-center justify-between px-8 shrink-0">
-        <h2 id="viewTitle" class="text-lg font-bold">Executive Overview</h2>
+      <header
+        class="h-20 border-b border-white/5 bg-slate-950/20 backdrop-blur-md flex items-center justify-between px-8 shrink-0"
+      >
+        <h2 id="viewTitle" class="text-lg font-bold text-white">
+          Executive Overview
+        </h2>
+
         <div class="flex items-center gap-3">
-          <button id="themeToggle" aria-label="Toggle theme"><i class="fas fa-sun"></i></button>
-          <div class="bg-slate-900 px-4 py-2 rounded-full border border-white/5 text-[9px] font-bold text-slate-500 uppercase flex items-center gap-2">
-            API: <div id="apiStatusIndicator" class="status-indicator online"></div>
+          <button
+            id="themeToggle"
+            class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-900 border border-white/5 text-blue-400 hover:bg-slate-800 hover:border-blue-500/30 transition-all duration-300"
+            title="Toggle Light/Dark Mode"
+          >
+            <i class="fas fa-sun"></i>
+          </button>
+
+          <div
+            class="bg-slate-900 px-4 py-2 rounded-full border border-white/5 text-[9px] font-bold text-slate-500 uppercase flex items-center gap-2"
+          >
+            API:
+            <div id="apiStatusIndicator" class="status-indicator offline"></div>
           </div>
-          <div class="bg-slate-900 px-4 py-2 rounded-full border border-white/5 text-[9px] font-bold text-slate-500 uppercase">Status: <span class="text-emerald-500">Active</span></div>
+
+          <div
+            class="bg-slate-900 px-4 py-2 rounded-full border border-white/5 text-[9px] font-bold text-slate-500 uppercase"
+          >
+            Status: <span class="text-emerald-500">Active</span>
+          </div>
         </div>
       </header>
 
       <div class="flex-1 overflow-y-auto p-8 space-y-8 custom-scroll">
-        <!-- GREETING PANEL -->
-        <div class="glass-card p-6 border-l-4 border-blue-500 flex items-center justify-between animate-slideUp">
+        <div
+          class="glass-card p-6 border-l-4 border-blue-500 flex items-center justify-between animate-slideUp"
+        >
           <div>
-            <span id="userGreeting" class="text-sm font-black text-white uppercase tracking-[0.2em]">Good Morning, Operator</span>
-            <p class="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest">Forensic Environment Synchronized</p>
+            <span
+              id="userGreeting"
+              class="text-sm font-black text-white uppercase tracking-widest"
+              >Good Morning, Operator</span
+            >
+            <p
+              class="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest"
+            >
+              Forensic Environment Synchronized
+            </p>
           </div>
-          <div class="flex items-center gap-4 text-slate-700">
+          <div class="flex items-center gap-4 text-slate-700 text-xl">
             <i class="fas fa-microchip animate-pulse"></i>
             <i class="fas fa-satellite-dish"></i>
           </div>
         </div>
-        <!-- DASHBOARD TAB -->
+
         <div id="view-dashboard" class="tab-view space-y-6">
-          <!-- KPI Cards -->
-          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div class="glass-card p-5 border-t-2 border-blue-500"><p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Integrity Score</p><h3 id="integrityScoreCard" class="text-2xl font-black text-white">--%</h3></div>
-            <div class="glass-card p-5 border-t-2 border-red-500"><p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Compromise Risk</p><h3 id="financialRisk" class="text-2xl font-black text-red-400">0%</h3></div>
-            <div class="glass-card p-5 border-t-2 border-purple-500"><p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Gaps Detected</p><h3 id="gapCount" class="text-2xl font-black text-white">0</h3></div>
-            <div class="glass-card p-5 border-t-2 border-emerald-500"><p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Last Scan Session</p><p id="lastScanTime" class="text-[10px] font-mono text-emerald-400 truncate">Awaiting Data</p><p id="lastFileName" class="text-[8px] text-slate-600 truncate mt-1">--</p></div>
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="glass-card p-5 border-t-2 border-blue-500">
+              <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">
+                Integrity Score
+              </p>
+              <h3
+                id="integrityScoreCard"
+                class="text-2xl font-black text-white"
+              >
+                --%
+              </h3>
+            </div>
+            <div class="glass-card p-5 border-t-2 border-red-500">
+              <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">
+                Compromise Risk
+              </p>
+              <h3 id="financialRisk" class="text-2xl font-black text-red-400">
+                0%
+              </h3>
+            </div>
+            <div class="glass-card p-5 border-t-2 border-purple-500">
+              <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">
+                Gaps Detected
+              </p>
+              <h3 id="gapCount" class="text-2xl font-black text-white">0</h3>
+            </div>
+            <div class="glass-card p-5 border-t-2 border-emerald-500">
+              <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">
+                Last Session
+              </p>
+              <p
+                id="lastScanTime"
+                class="text-[10px] font-mono text-emerald-400 truncate"
+              >
+                Awaiting Data
+              </p>
+              <p
+                id="lastFileName"
+                class="text-[8px] text-slate-600 truncate mt-1"
+              >
+                --
+              </p>
+            </div>
           </div>
 
-          <!-- Heatmap -->
-          <div class="glass-card p-4 sm:p-6">
-            <div class="flex flex-wrap justify-between items-center gap-2 mb-4"><h4 class="text-[10px] font-bold uppercase text-slate-500 tracking-[0.2em]">Forensic Timeline Scrubber</h4><div class="flex gap-4 text-[8px] font-bold uppercase"><span class="text-emerald-500">● Nominal</span><span class="text-red-500">● Anomaly</span></div></div>
-            <div id="forensicHeatmap" class="heatmap-container mb-3"></div>
-            <div class="flex justify-between text-[9px] font-mono text-slate-600 uppercase"><span id="heatmap-start">00:00:00</span><span id="heatmap-end">23:59:59</span></div>
-          </div>
-
-          <!-- Main Content Area -->
           <div class="grid grid-cols-12 gap-6">
-            <!-- Left Column -->
             <div class="col-span-12 lg:col-span-4 space-y-6">
               <div class="glass-card p-6 border-l-4 border-blue-500">
-                <h4 class="text-[10px] font-bold uppercase text-slate-500 mb-4 tracking-widest">Evidence Ingestion</h4>
-                <div id="dropArea" class="border-2 border-dashed border-slate-800 rounded-xl p-6 text-center hover:border-blue-500 transition-all cursor-pointer">
-                  <input type="file" id="logFile" class="hidden" accept=".log,.txt,.csv,.json,.xml,.syslog,.evtx" />
+                <h4
+                  class="text-[10px] font-bold uppercase text-slate-500 mb-4 tracking-widest"
+                >
+                  Evidence Ingestion
+                </h4>
+                <div
+                  id="dropArea"
+                  class="border-2 border-dashed border-slate-800 rounded-xl p-8 text-center hover:border-blue-500 cursor-pointer"
+                >
+                  <input
+                    type="file"
+                    id="logFile"
+                    class="hidden"
+                    accept=".log,.txt,.csv"
+                  />
                   <label for="logFile" class="cursor-pointer block">
-                    <i class="fas fa-cloud-arrow-up text-xl text-slate-600 mb-2 block"></i>
-                    <p id="fileNameDisplay" class="text-[10px] text-slate-500 font-bold uppercase">Select or Drop Log File</p>
-                    <p class="text-[9px] text-slate-700 mt-1 font-mono">.log .txt .csv .json .xml .syslog .evtx</p>
+                    <i
+                      class="fas fa-cloud-arrow-up text-2xl text-slate-600 mb-2 block"
+                    ></i>
+                    <p
+                      id="fileNameDisplay"
+                      class="text-[10px] text-slate-500 font-bold uppercase"
+                    >
+                      Select Log File
+                    </p>
                   </label>
                 </div>
-                <button onclick="analyzeLogs(event)" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all mt-4">Analyze stream</button>
+                <button
+                  onclick="analyzeLogs(event)"
+                  class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest mt-4"
+                >
+                  Analyze stream
+                </button>
               </div>
-              <div id="signatureCard" class="hidden glass-card p-6 border-l-4 border-amber-500"><h4 class="text-[10px] font-bold uppercase text-amber-500 mb-4 flex items-center gap-2"><i class="fas fa-crosshairs"></i> Tactical Anomaly Signature</h4><div id="tacticalReasoning" class="signature-box text-[10px] text-slate-300 leading-relaxed font-mono"></div></div>
+              <div
+                id="signatureCard"
+                class="hidden glass-card p-6 border-l-4 border-amber-500"
+              >
+                <h4
+                  class="text-[10px] font-bold uppercase text-amber-500 mb-4 flex items-center gap-2"
+                >
+                  <i class="fas fa-crosshairs"></i> Anomaly Signature
+                </h4>
+                <div
+                  id="tacticalReasoning"
+                  class="text-[10px] text-slate-300 leading-relaxed font-mono italic"
+                ></div>
+              </div>
             </div>
-
-            <!-- Right Column - Chart -->
             <div class="col-span-12 lg:col-span-8">
-              <div class="glass-card p-6 min-h-[500px]">
-                <!-- Chart header -->
-                <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
-                  <h4 class="text-[10px] font-bold uppercase text-slate-500 tracking-widest">Forensic Data Visualization</h4>
-                  <div class="flex flex-wrap gap-2 items-center">
-                    <!-- View toggle -->
-                    <div class="flex bg-slate-900 rounded-lg border border-white/5 overflow-hidden text-[9px] font-bold uppercase">
-                      <button id="view-btn-line" onclick="setChartView('line')" class="chart-view-btn active px-3 py-1.5 text-blue-400 bg-blue-600/20 transition-all">Line</button>
-                      <button id="view-btn-scatter" onclick="setChartView('scatter')" class="chart-view-btn px-3 py-1.5 text-slate-500 hover:text-slate-300 transition-all">Scatter</button>
-                      <button id="view-btn-dual" onclick="setChartView('dual')" class="chart-view-btn px-3 py-1.5 text-slate-500 hover:text-slate-300 transition-all">Dual</button>
-                    </div>
-                    <!-- Zoom controls -->
-                    <button onclick="resetChartZoom()" title="Reset Zoom" class="text-[9px] bg-slate-800 hover:bg-slate-700 text-slate-400 px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 font-bold uppercase tracking-wider"><i class="fas fa-magnifying-glass-minus text-xs"></i> Reset</button>
-              <div class="glass-card p-4 sm:p-6">
-                <div class="flex flex-wrap justify-between items-center gap-2 mb-4 sm:mb-6">
-                  <h4 class="text-[10px] font-bold uppercase text-slate-500 tracking-widest">Integrity Delta Visualization</h4>
+              <div class="glass-card p-6 h-[450px]">
+                <div class="flex justify-between items-center mb-6">
+                  <h4
+                    class="text-[10px] font-bold uppercase text-slate-500 tracking-widest"
+                  >
+                    Forensic Data Visualization
+                  </h4>
                   <div class="flex gap-2">
-                    <button onclick="exportChartAsPNG()" class="text-[9px] bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 font-bold uppercase tracking-wider"><i class="fas fa-file-image text-xs"></i> PNG</button>
-                    <button onclick="exportChartAsJPG()" class="text-[9px] bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 font-bold uppercase tracking-wider"><i class="fas fa-camera text-xs"></i> JPG</button>
+                    <button
+                      onclick="exportChartAsPNG()"
+                      class="text-[9px] bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-3 py-1.5 rounded-lg font-bold uppercase"
+                    >
+                      PNG
+                    </button>
+                    <button
+                      onclick="exportChartAsJPG()"
+                      class="text-[9px] bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 px-3 py-1.5 rounded-lg font-bold uppercase"
+                    >
+                      JPG
+                    </button>
                   </div>
                 </div>
-                <!-- Legend -->
-                <div class="flex flex-wrap gap-4 mb-4 text-[8px] font-bold uppercase text-slate-500">
-                  <span class="flex items-center gap-1.5"><span class="w-3 h-1 rounded bg-blue-500 inline-block"></span>Integrity Score</span>
-                  <span class="flex items-center gap-1.5"><span class="w-3 h-1 rounded bg-emerald-500 inline-block"></span>Log Frequency</span>
-                  <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span>Detected Gap</span>
-                  <span class="flex items-center gap-1.5 ml-auto text-slate-600 italic normal-case font-normal">Scroll to zoom · Drag to pan</span>
+                <div class="h-full w-full">
+                  <canvas id="timelineChart"></canvas>
                 </div>
-                <div class="h-[380px] w-full"><canvas id="timelineChart"></canvas></div>
-                <div class="h-[250px] sm:h-[320px] lg:h-[400px] w-full"><canvas id="timelineChart"></canvas></div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- REGISTRY TAB -->
-        <div id="view-registry" class="tab-view hidden glass-card overflow-hidden">
-          <div class="p-4 sm:p-6 border-b border-white/5 bg-slate-900/20 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-            <div class="flex items-center gap-3 flex-wrap">
-              <h4 class="text-xs font-bold uppercase text-slate-400">Incident Registry</h4>
-              <select id="durationSorter" onchange="handleSortChange(this.value)" class="bg-slate-950 border border-white/10 text-[10px] text-blue-400 font-bold uppercase py-1 px-3 rounded-lg outline-none focus:border-blue-500 transition-all cursor-pointer">
+        <div
+          id="view-registry"
+          class="tab-view hidden glass-card overflow-hidden"
+        >
+          <div
+            class="p-6 border-b border-white/5 bg-slate-900/20 flex flex-wrap justify-between items-center gap-4"
+          >
+            <div class="flex items-center gap-4">
+              <h4 class="text-xs font-bold uppercase text-slate-400">
+                Incident Registry
+              </h4>
+              <select
+                id="durationSorter"
+                onchange="handleSortChange(this.value)"
+                class="bg-slate-950 border border-white/10 text-[10px] text-blue-400 font-bold uppercase py-1 px-3 rounded-lg outline-none focus:border-blue-500 cursor-pointer"
+              >
                 <option id="sortPlaceholder" value="none">Sort By</option>
                 <option value="high">Longest Gaps First (Critical)</option>
                 <option value="low">Shortest Gaps First (Minor)</option>
               </select>
             </div>
-            <div class="flex items-center gap-2 w-full sm:w-auto">
-              <i class="fas fa-search text-slate-500 text-xs shrink-0"></i>
-              <input type="text" id="searchInput" placeholder="Search by time or duration..." onkeyup="filterRegistry()" class="bg-slate-950 border border-white/10 text-xs text-slate-300 px-3 py-1.5 rounded-lg outline-none focus:border-blue-500 transition-all w-full sm:w-48 lg:w-64">
+            <div class="flex gap-4">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="Search by time..."
+                onkeyup="filterRegistry()"
+                class="bg-slate-950 border border-white/10 text-xs text-slate-300 px-3 py-1.5 rounded-lg outline-none focus:border-blue-500"
+              />
+              <span
+                id="flag-count"
+                class="text-[10px] bg-blue-600 px-3 py-1 rounded-full text-white font-black"
+                >0 Flagged</span
+              >
             </div>
-            <span id="flag-count" class="text-[10px] bg-blue-600 px-3 py-1 rounded-full text-white font-black self-start sm:self-auto">0 Flagged</span>
           </div>
-          <div class="max-h-[600px] overflow-y-auto overflow-x-auto custom-scroll">
-            <table class="w-full min-w-[520px] text-left" id="incidentTable">
-              <thead class="sticky top-0 bg-slate-900 border-b border-white/5">
-                <tr class="text-slate-500 text-[9px] uppercase tracking-widest">
+          <div class="max-h-[500px] overflow-y-auto custom-scroll relative">
+            <table class="w-full text-left">
+              <thead
+                class="sticky top-0 bg-slate-900 text-[9px] uppercase text-slate-500"
+              >
+                <tr class="border-b border-white/5">
                   <th class="p-6">Time Window</th>
                   <th class="p-6 text-center">Duration</th>
-                  <th class="p-6">Analysis Signature</th>
                   <th class="p-6 text-right">Triage</th>
-                </td>
+                </tr>
               </thead>
-              <tbody id="incidentBody" class="text-[11px] text-slate-400"></tbody>
+              <tbody id="incidentBody"></tbody>
             </table>
-          </div>
-        </div>
-
-        <!-- CASE HISTORY TAB -->
-        <div id="view-history" class="tab-view hidden space-y-4">
-          <div class="glass-card overflow-hidden">
-            <!-- Header -->
-            <div class="p-6 border-b border-white/5 bg-slate-900/20 flex flex-wrap items-center justify-between gap-3">
-              <div class="flex items-center gap-4 flex-wrap">
-                <h4 class="text-xs font-bold uppercase text-slate-400 tracking-widest">Case History</h4>
-                <select onchange="sortCaseHistory(this.value)" class="bg-slate-950 border border-white/10 text-[10px] text-blue-400 font-bold uppercase py-1 px-3 rounded-lg outline-none focus:border-blue-500 transition-all cursor-pointer">
-                  <option value="date-desc">Newest First</option>
-                  <option value="date-asc">Oldest First</option>
-                  <option value="score-desc">Highest Integrity</option>
-                  <option value="score-asc">Lowest Integrity</option>
-                </select>
-              </div>
-              <div class="flex items-center gap-2">
-                <i class="fas fa-search text-slate-500 text-xs"></i>
-                <input type="text" id="caseSearchInput" placeholder="Search cases..." oninput="filterCaseHistory()" class="bg-slate-950 border border-white/10 text-xs text-slate-300 px-3 py-1.5 rounded-lg outline-none focus:border-blue-500 transition-all w-56">
-              </div>
-            </div>
-
-            <!-- Empty state -->
-            <div id="caseHistoryEmpty" class="hidden p-16 text-center">
-              <i class="fas fa-folder-open text-slate-700 text-4xl mb-4 block"></i>
-              <p class="text-slate-500 text-sm font-bold uppercase tracking-widest">No Cases Yet</p>
-              <p class="text-slate-600 text-[10px] mt-2">Run your first scan to create a case.</p>
-            </div>
-
-            <!-- Table -->
-            <div class="max-h-[600px] overflow-y-auto custom-scroll">
-              <table class="w-full text-left">
-                <thead class="sticky top-0 bg-slate-900 border-b border-white/5">
-                  <tr class="text-slate-500 text-[9px] uppercase tracking-widest">
-                    <th class="p-4">Case Name</th>
-                    <th class="p-4">Timestamp</th>
-                    <th class="p-4 text-center">Integrity</th>
-                    <th class="p-4 text-center">Gaps</th>
-                    <th class="p-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="caseHistoryBody" class="text-[11px] text-slate-400"></tbody>
-              </table>
+            <div id="noMatchMessage" class="hidden p-20 text-center">
+              <i
+                class="fas fa-magnifying-glass text-slate-700 text-3xl mb-4 block"
+              ></i>
+              <p class="text-slate-500 text-xs font-bold uppercase">
+                No matches found
+              </p>
             </div>
           </div>
         </div>
 
-        <!-- COMPLIANCE TAB -->
-        <div id="view-compliance" class="tab-view hidden flex flex-col items-center justify-center p-6">
-          <div data-aos="zoom-in" class="text-center max-w-2xl">
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold tracking-[0.2em] mb-8"><i class="fas fa-file-shield animate-pulse"></i> LEGAL COMPLIANCE MODULE</div>
-            <h2 class="text-4xl md:text-6xl font-black mb-6 tracking-tighter text-white uppercase leading-none">Secure The <br /><span class="text-blue-500 italic glow-text">Chain of Custody.</span></h2>
-            <p class="text-sm text-slate-400 mb-12 leading-relaxed max-w-lg mx-auto font-light">Generate cryptographically signed evidence packages. These reports anchor your forensic findings to a unique SHA-256 hash for legal admissibility.</p>
-            <div class="flex flex-col md:flex-row gap-6 justify-center">
-              <button onclick="exportForensicJSON()" class="px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-xs rounded shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all transform hover:scale-105 btn-glow">Download Signed JSON</button>
-              <button onclick="exportRegistryCSV()" class="px-10 py-4 glass bg-white/5 text-white font-black uppercase text-xs rounded transition-all flex items-center justify-center gap-2 border border-white/10 hover:border-white/20">Export Registry CSV <i class="fas fa-file-csv text-blue-500"></i></button>
+        <div
+          id="view-compliance"
+          class="tab-view hidden flex flex-col items-center justify-center p-20 text-center"
+        >
+          <h2
+            class="text-4xl font-black text-white uppercase mb-4 tracking-tighter"
+          >
+            Export Center
+          </h2>
+          <p class="text-slate-400 mb-8 max-w-lg">
+            Generate signed evidence packages for legal admissibility.
+          </p>
+          <div class="flex gap-4">
+            <button
+              onclick="exportForensicJSON()"
+              class="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-xs rounded transition-all"
+            >
+              Download JSON
+            </button>
+            <button
+              onclick="exportRegistryCSV()"
+              class="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white font-black uppercase text-xs rounded border border-white/10 transition-all"
+            >
+              Export CSV
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="view-history"
+          class="tab-view hidden glass-card overflow-hidden"
+        >
+          <div
+            class="p-6 border-b border-white/5 bg-slate-900/20 flex justify-between items-center"
+          >
+            <h4 class="text-xs font-bold uppercase text-slate-400">
+              Forensic Case Vault
+            </h4>
+            <button
+              id="clearVaultBtn"
+              onclick="clearAllHistory()"
+              disabled
+              class="text-[9px] font-bold uppercase tracking-widest transition-all disabled:opacity-20 disabled:cursor-not-allowed text-red-400 hover:text-red-300"
+            >
+              Clear Vault
+            </button>
+          </div>
+          <div class="max-h-[600px] overflow-y-auto custom-scroll relative">
+            <table id="caseHistoryTable" class="w-full text-left">
+              <thead
+                class="sticky top-0 bg-slate-900 text-[9px] uppercase text-slate-500"
+              >
+                <tr class="border-b border-white/5">
+                  <th class="p-6">Case Name</th>
+                  <th class="p-6">Timestamp</th>
+                  <th class="p-6 text-center">Score</th>
+                  <th class="p-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="caseHistoryBody"></tbody>
+            </table>
+            <div id="caseHistoryEmpty" class="hidden p-20 text-center">
+              <i
+                class="fas fa-folder-open text-slate-700 text-4xl mb-4 block"
+              ></i>
+              <p
+                class="text-slate-500 text-xs font-bold uppercase tracking-widest"
+              >
+                Vault is Empty
+              </p>
             </div>
           </div>
         </div>
       </div>
     </main>
-    <button id="scrollTopBtn" class="fixed bottom-6 right-6 hidden bg-blue-600 text-white px-3 py-2 rounded-lg shadow-lg hover:bg-blue-700 transition-all z-50">
-  ↑
-</button>
 
-    <!-- Terms of Service Modal -->
-    <div id="tosModal" class="tos-modal">
-      <div class="tos-content custom-scroll">
-        <button onclick="closeTOS()" class="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors">
-          <i class="fas fa-times text-xl"></i>
+    <div
+      id="tosModal"
+      class="fixed inset-0 z-[300] hidden items-center justify-center bg-black/80 backdrop-blur-md"
+    >
+      <div class="bg-slate-900 p-8 rounded-2xl max-w-lg border border-white/10">
+        <h2 class="text-xl font-black text-white uppercase mb-4">
+          Terms of Service
+        </h2>
+        <p class="text-slate-400 text-xs mb-6 leading-relaxed">
+          Evidence Protector is for educational forensic analysis only.
+          Unauthorized use on systems you do not own is strictly prohibited.
+        </p>
+        <button
+          onclick="closeTOS()"
+          class="w-full bg-blue-600 py-3 rounded-xl font-black text-xs uppercase text-white hover:bg-blue-500 transition-all"
+        >
+          I Accept
         </button>
-        <div class="flex items-center gap-3 mb-8">
-          <i class="fas fa-file-contract text-blue-500 text-2xl"></i>
-          <h2 class="text-2xl font-black uppercase tracking-tight italic">Terms of Service</h2>
-        </div>
-        <div class="space-y-6 text-slate-400 text-sm leading-relaxed font-light">
-          <section>
-            <h4 class="text-white font-bold uppercase text-xs tracking-widest mb-2">1. Forensic Educational Purpose</h4>
-            <p>Evidence Protector is a forensic analysis tool developed strictly for educational and training purposes. It is designed to demonstrate pattern recognition in log files and identify temporal anomalies (voids) that may occur during system events.</p>
-          </section>
-          <section>
-            <h4 class="text-white font-bold uppercase text-xs tracking-widest mb-2">2. Responsible Use</h4>
-            <p>Users agree to use this tool only for lawful activities. It must not be deployed in unauthorized environments or used to facilitate illegal surveillance, data tampering, or unauthorized forensic investigations.</p>
-          </section>
-          <section>
-            <h4 class="text-white font-bold uppercase text-xs tracking-widest mb-2">3. No Warranty</h4>
-            <p>The tool is provided "as is" without warranty of any kind. While it uses forensic heuristics, results should not be considered legally binding or 100% accurate without secondary verification by a certified forensics expert.</p>
-          </section>
-          <section>
-            <h4 class="text-white font-bold uppercase text-xs tracking-widest mb-2">4. Limitation of Liability</h4>
-            <p>The developers and Evidence Protector suite contributors are not liable for any damages resulting from the use or misuse of this software in real-world scenarios.</p>
-          </section>
-        </div>
-        <button onclick="closeTOS()" class="w-full mt-10 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl uppercase text-xs tracking-widest transition-all">I Understand & Accept</button>
       </div>
     </div>
 
-    <script src="../js/theme.js"></script>
     <script src="../js/dashboard.js"></script>
+    <script src="../js/theme.js"></script>
   </body>
 </html>
