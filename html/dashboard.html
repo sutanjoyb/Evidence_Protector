@@ -60,7 +60,7 @@
           <i class="fas fa-list-check w-4"></i> Registry
         </button>
         <button onclick="switchTab('history')" id="nav-history" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all">
-          <i class="fas fa-clock-rotate-left w-4"></i> Case History
+          <i class="fas fa-clock-rotate-left w-4"></i> Scan History
           <span id="case-count-badge" class="ml-auto bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full">0</span>
         </button>
 
@@ -215,13 +215,7 @@
                 </p>
                 <div class="flex flex-col md:flex-row gap-6 justify-center">
                   <button onclick="exportForensicPDF()" class="px-10 py-4 bg-red-600 hover:bg-red-500 text-white font-black uppercase text-xs rounded shadow-[0_0_30px_rgba(220,38,38,0.3)] transition-all transform hover:scale-105 btn-glow">
-                    <i class="fas fa-file-pdf mr-2"></i> Export Report
-                  </button>
-                  <button onclick="exportForensicJSON()" class="px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-xs rounded shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all transform hover:scale-105 btn-glow">
-                    Download Signed JSON
-                  </button>
-                  <button onclick="exportRegistryCSV()" class="px-10 py-4 glass bg-white/5 text-white font-black uppercase text-xs rounded transition-all flex items-center justify-center gap-2 border border-white/10 hover:border-white/20">
-                    Export Registry CSV <i class="fas fa-file-csv text-blue-500"></i>
+                    <i class="fas fa-file-pdf mr-2"></i> Export Report (PDF)
                   </button>
                 </div>
             </div>
