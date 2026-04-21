@@ -130,7 +130,10 @@ let activeCaseId = null;
 let lastScanResults = null;
 
 window.addEventListener("DOMContentLoaded", () => {
-  if (!localStorage.getItem("access_token")) {
+  // Support both JWT (access_token) and legacy session auth (isLoggedIn)
+  const hasJwt = !!localStorage.getItem("access_token");
+  const hasSession = !!sessionStorage.getItem("isLoggedIn");
+  if (!hasJwt && !hasSession) {
     window.location.href = "index.html";
     return;
   }
@@ -680,9 +683,14 @@ function toggleSidebar() {
   }
 }
 
-// Close sidebar when a nav item is tapped on mobile
-function closeSidebarOnMobile() {
-  if (window.innerWidth < 1024) toggleSidebar();
+function logout() {
+  // Clear auth tokens — preserve case history (forensic_cases key)
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("last_forensic_scan");
+  localStorage.removeItem("last_scan_metadata");
+  localStorage.removeItem("flagged_items");
+  sessionStorage.clear();
+  window.location.href = "index.html";
 }
 
 function exportForensicJSON() {
