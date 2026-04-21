@@ -152,6 +152,7 @@ window.addEventListener("DOMContentLoaded", () => {
   updateGreeting(); // Run immediately for better UX
   updateCaseBadge();
   loadLastSession();
+  initDropZone();
   
   // API Polling
   checkApiStatus();
@@ -232,6 +233,9 @@ function loadLastSession() {
 
 async function analyzeLogs(event) {
   const fileInput = document.getElementById("logFile");
+  // Support both native file input selection and drag-and-drop fallback
+  const file = (fileInput.files && fileInput.files[0]) || fileInput._droppedFile || null;
+  if (!file) return showToast("Critical: No source file selected");
   const dropArea = document.getElementById("dropArea");
   const file = fileInput.files[0];
   
@@ -664,6 +668,88 @@ function filterRegistry() {
   updateRegistryTable(filtered);
 }
 
+function updateFileName() {
+  const fileInput = document.getElementById("logFile");
+  const fileNameDisplay = document.getElementById("fileNameDisplay");
+  const dropArea = document.getElementById("dropArea");
+  if (fileInput && fileInput.files.length > 0) {
+    const file = fileInput.files[0];
+    if (fileNameDisplay) {
+      fileNameDisplay.innerText = file.name;
+      fileNameDisplay.classList.remove("text-slate-500");
+      fileNameDisplay.classList.add("text-blue-400");
+    }
+    if (dropArea) {
+      dropArea.classList.remove("border-slate-800", "border-red-500/50");
+      dropArea.classList.add("border-blue-500");
+    }
+  } else {
+    if (fileNameDisplay) {
+      fileNameDisplay.innerText = "Select or Drop Log File";
+      fileNameDisplay.classList.remove("text-blue-400");
+      fileNameDisplay.classList.add("text-slate-500");
+    }
+    if (dropArea) {
+      dropArea.classList.remove("border-blue-500", "border-red-500/50");
+      dropArea.classList.add("border-slate-800");
+    }
+  }
+}
+
+// ─── DRAG AND DROP ───────────────────────────────────────────────────────────
+
+function initDropZone() {
+  const dropArea = document.getElementById("dropArea");
+  const fileInput = document.getElementById("logFile");
+  if (!dropArea || !fileInput) return;
+
+  // Wire the change event here — single source of truth, no inline onchange
+  fileInput.addEventListener("change", updateFileName);
+
+  // Prevent browser default file-open behavior on drag events
+  ["dragenter", "dragover", "dragleave", "drop"].forEach((evt) => {
+    dropArea.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); });
+    document.body.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); });
+  });
+
+  // Visual feedback on drag enter/over
+  ["dragenter", "dragover"].forEach((evt) => {
+    dropArea.addEventListener(evt, () => {
+      dropArea.classList.add("border-blue-500", "bg-blue-500/5");
+      dropArea.classList.remove("border-slate-800");
+    });
+  });
+
+  // Reset visual on drag leave/drop
+  ["dragleave", "drop"].forEach((evt) => {
+    dropArea.addEventListener(evt, () => {
+      dropArea.classList.remove("border-blue-500", "bg-blue-500/5");
+      dropArea.classList.add("border-slate-800");
+    });
+  });
+
+  // Handle dropped files
+  dropArea.addEventListener("drop", (e) => {
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    // Transfer dropped file into the real input via DataTransfer
+    try {
+      const dt = new DataTransfer();
+      dt.items.add(files[0]);
+      fileInput.files = dt.files;
+    } catch {
+      // DataTransfer not supported — store file reference directly
+      fileInput._droppedFile = files[0];
+    }
+    updateFileName();
+  });
+}
+
+function logout() {
+  sessionStorage.clear();
+  localStorage.clear();
+  window.location.href = "index.html";
 // ─── EXPORT ──────────────────────────────────────────────────────────────────
 
 // ─── MOBILE SIDEBAR TOGGLE ───────────────────────────────────────────────────
