@@ -9,6 +9,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <!-- Tippy.js -->
+<link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css"/>
+<script src="https://unpkg.com/@popperjs/core@2"></script>
+<script src="https://unpkg.com/tippy.js@6"></script>
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
@@ -108,10 +112,28 @@
         <div id="view-dashboard" class="tab-view space-y-6">
           <!-- KPI Cards -->
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div class="glass-card p-5 border-t-2 border-blue-500"><p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Integrity Score</p><h3 id="integrityScoreCard" class="text-2xl font-black text-white">--%</h3></div>
-            <div class="glass-card p-5 border-t-2 border-red-500"><p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Compromise Risk</p><h3 id="financialRisk" class="text-2xl font-black text-red-400">0%</h3></div>
-            <div class="glass-card p-5 border-t-2 border-purple-500"><p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Gaps Detected</p><h3 id="gapCount" class="text-2xl font-black text-white">0</h3></div>
-            <div class="glass-card p-5 border-t-2 border-emerald-500"><p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Last Scan Session</p><p id="lastScanTime" class="text-[10px] font-mono text-emerald-400 truncate">Awaiting Data</p><p id="lastFileName" class="text-[8px] text-slate-600 truncate mt-1">--</p></div>
+            <div class="glass-card p-5 border-t-2 border-blue-500">
+              <p id="integrityTooltip" class="text-[9px] text-slate-500 font-bold uppercase mb-1 cursor-help">
+                Integrity Score
+               </p>
+              <h3 id="integrityScoreCard" class="text-2xl font-black text-white">--%</h3></div>
+            <div class="glass-card p-5 border-t-2 border-red-500">
+  <p id="riskTooltip" class="text-[9px] text-slate-500 font-bold uppercase mb-1 cursor-help">
+    Compromise Risk
+  </p>
+  <h3 id="financialRisk" class="text-2xl font-black text-red-400">0%</h3>
+</div>
+
+<div class="glass-card p-5 border-t-2 border-purple-500">
+  <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Gaps Detected</p>
+  <h3 id="gapCount" class="text-2xl font-black text-white">0</h3>
+</div>
+
+<div class="glass-card p-5 border-t-2 border-emerald-500">
+  <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Last Scan Session</p>
+  <p id="lastScanTime" class="text-[10px] font-mono text-emerald-400 truncate">Awaiting Data</p>
+  <p id="lastFileName" class="text-[8px] text-slate-600 truncate mt-1">--</p>
+</div>
           </div>
 
           <!-- Heatmap -->
@@ -306,5 +328,26 @@
 
     <script src="../js/theme.js"></script>
     <script src="../js/dashboard.js"></script>
+    <script>
+window.addEventListener("load", function () {
+  if (typeof tippy !== "undefined") {
+
+    tippy('#integrityTooltip', {
+      content: 'Represents overall log integrity based on anomaly detection and timeline consistency.',
+      theme: 'light-border',
+      placement: 'top',
+    });
+
+    tippy('#riskTooltip', {
+      content: 'Indicates likelihood of system compromise based on detected anomalies.',
+      theme: 'light-border',
+      placement: 'top',
+    });
+
+  } else {
+    console.error("Tippy not loaded");
+  }
+});
+</script>
   </body>
 </html>

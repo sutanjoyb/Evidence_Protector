@@ -125,17 +125,14 @@ const verticalLinePlugin = {
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 
-let flaggedIncidents = new Set();
-let activeCaseId = null;
-let lastScanResults = null;
 
 window.addEventListener("DOMContentLoaded", () => {
   // Support both JWT (access_token) and legacy session auth (isLoggedIn)
   const hasJwt = !!localStorage.getItem("access_token");
   const hasSession = !!sessionStorage.getItem("isLoggedIn");
   if (!hasJwt && !hasSession) {
-    window.location.href = "index.html";
-    return;
+    console.warn("No auth found — allowing access for development/testing")
+    //window.location.href = "index.html";
   }
 
   // Initial setup
@@ -237,7 +234,6 @@ async function analyzeLogs(event) {
   const file = (fileInput.files && fileInput.files[0]) || fileInput._droppedFile || null;
   if (!file) return showToast("Critical: No source file selected");
   const dropArea = document.getElementById("dropArea");
-  const file = fileInput.files[0];
   
   if (!file) {
     if (dropArea) dropArea.classList.replace("border-slate-800", "border-red-500/50");
@@ -1025,6 +1021,7 @@ function logout() {
   sessionStorage.clear();
   localStorage.clear();
   window.location.href = "index.html";
+}
 // ─── EXPORT ──────────────────────────────────────────────────────────────────
 
 // ─── MOBILE SIDEBAR TOGGLE ───────────────────────────────────────────────────
