@@ -36,11 +36,14 @@ window.addEventListener("DOMContentLoaded", () => {
   updateCaseBadge();
   loadLastSession();
   initDropZone();
-  setupSelectAllCheckbox(); // NEW: Initialize select all checkbox
+  setupSelectAllCheckbox();
 
   // 4. API Monitoring
   checkApiStatus();
   setInterval(checkApiStatus, 5000);
+
+  // 5. Reactive Scroll-To-Top (dashboard scrolls inside #mainScroll)
+  initScrollToTop();
 });
 
 // ─── SESSION PERSISTENCE ─────────────────────────────────────────────────────
@@ -98,7 +101,6 @@ async function analyzeLogs(event) {
     statusText.innerText = "Finalizing Reports...";
     await new Promise((r) => setTimeout(r, 600));
 
-    // 1. Save as Last Session (Current View)
     const meta = {
       timestamp: new Date().toLocaleString().toUpperCase(),
       fileName: file.name,
@@ -106,7 +108,6 @@ async function analyzeLogs(event) {
     localStorage.setItem("last_forensic_scan", JSON.stringify(data));
     localStorage.setItem("last_scan_metadata", JSON.stringify(meta));
 
-    // 2. Save to Permanent Case History Vault
     saveToVault(data, file.name);
 
     lastScanResults = data;
@@ -131,7 +132,7 @@ function saveToVault(data, fileName) {
     incidents: data.incidents,
   };
   cases.unshift(newCase);
-  if (cases.length > 50) cases.pop(); // Limit storage
+  if (cases.length > 50) cases.pop();
   localStorage.setItem(CASES_KEY, JSON.stringify(cases));
   updateCaseBadge();
 }
@@ -242,24 +243,23 @@ function handleSortChange(criteria) {
   updateRegistryTable(lastScanResults.incidents);
 }
 
-// ─── FLAG ALL FUNCTIONALITY (NEW) ────────────────────────────────────────────
+// ─── FLAG ALL FUNCTIONALITY ───────────────────────────────────────────────────
 function setupSelectAllCheckbox() {
   const selectAllCheckbox = document.getElementById('selectAllCheckbox');
   if (!selectAllCheckbox) return;
-  
   selectAllCheckbox.removeEventListener('change', handleSelectAll);
   selectAllCheckbox.addEventListener('change', handleSelectAll);
 }
 
 function handleSelectAll(e) {
   const isChecked = e.target.checked;
-  
+
   if (!lastScanResults || !lastScanResults.incidents) {
     showToast("No incidents to flag");
     e.target.checked = false;
     return;
   }
-  
+
   if (isChecked) {
     for (let i = 0; i < lastScanResults.incidents.length; i++) {
       flaggedIncidents.add(i);
@@ -269,15 +269,11 @@ function handleSelectAll(e) {
     flaggedIncidents.clear();
     showToast("Cleared all flags");
   }
-  
-  localStorage.setItem(
-    "flagged_items",
-    JSON.stringify(Array.from(flaggedIncidents))
-  );
-  
+
+  localStorage.setItem("flagged_items", JSON.stringify(Array.from(flaggedIncidents)));
   updateFlagCount();
   updateRegistryTable(lastScanResults.incidents);
-  
+
   const selectAllCheckbox = document.getElementById('selectAllCheckbox');
   if (selectAllCheckbox && selectAllCheckbox.checked !== isChecked) {
     selectAllCheckbox.checked = isChecked;
@@ -287,18 +283,15 @@ function handleSelectAll(e) {
 function handleIndividualCheckboxChange(e) {
   const checkbox = e.target;
   const index = parseInt(checkbox.getAttribute('data-index'));
-  
+
   if (checkbox.checked) {
     flaggedIncidents.add(index);
   } else {
     flaggedIncidents.delete(index);
   }
-  
-  localStorage.setItem(
-    "flagged_items",
-    JSON.stringify(Array.from(flaggedIncidents))
-  );
-  
+
+  localStorage.setItem("flagged_items", JSON.stringify(Array.from(flaggedIncidents)));
+
   const flagButton = checkbox.closest('tr').querySelector(`button[onclick="toggleFlag(${index})"]`);
   if (flagButton) {
     if (checkbox.checked) {
@@ -309,7 +302,7 @@ function handleIndividualCheckboxChange(e) {
       flagButton.classList.add('text-slate-700');
     }
   }
-  
+
   updateFlagCount();
   updateSelectAllCheckboxState();
 }
@@ -317,10 +310,10 @@ function handleIndividualCheckboxChange(e) {
 function updateSelectAllCheckboxState() {
   const selectAllCheckbox = document.getElementById('selectAllCheckbox');
   if (!selectAllCheckbox || !lastScanResults || !lastScanResults.incidents) return;
-  
+
   const totalIncidents = lastScanResults.incidents.length;
   const flaggedCount = flaggedIncidents.size;
-  
+
   if (totalIncidents === 0) {
     selectAllCheckbox.checked = false;
     selectAllCheckbox.indeterminate = false;
@@ -403,9 +396,7 @@ function exportChartAsJPG() {
 // ─── EXPORT CENTER ───────────────────────────────────────────────────────────
 function exportForensicJSON() {
   if (!lastScanResults) return showToast("No data available");
-  const blob = new Blob([JSON.stringify(lastScanResults, null, 4)], {
-    type: "application/json",
-  });
+  const blob = new Blob([JSON.stringify(lastScanResults, null, 4)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `Forensic_Report_${Date.now()}.json`;
@@ -416,9 +407,7 @@ function exportForensicJSON() {
 function exportRegistryCSV() {
   if (!lastScanResults) return showToast("Registry empty");
   let csv = "Start,End,Duration\n";
-  lastScanResults.incidents.forEach(
-    (i) => (csv += `${i.start},${i.end},${i.duration}\n`),
-  );
+  lastScanResults.incidents.forEach((i) => (csv += `${i.start},${i.end},${i.duration}\n`));
   const blob = new Blob([csv], { type: "text/csv" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -429,15 +418,9 @@ function exportRegistryCSV() {
 
 // ─── UI & NAVIGATION UTILS ───────────────────────────────────────────────────
 function switchTab(tabId) {
-  document
-    .querySelectorAll(".nav-item")
-    .forEach((el) => el.classList.remove("active", "text-blue-500"));
-  document
-    .getElementById(`nav-${tabId}`)
-    ?.classList.add("active", "text-blue-500");
-  document
-    .querySelectorAll(".tab-view")
-    .forEach((v) => v.classList.add("hidden"));
+  document.querySelectorAll(".nav-item").forEach((el) => el.classList.remove("active", "text-blue-500"));
+  document.getElementById(`nav-${tabId}`)?.classList.add("active", "text-blue-500");
+  document.querySelectorAll(".tab-view").forEach((v) => v.classList.add("hidden"));
   document.getElementById(`view-${tabId}`)?.classList.remove("hidden");
 
   if (tabId === "history") renderCaseHistory();
@@ -477,15 +460,13 @@ function initDropZone() {
   if (!dropArea || !fileInput) return;
   fileInput.addEventListener("change", () => {
     if (fileInput.files.length > 0)
-      document.getElementById("fileNameDisplay").innerText =
-        fileInput.files[0].name;
+      document.getElementById("fileNameDisplay").innerText = fileInput.files[0].name;
   });
   dropArea.addEventListener("drop", (e) => {
     e.preventDefault();
     if (e.dataTransfer.files.length > 0) {
       fileInput.files = e.dataTransfer.files;
-      document.getElementById("fileNameDisplay").innerText =
-        fileInput.files[0].name;
+      document.getElementById("fileNameDisplay").innerText = fileInput.files[0].name;
     }
   });
 }
@@ -515,9 +496,7 @@ async function checkApiStatus() {
   if (!indicator) return;
   try {
     const res = await fetch("http://localhost:8000/", { method: "GET" });
-    indicator.className = res.ok
-      ? "status-indicator online"
-      : "status-indicator offline";
+    indicator.className = res.ok ? "status-indicator online" : "status-indicator offline";
   } catch {
     indicator.className = "status-indicator offline";
   }
@@ -525,20 +504,17 @@ async function checkApiStatus() {
 
 function renderResults(data) {
   if (!data) return;
-  document.getElementById("integrityScoreCard").innerText =
-    parseFloat(data.integrity_score).toFixed(1) + "%";
-  document.getElementById("financialRisk").innerText =
-    (100 - parseFloat(data.integrity_score)).toFixed(1) + "%";
+  document.getElementById("integrityScoreCard").innerText = parseFloat(data.integrity_score).toFixed(1) + "%";
+  document.getElementById("financialRisk").innerText = (100 - parseFloat(data.integrity_score)).toFixed(1) + "%";
   document.getElementById("gapCount").innerText = data.total_gaps;
   updateRegistryTable(data.incidents);
   updateChart(data.incidents);
 }
 
-// UPDATED: This function now includes checkbox column
 function updateRegistryTable(incidents) {
   const tbody = document.getElementById("incidentBody");
   if (!tbody) return;
-  
+
   tbody.innerHTML = incidents
     .map(
       (inc, i) => `
@@ -556,46 +532,79 @@ function updateRegistryTable(incidents) {
         </tr>`,
     )
     .join("");
-  
-  // Add event listeners to all checkboxes
+
   const checkboxes = document.querySelectorAll('.incident-checkbox');
   checkboxes.forEach(checkbox => {
     checkbox.removeEventListener('change', handleIndividualCheckboxChange);
     checkbox.addEventListener('change', handleIndividualCheckboxChange);
   });
-  
+
   updateSelectAllCheckboxState();
 }
 
-// UPDATED: toggleFlag now updates checkboxes
 function toggleFlag(index) {
   if (flaggedIncidents.has(index)) {
     flaggedIncidents.delete(index);
   } else {
     flaggedIncidents.add(index);
   }
-  
-  localStorage.setItem(
-    "flagged_items",
-    JSON.stringify(Array.from(flaggedIncidents))
-  );
-  
-  // Update the checkbox if it exists
+
+  localStorage.setItem("flagged_items", JSON.stringify(Array.from(flaggedIncidents)));
+
   const checkbox = document.querySelector(`.incident-checkbox[data-index="${index}"]`);
-  if (checkbox) {
-    checkbox.checked = flaggedIncidents.has(index);
-  }
-  
+  if (checkbox) checkbox.checked = flaggedIncidents.has(index);
+
   updateFlagCount();
   updateSelectAllCheckboxState();
-  
-  // Re-render to update flag button color
-  if (lastScanResults) {
-    updateRegistryTable(lastScanResults.incidents);
-  }
+
+  if (lastScanResults) updateRegistryTable(lastScanResults.incidents);
 }
 
 function updateFlagCount() {
   const el = document.getElementById("flag-count");
   if (el) el.innerText = `${flaggedIncidents.size} Flagged`;
+}
+
+// ─── REACTIVE SCROLL TO TOP (DASHBOARD) ──────────────────────────────────────
+// Dashboard scrolls inside #mainScroll div, NOT window — so we listen on that.
+
+function initScrollToTop() {
+  const btn = document.getElementById("scrollTopBtn");
+  const ring = document.getElementById("scrollProgressRing");
+  const scrollContainer = document.getElementById("mainScroll");
+  if (!btn || !scrollContainer) return;
+
+  // Ring circumference for r=19 circle: 2 * π * 19 ≈ 119.38
+  const CIRCUMFERENCE = 119.38;
+  const SHOW_THRESHOLD = 300; // px scrolled before button appears
+
+  function updateScrollBtn() {
+    const scrollTop = scrollContainer.scrollTop;
+    const scrollHeight = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+    const scrollPct = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
+
+    // Show / hide with .visible class (CSS handles fade + slide)
+    if (scrollTop > SHOW_THRESHOLD) {
+      btn.classList.add("visible");
+    } else {
+      btn.classList.remove("visible");
+    }
+
+    // Update progress ring stroke
+    if (ring) {
+      const offset = CIRCUMFERENCE - scrollPct * CIRCUMFERENCE;
+      ring.style.strokeDashoffset = offset;
+    }
+  }
+
+  // Listen on the inner scroll container, not window
+  scrollContainer.addEventListener("scroll", updateScrollBtn, { passive: true });
+
+  // Click — smooth scroll to top of the container
+  btn.addEventListener("click", () => {
+    scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  // Run once on init
+  updateScrollBtn();
 }
