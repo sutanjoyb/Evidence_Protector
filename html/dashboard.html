@@ -11,9 +11,83 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <link rel="stylesheet" href="../styles/dashboard.css" />
+    <style>
+      /* ── Reactive Scroll-To-Top Button (Dashboard) ───────────────────────── */
+      #scrollTopBtn {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        z-index: 99;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        /* Hidden by default */
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(20px) scale(0.8);
+        transition: opacity 0.4s ease, transform 0.4s ease,
+                    box-shadow 0.3s ease, background 0.3s ease;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+      }
+
+      #scrollTopBtn.visible {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+      }
+
+      #scrollTopBtn:hover {
+        background: #1d4ed8;
+        box-shadow: 0 10px 28px rgba(37, 99, 235, 0.55);
+        transform: translateY(-4px) scale(1.1);
+      }
+
+      #scrollTopBtn:active {
+        transform: scale(0.92);
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+      }
+
+      #scrollTopBtn svg.scroll-ring {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+        pointer-events: none;
+      }
+
+      #scrollTopBtn .arrow-icon {
+        position: relative;
+        z-index: 1;
+        font-size: 12px;
+        transition: transform 0.3s ease;
+      }
+
+      #scrollTopBtn:hover .arrow-icon {
+        transform: translateY(-2px);
+      }
+
+      html[data-theme="light"] #scrollTopBtn {
+        background: #2563eb;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+      }
+      html[data-theme="light"] #scrollTopBtn:hover {
+        background: #1d4ed8;
+        box-shadow: 0 10px 28px rgba(37, 99, 235, 0.4);
+      }
+    </style>
   </head>
   <body class="flex min-h-screen overflow-x-hidden bg-[#020617] text-slate-300">
     <!-- SCAN OVERLAY -->
+
     <div id="scanOverlay" class="hidden fixed inset-0 bg-[#020617]/95 backdrop-blur-xl z-[100] flex items-center justify-center">
       <div class="text-center">
         <div class="relative w-24 h-24 mx-auto mb-8">
@@ -39,7 +113,9 @@
     </button>
     <div id="sidebarOverlay" onclick="toggleSidebar()" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"></div>
 
-    <!-- SIDEBAR -->
+
+
+
     <nav id="sidebar" class="fixed lg:relative -translate-x-full lg:translate-x-0 transition-transform duration-300 w-64 h-full border-r border-white/5 bg-slate-950/95 flex flex-col p-6 shrink-0 z-50">
       <div class="flex items-center gap-3 mb-10 px-2">
         <i class="fas fa-shield-halved text-blue-500 text-2xl"></i>
@@ -97,8 +173,10 @@
       </header>
 
       <!-- VIEWPORT -->
-      <div class="flex-1 overflow-y-auto p-8 space-y-8 custom-scroll">
-        <!-- GREETING -->
+      <!-- VIEWPORT / Scrollable main content — scroll-to-top targets this -->
+      <div id="mainScroll" class="flex-1 overflow-y-auto p-8 space-y-8 custom-scroll">
+
+
         <div class="glass-card p-6 border-l-4 border-blue-500 flex items-center justify-between animate-slideUp">
           <div>
             <span id="userGreeting" class="text-sm font-black text-white uppercase tracking-widest">Good Morning, Operator</span>
@@ -146,8 +224,17 @@
                 <button onclick="analyzeLogs(event)" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest mt-4">Analyze stream</button>
               </div>
               <div id="signatureCard" class="hidden glass-card p-6 border-l-4 border-amber-500">
-                <h4 class="text-[10px] font-bold uppercase text-amber-500 mb-4 flex items-center gap-2"><i class="fas fa-crosshairs"></i> Anomaly Signature</h4>
-                <div id="tacticalReasoning" class="text-[10px] text-slate-300 leading-relaxed font-mono italic"></div>
+                <h4 class="text-[10px] font-bold uppercase text-amber-500 mb-4 flex items-center gap-2">
+                  <i class="fas fa-crosshairs"></i> Anomaly Signature
+                </h4>
+                <div id="tacticalReasoning" class="text-[10px] text-slate-300 leading-relaxed font-mono italic mb-4"></div>
+                <div class="mt-4 pt-4 border-t border-white/5">
+                  <label class="text-[10px] text-slate-400 font-bold uppercase">
+                    Threshold (Seconds)
+                    <span class="ml-2 text-blue-400 cursor-pointer" title="Maximum allowed seconds between log entries before flagging a gap.">❓</span>
+                  </label>
+                  <input type="number" id="thresholdInput" value="60" class="w-full mt-2 px-3 py-2 bg-slate-900 border border-white/10 rounded text-white text-sm outline-none focus:border-blue-500" />
+                </div>
               </div>
             </div>
             <div class="col-span-12 lg:col-span-8">
@@ -187,6 +274,9 @@
             <table class="w-full text-left">
               <thead class="sticky top-0 bg-slate-900 text-[9px] uppercase text-slate-500">
                 <tr class="border-b border-white/5">
+                  <th class="p-6 w-10">
+                    <input type="checkbox" id="selectAllCheckbox" class="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-0" />
+                  </th>
                   <th class="p-6">Time Window</th>
                   <th class="p-6 text-center">Duration</th>
                   <th class="p-6 text-right">Triage</th>
@@ -227,7 +317,8 @@
             </div>
         </div>
 
-        <!-- HISTORY VIEW -->
+
+
         <div id="view-history" class="tab-view hidden glass-card overflow-hidden">
           <div class="p-6 border-b border-white/5 bg-slate-900/20 flex justify-between items-center">
             <h4 class="text-xs font-bold uppercase text-slate-400">Forensic Case Vault</h4>
@@ -251,16 +342,27 @@
             </div>
           </div>
         </div>
-      </div>
+
+      </div><!-- end #mainScroll -->
     </main>
 
-    <!-- TOS MODAL -->
+
+    <!-- ── REACTIVE SCROLL TO TOP BUTTON ─────────────────────────────────── -->
+    <button id="scrollTopBtn" aria-label="Scroll to top">
+      <svg class="scroll-ring" viewBox="0 0 44 44" fill="none">
+        <circle cx="22" cy="22" r="19" stroke="rgba(255,255,255,0.15)" stroke-width="2.5"/>
+        <circle id="scrollProgressRing" cx="22" cy="22" r="19"
+          stroke="rgba(255,255,255,0.85)" stroke-width="2.5"
+          stroke-dasharray="119.38" stroke-dashoffset="119.38"
+          stroke-linecap="round"/>
+      </svg>
+      <i class="fas fa-arrow-up arrow-icon"></i>
+    </button>
+
     <div id="tosModal" class="fixed inset-0 z-[300] hidden items-center justify-center bg-black/80 backdrop-blur-md">
       <div class="bg-slate-900 p-8 rounded-2xl max-w-lg border border-white/10">
         <h2 class="text-xl font-black text-white uppercase mb-4">Terms of Service</h2>
-        <p class="text-slate-400 text-xs mb-6 leading-relaxed">
-          Evidence Protector is for educational forensic analysis only. Unauthorized use on systems you do not own is strictly prohibited.
-        </p>
+        <p class="text-slate-400 text-xs mb-6 leading-relaxed">Evidence Protector is for educational forensic analysis only. Unauthorized use on systems you do not own is strictly prohibited.</p>
         <button onclick="closeTOS()" class="w-full bg-blue-600 py-3 rounded-xl font-black text-xs uppercase text-white hover:bg-blue-500 transition-all">I Accept</button>
       </div>
     </div>
