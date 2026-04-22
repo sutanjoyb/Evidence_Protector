@@ -131,9 +131,9 @@ window.addEventListener("DOMContentLoaded", () => {
   const hasJwt = !!localStorage.getItem("access_token");
   const hasSession = !!sessionStorage.getItem("isLoggedIn");
   if (!hasJwt && !hasSession) {
-    console.warn("No auth found — allowing access for development/testing")
-    //window.location.href = "index.html";
-  }
+    window.location.href = "index.html";
+    return;
+}
 
   // Initial setup
   const savedFlags = localStorage.getItem("flagged_items");
