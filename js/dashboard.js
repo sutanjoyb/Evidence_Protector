@@ -315,22 +315,9 @@ function exportForensicJSON() {
   a.href = URL.createObjectURL(blob);
   a.download = `Forensic_Report_${Date.now()}.json`;
   a.click();
-  showToast("JSON Exported");
+  showToast("Signed JSON Exported");
 }
 
-function exportRegistryCSV() {
-  if (!lastScanResults) return showToast("Registry empty");
-  let csv = "Start,End,Duration\n";
-  lastScanResults.incidents.forEach(
-    (i) => (csv += `${i.start},${i.end},${i.duration}\n`),
-  );
-  const blob = new Blob([csv], { type: "text/csv" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `Registry_${Date.now()}.csv`;
-  a.click();
-  showToast("CSV Exported");
-}
 
 // ─── UI & NAVIGATION UTILS ───────────────────────────────────────────────────
 function switchTab(tabId) {

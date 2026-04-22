@@ -2,3 +2,8 @@ fastapi
 uvicorn
 python-multipart
 python-magic
+python-jose[cryptography]
+bcrypt
+slowapi
+reportlab
+python-dotenv
