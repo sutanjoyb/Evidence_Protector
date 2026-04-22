@@ -9,200 +9,169 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
-    />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <link rel="stylesheet" href="../styles/dashboard.css" />
+    <style>
+      /* ── Reactive Scroll-To-Top Button (Dashboard) ───────────────────────── */
+      #scrollTopBtn {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        z-index: 99;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        /* Hidden by default */
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(20px) scale(0.8);
+        transition: opacity 0.4s ease, transform 0.4s ease,
+                    box-shadow 0.3s ease, background 0.3s ease;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+      }
+
+      #scrollTopBtn.visible {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+      }
+
+      #scrollTopBtn:hover {
+        background: #1d4ed8;
+        box-shadow: 0 10px 28px rgba(37, 99, 235, 0.55);
+        transform: translateY(-4px) scale(1.1);
+      }
+
+      #scrollTopBtn:active {
+        transform: scale(0.92);
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+      }
+
+      #scrollTopBtn svg.scroll-ring {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+        pointer-events: none;
+      }
+
+      #scrollTopBtn .arrow-icon {
+        position: relative;
+        z-index: 1;
+        font-size: 12px;
+        transition: transform 0.3s ease;
+      }
+
+      #scrollTopBtn:hover .arrow-icon {
+        transform: translateY(-2px);
+      }
+
+      html[data-theme="light"] #scrollTopBtn {
+        background: #2563eb;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+      }
+      html[data-theme="light"] #scrollTopBtn:hover {
+        background: #1d4ed8;
+        box-shadow: 0 10px 28px rgba(37, 99, 235, 0.4);
+      }
+    </style>
   </head>
   <body class="flex min-h-screen overflow-x-hidden bg-[#020617] text-slate-300">
-    <div
-      id="scanOverlay"
-      class="hidden fixed inset-0 bg-[#020617]/95 backdrop-blur-xl z-[100] flex items-center justify-center"
-    >
+
+    <div id="scanOverlay" class="hidden fixed inset-0 bg-[#020617]/95 backdrop-blur-xl z-[100] flex items-center justify-center">
       <div class="text-center">
         <div class="relative w-24 h-24 mx-auto mb-8">
-          <div
-            class="absolute inset-0 border-4 border-blue-500/10 border-t-blue-500 rounded-full animate-spin"
-          ></div>
-          <div
-            class="absolute inset-4 bg-blue-600/20 rounded-full flex items-center justify-center"
-          >
+          <div class="absolute inset-0 border-4 border-blue-500/10 border-t-blue-500 rounded-full animate-spin"></div>
+          <div class="absolute inset-4 bg-blue-600/20 rounded-full flex items-center justify-center">
             <i class="fas fa-fingerprint text-blue-500 text-3xl"></i>
           </div>
         </div>
-        <h3
-          class="text-white font-black tracking-[0.4em] uppercase text-sm mb-3"
-        >
-          Forensic Deep Scan
-        </h3>
-        <p
-          id="loaderStatus"
-          class="text-blue-500/60 font-mono text-[10px] uppercase"
-        >
-          Initializing data buffers...
-        </p>
+        <h3 class="text-white font-black tracking-[0.4em] uppercase text-sm mb-3">Forensic Deep Scan</h3>
+        <p id="loaderStatus" class="text-blue-500/60 font-mono text-[10px] uppercase">Initializing data buffers...</p>
       </div>
     </div>
 
-    <div
-      id="toast"
-      class="fixed bottom-10 right-10 transform translate-y-24 opacity-0 z-[200] bg-blue-600 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 transition-all duration-300"
-    >
+    <div id="toast" class="fixed bottom-10 right-10 transform translate-y-24 opacity-0 z-[200] bg-blue-600 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 transition-all duration-300">
       <i class="fas fa-shield-check"></i>
       <span id="toastMsg">System Ready</span>
     </div>
 
-    <button
-      id="sidebarToggle"
-      onclick="toggleSidebar()"
-      class="lg:hidden fixed top-4 left-4 z-[60] bg-slate-900 border border-white/10 p-2.5 rounded-xl text-slate-400 hover:text-blue-400"
-    >
+    <button id="sidebarToggle" onclick="toggleSidebar()" class="lg:hidden fixed top-4 left-4 z-[60] bg-slate-900 border border-white/10 p-2.5 rounded-xl text-slate-400 hover:text-blue-400">
       <i class="fas fa-bars text-sm"></i>
     </button>
 
-    <div
-      id="sidebarOverlay"
-      onclick="toggleSidebar()"
-      class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
-    ></div>
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"></div>
 
-    <nav
-      id="sidebar"
-      class="fixed lg:relative -translate-x-full lg:translate-x-0 transition-transform duration-300 w-64 h-full border-r border-white/5 bg-slate-950/95 flex flex-col p-6 shrink-0 z-50"
-    >
+    <nav id="sidebar" class="fixed lg:relative -translate-x-full lg:translate-x-0 transition-transform duration-300 w-64 h-full border-r border-white/5 bg-slate-950/95 flex flex-col p-6 shrink-0 z-50">
       <div class="flex items-center gap-3 mb-10 px-2">
         <i class="fas fa-shield-halved text-blue-500 text-2xl"></i>
-        <span
-          class="font-black tracking-tighter uppercase italic text-lg leading-tight text-white"
-          >Evidence <br /><span class="text-blue-500 text-sm"
-            >Protector Pro</span
-          ></span
-        >
+        <span class="font-black tracking-tighter uppercase italic text-lg leading-tight text-white">Evidence <br /><span class="text-blue-500 text-sm">Protector Pro</span></span>
       </div>
 
       <div class="space-y-1 flex-1 custom-scroll overflow-y-auto">
-        <p
-          class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-3 px-2"
-        >
-          System Access
-        </p>
-        <button
-          onclick="window.location.href = 'index.html'"
-          class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all w-full text-left"
-        >
+        <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-3 px-2">System Access</p>
+        <button onclick="window.location.href = 'index.html'" class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all w-full text-left">
           <i class="fas fa-house-chimney w-4"></i> Home
         </button>
 
-        <p
-          class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2"
-        >
-          Analysis Engine
-        </p>
-        <button
-          onclick="switchTab('dashboard')"
-          id="nav-dashboard"
-          class="nav-item active w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all"
-        >
+        <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2">Analysis Engine</p>
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item active w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all">
           <i class="fas fa-chart-pie w-4"></i> Dashboard
         </button>
-        <button
-          onclick="switchTab('registry')"
-          id="nav-registry"
-          class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all"
-        >
+        <button onclick="switchTab('registry')" id="nav-registry" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all">
           <i class="fas fa-list-check w-4"></i> Registry
         </button>
-        <button
-          onclick="switchTab('history')"
-          id="nav-history"
-          class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all"
-        >
+        <button onclick="switchTab('history')" id="nav-history" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all">
           <i class="fas fa-clock-rotate-left w-4"></i> Case History
-          <span
-            id="case-count-badge"
-            class="ml-auto bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full"
-            >0</span
-          >
+          <span id="case-count-badge" class="ml-auto bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full">0</span>
         </button>
 
-        <p
-          class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2"
-        >
-          Governance
-        </p>
-        <button
-          onclick="switchTab('compliance')"
-          id="nav-compliance"
-          class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all"
-        >
+        <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2">Governance</p>
+        <button onclick="switchTab('compliance')" id="nav-compliance" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all">
           <i class="fas fa-file-contract w-4"></i> Export Center
         </button>
       </div>
 
       <div class="px-2 mb-4">
-        <button
-          onclick="showTOS()"
-          class="text-[9px] font-bold text-slate-700 uppercase tracking-widest hover:text-blue-500 transition-colors"
-        >
-          Terms of Service
-        </button>
+        <button onclick="showTOS()" class="text-[9px] font-bold text-slate-700 uppercase tracking-widest hover:text-blue-500 transition-colors">Terms of Service</button>
       </div>
-      <button
-        onclick="logout()"
-        class="mt-auto flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-bold text-red-500/80 hover:bg-red-500/10 transition-all"
-      >
+      <button onclick="logout()" class="mt-auto flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-bold text-red-500/80 hover:bg-red-500/10 transition-all">
         <i class="fas fa-power-off"></i> Logout
       </button>
     </nav>
 
     <main class="flex-1 flex flex-col h-screen overflow-hidden">
-      <header
-        class="h-20 border-b border-white/5 bg-slate-950/20 backdrop-blur-md flex items-center justify-between px-8 shrink-0"
-      >
-        <h2 id="viewTitle" class="text-lg font-bold text-white">
-          Executive Overview
-        </h2>
-
+      <header class="h-20 border-b border-white/5 bg-slate-950/20 backdrop-blur-md flex items-center justify-between px-8 shrink-0">
+        <h2 id="viewTitle" class="text-lg font-bold text-white">Executive Overview</h2>
         <div class="flex items-center gap-3">
-          <button
-            id="themeToggle"
-            class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-900 border border-white/5 text-blue-400 hover:bg-slate-800 hover:border-blue-500/30 transition-all duration-300"
-            title="Toggle Light/Dark Mode"
-          >
+          <button id="themeToggle" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-900 border border-white/5 text-blue-400 hover:bg-slate-800 hover:border-blue-500/30 transition-all duration-300" title="Toggle Light/Dark Mode">
             <i class="fas fa-sun"></i>
           </button>
-
-          <div
-            class="bg-slate-900 px-4 py-2 rounded-full border border-white/5 text-[9px] font-bold text-slate-500 uppercase flex items-center gap-2"
-          >
-            API:
-            <div id="apiStatusIndicator" class="status-indicator offline"></div>
+          <div class="bg-slate-900 px-4 py-2 rounded-full border border-white/5 text-[9px] font-bold text-slate-500 uppercase flex items-center gap-2">
+            API: <div id="apiStatusIndicator" class="status-indicator offline"></div>
           </div>
-
-          <div
-            class="bg-slate-900 px-4 py-2 rounded-full border border-white/5 text-[9px] font-bold text-slate-500 uppercase"
-          >
+          <div class="bg-slate-900 px-4 py-2 rounded-full border border-white/5 text-[9px] font-bold text-slate-500 uppercase">
             Status: <span class="text-emerald-500">Active</span>
           </div>
         </div>
       </header>
 
-      <div class="flex-1 overflow-y-auto p-8 space-y-8 custom-scroll">
-        <div
-          class="glass-card p-6 border-l-4 border-blue-500 flex items-center justify-between animate-slideUp"
-        >
+      <!-- Scrollable main content — scroll-to-top targets this -->
+      <div id="mainScroll" class="flex-1 overflow-y-auto p-8 space-y-8 custom-scroll">
+
+        <div class="glass-card p-6 border-l-4 border-blue-500 flex items-center justify-between animate-slideUp">
           <div>
-            <span
-              id="userGreeting"
-              class="text-sm font-black text-white uppercase tracking-widest"
-              >Good Morning, Operator</span
-            >
-            <p
-              class="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest"
-            >
-              Forensic Environment Synchronized
-            </p>
+            <span id="userGreeting" class="text-sm font-black text-white uppercase tracking-widest">Good Morning, Operator</span>
+            <p class="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest">Forensic Environment Synchronized</p>
           </div>
           <div class="flex items-center gap-4 text-slate-700 text-xl">
             <i class="fas fa-microchip animate-pulse"></i>
@@ -213,77 +182,33 @@
         <div id="view-dashboard" class="tab-view space-y-6">
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="glass-card p-5 border-t-2 border-blue-500">
-              <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">
-                Integrity Score
-              </p>
-              <h3
-                id="integrityScoreCard"
-                class="text-2xl font-black text-white"
-              >
-                --%
-              </h3>
+              <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Integrity Score</p>
+              <h3 id="integrityScoreCard" class="text-2xl font-black text-white">--%</h3>
             </div>
             <div class="glass-card p-5 border-t-2 border-red-500">
-              <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">
-                Compromise Risk
-              </p>
-              <h3 id="financialRisk" class="text-2xl font-black text-red-400">
-                0%
-              </h3>
+              <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Compromise Risk</p>
+              <h3 id="financialRisk" class="text-2xl font-black text-red-400">0%</h3>
             </div>
             <div class="glass-card p-5 border-t-2 border-purple-500">
-              <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">
-                Gaps Detected
-              </p>
+              <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Gaps Detected</p>
               <h3 id="gapCount" class="text-2xl font-black text-white">0</h3>
             </div>
             <div class="glass-card p-5 border-t-2 border-emerald-500">
-              <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">
-                Last Session
-              </p>
-              <p
-                id="lastScanTime"
-                class="text-[10px] font-mono text-emerald-400 truncate"
-              >
-                Awaiting Data
-              </p>
-              <p
-                id="lastFileName"
-                class="text-[8px] text-slate-600 truncate mt-1"
-              >
-                --
-              </p>
+              <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Last Session</p>
+              <p id="lastScanTime" class="text-[10px] font-mono text-emerald-400 truncate">Awaiting Data</p>
+              <p id="lastFileName" class="text-[8px] text-slate-600 truncate mt-1">--</p>
             </div>
           </div>
 
           <div class="grid grid-cols-12 gap-6">
             <div class="col-span-12 lg:col-span-4 space-y-6">
               <div class="glass-card p-6 border-l-4 border-blue-500">
-                <h4
-                  class="text-[10px] font-bold uppercase text-slate-500 mb-4 tracking-widest"
-                >
-                  Evidence Ingestion
-                </h4>
-                <div
-                  id="dropArea"
-                  class="border-2 border-dashed border-slate-800 rounded-xl p-8 text-center hover:border-blue-500 cursor-pointer"
-                >
-                  <input
-                    type="file"
-                    id="logFile"
-                    class="hidden"
-                    accept=".log,.txt,.csv"
-                  />
+                <h4 class="text-[10px] font-bold uppercase text-slate-500 mb-4 tracking-widest">Evidence Ingestion</h4>
+                <div id="dropArea" class="border-2 border-dashed border-slate-800 rounded-xl p-8 text-center hover:border-blue-500 cursor-pointer">
+                  <input type="file" id="logFile" class="hidden" accept=".log,.txt,.csv" />
                   <label for="logFile" class="cursor-pointer block">
-                    <i
-                      class="fas fa-cloud-arrow-up text-2xl text-slate-600 mb-2 block"
-                    ></i>
-                    <p
-                      id="fileNameDisplay"
-                      class="text-[10px] text-slate-500 font-bold uppercase"
-                    >
-                      Select Log File
-                    </p>
+                    <i class="fas fa-cloud-arrow-up text-2xl text-slate-600 mb-2 block"></i>
+                    <p id="fileNameDisplay" class="text-[10px] text-slate-500 font-bold uppercase">Select Log File</p>
                   </label>
                 </div>
                 <div class="mt-4">
@@ -296,7 +221,6 @@
                       ❓
                     </span>
                   </label>
-
                   <input 
                     type="number" 
                     id="thresholdInput"
@@ -304,8 +228,6 @@
                     class="w-full mt-2 px-3 py-2 bg-slate-900 border border-white/10 rounded text-white text-sm"
                   />
                 </div> 
-
-                                
                 <button
                   onclick="analyzeLogs(event)"
                   class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest mt-4"
@@ -313,42 +235,20 @@
                   Analyze stream
                 </button>
               </div>
-              <div
-                id="signatureCard"
-                class="hidden glass-card p-6 border-l-4 border-amber-500"
-              >
-                <h4
-                  class="text-[10px] font-bold uppercase text-amber-500 mb-4 flex items-center gap-2"
-                >
+              <div id="signatureCard" class="hidden glass-card p-6 border-l-4 border-amber-500">
+                <h4 class="text-[10px] font-bold uppercase text-amber-500 mb-4 flex items-center gap-2">
                   <i class="fas fa-crosshairs"></i> Anomaly Signature
                 </h4>
-                <div
-                  id="tacticalReasoning"
-                  class="text-[10px] text-slate-300 leading-relaxed font-mono italic"
-                ></div>
+                <div id="tacticalReasoning" class="text-[10px] text-slate-300 leading-relaxed font-mono italic"></div>
               </div>
             </div>
             <div class="col-span-12 lg:col-span-8">
               <div class="glass-card p-6 h-[450px]">
                 <div class="flex justify-between items-center mb-6">
-                  <h4
-                    class="text-[10px] font-bold uppercase text-slate-500 tracking-widest"
-                  >
-                    Forensic Data Visualization
-                  </h4>
+                  <h4 class="text-[10px] font-bold uppercase text-slate-500 tracking-widest">Forensic Data Visualization</h4>
                   <div class="flex gap-2">
-                    <button
-                      onclick="exportChartAsPNG()"
-                      class="text-[9px] bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-3 py-1.5 rounded-lg font-bold uppercase"
-                    >
-                      PNG
-                    </button>
-                    <button
-                      onclick="exportChartAsJPG()"
-                      class="text-[9px] bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 px-3 py-1.5 rounded-lg font-bold uppercase"
-                    >
-                      JPG
-                    </button>
+                    <button onclick="exportChartAsPNG()" class="text-[9px] bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-3 py-1.5 rounded-lg font-bold uppercase">PNG</button>
+                    <button onclick="exportChartAsJPG()" class="text-[9px] bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 px-3 py-1.5 rounded-lg font-bold uppercase">JPG</button>
                   </div>
                 </div>
                 <div class="h-full w-full">
@@ -359,48 +259,28 @@
           </div>
         </div>
 
-        <div
-          id="view-registry"
-          class="tab-view hidden glass-card overflow-hidden"
-        >
-          <div
-            class="p-6 border-b border-white/5 bg-slate-900/20 flex flex-wrap justify-between items-center gap-4"
-          >
+        <div id="view-registry" class="tab-view hidden glass-card overflow-hidden">
+          <div class="p-6 border-b border-white/5 bg-slate-900/20 flex flex-wrap justify-between items-center gap-4">
             <div class="flex items-center gap-4">
-              <h4 class="text-xs font-bold uppercase text-slate-400">
-                Incident Registry
-              </h4>
-              <select
-                id="durationSorter"
-                onchange="handleSortChange(this.value)"
-                class="bg-slate-950 border border-white/10 text-[10px] text-blue-400 font-bold uppercase py-1 px-3 rounded-lg outline-none focus:border-blue-500 cursor-pointer"
-              >
+              <h4 class="text-xs font-bold uppercase text-slate-400">Incident Registry</h4>
+              <select id="durationSorter" onchange="handleSortChange(this.value)" class="bg-slate-950 border border-white/10 text-[10px] text-blue-400 font-bold uppercase py-1 px-3 rounded-lg outline-none focus:border-blue-500 cursor-pointer">
                 <option id="sortPlaceholder" value="none">Sort By</option>
                 <option value="high">Longest Gaps First (Critical)</option>
                 <option value="low">Shortest Gaps First (Minor)</option>
               </select>
             </div>
             <div class="flex gap-4">
-              <input
-                type="text"
-                id="searchInput"
-                placeholder="Search by time..."
-                onkeyup="filterRegistry()"
-                class="bg-slate-950 border border-white/10 text-xs text-slate-300 px-3 py-1.5 rounded-lg outline-none focus:border-blue-500"
-              />
-              <span
-                id="flag-count"
-                class="text-[10px] bg-blue-600 px-3 py-1 rounded-full text-white font-black"
-                >0 Flagged</span
-              >
+              <input type="text" id="searchInput" placeholder="Search by time..." onkeyup="filterRegistry()" class="bg-slate-950 border border-white/10 text-xs text-slate-300 px-3 py-1.5 rounded-lg outline-none focus:border-blue-500" />
+              <span id="flag-count" class="text-[10px] bg-blue-600 px-3 py-1 rounded-full text-white font-black">0 Flagged</span>
             </div>
           </div>
           <div class="max-h-[500px] overflow-y-auto custom-scroll relative">
             <table class="w-full text-left">
-              <thead
-                class="sticky top-0 bg-slate-900 text-[9px] uppercase text-slate-500"
-              >
+              <thead class="sticky top-0 bg-slate-900 text-[9px] uppercase text-slate-500">
                 <tr class="border-b border-white/5">
+                  <th class="p-6 w-10">
+                    <input type="checkbox" id="selectAllCheckbox" class="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-0" />
+                  </th>
                   <th class="p-6">Time Window</th>
                   <th class="p-6 text-center">Duration</th>
                   <th class="p-6 text-right">Triage</th>
@@ -409,68 +289,29 @@
               <tbody id="incidentBody"></tbody>
             </table>
             <div id="noMatchMessage" class="hidden p-20 text-center">
-              <i
-                class="fas fa-magnifying-glass text-slate-700 text-3xl mb-4 block"
-              ></i>
-              <p class="text-slate-500 text-xs font-bold uppercase">
-                No matches found
-              </p>
+              <i class="fas fa-magnifying-glass text-slate-700 text-3xl mb-4 block"></i>
+              <p class="text-slate-500 text-xs font-bold uppercase">No matches found</p>
             </div>
           </div>
         </div>
 
-        <div
-          id="view-compliance"
-          class="tab-view hidden flex flex-col items-center justify-center p-20 text-center"
-        >
-          <h2
-            class="text-4xl font-black text-white uppercase mb-4 tracking-tighter"
-          >
-            Export Center
-          </h2>
-          <p class="text-slate-400 mb-8 max-w-lg">
-            Generate signed evidence packages for legal admissibility.
-          </p>
+        <div id="view-compliance" class="tab-view hidden flex flex-col items-center justify-center p-20 text-center">
+          <h2 class="text-4xl font-black text-white uppercase mb-4 tracking-tighter">Export Center</h2>
+          <p class="text-slate-400 mb-8 max-w-lg">Generate signed evidence packages for legal admissibility.</p>
           <div class="flex gap-4">
-            <button
-              onclick="exportForensicJSON()"
-              class="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-xs rounded transition-all"
-            >
-              Download JSON
-            </button>
-            <button
-              onclick="exportRegistryCSV()"
-              class="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white font-black uppercase text-xs rounded border border-white/10 transition-all"
-            >
-              Export CSV
-            </button>
+            <button onclick="exportForensicJSON()" class="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-xs rounded transition-all">Download JSON</button>
+            <button onclick="exportRegistryCSV()" class="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white font-black uppercase text-xs rounded border border-white/10 transition-all">Export CSV</button>
           </div>
         </div>
 
-        <div
-          id="view-history"
-          class="tab-view hidden glass-card overflow-hidden"
-        >
-          <div
-            class="p-6 border-b border-white/5 bg-slate-900/20 flex justify-between items-center"
-          >
-            <h4 class="text-xs font-bold uppercase text-slate-400">
-              Forensic Case Vault
-            </h4>
-            <button
-              id="clearVaultBtn"
-              onclick="clearAllHistory()"
-              disabled
-              class="text-[9px] font-bold uppercase tracking-widest transition-all disabled:opacity-20 disabled:cursor-not-allowed text-red-400 hover:text-red-300"
-            >
-              Clear Vault
-            </button>
+        <div id="view-history" class="tab-view hidden glass-card overflow-hidden">
+          <div class="p-6 border-b border-white/5 bg-slate-900/20 flex justify-between items-center">
+            <h4 class="text-xs font-bold uppercase text-slate-400">Forensic Case Vault</h4>
+            <button id="clearVaultBtn" onclick="clearAllHistory()" disabled class="text-[9px] font-bold uppercase tracking-widest transition-all disabled:opacity-20 disabled:cursor-not-allowed text-red-400 hover:text-red-300">Clear Vault</button>
           </div>
           <div class="max-h-[600px] overflow-y-auto custom-scroll relative">
             <table id="caseHistoryTable" class="w-full text-left">
-              <thead
-                class="sticky top-0 bg-slate-900 text-[9px] uppercase text-slate-500"
-              >
+              <thead class="sticky top-0 bg-slate-900 text-[9px] uppercase text-slate-500">
                 <tr class="border-b border-white/5">
                   <th class="p-6">Case Name</th>
                   <th class="p-6">Timestamp</th>
@@ -481,38 +322,32 @@
               <tbody id="caseHistoryBody"></tbody>
             </table>
             <div id="caseHistoryEmpty" class="hidden p-20 text-center">
-              <i
-                class="fas fa-folder-open text-slate-700 text-4xl mb-4 block"
-              ></i>
-              <p
-                class="text-slate-500 text-xs font-bold uppercase tracking-widest"
-              >
-                Vault is Empty
-              </p>
+              <i class="fas fa-folder-open text-slate-700 text-4xl mb-4 block"></i>
+              <p class="text-slate-500 text-xs font-bold uppercase tracking-widest">Vault is Empty</p>
             </div>
           </div>
         </div>
-      </div>
+
+      </div><!-- end #mainScroll -->
     </main>
 
-    <div
-      id="tosModal"
-      class="fixed inset-0 z-[300] hidden items-center justify-center bg-black/80 backdrop-blur-md"
-    >
+    <!-- ── REACTIVE SCROLL TO TOP BUTTON ─────────────────────────────────── -->
+    <button id="scrollTopBtn" aria-label="Scroll to top">
+      <svg class="scroll-ring" viewBox="0 0 44 44" fill="none">
+        <circle cx="22" cy="22" r="19" stroke="rgba(255,255,255,0.15)" stroke-width="2.5"/>
+        <circle id="scrollProgressRing" cx="22" cy="22" r="19"
+          stroke="rgba(255,255,255,0.85)" stroke-width="2.5"
+          stroke-dasharray="119.38" stroke-dashoffset="119.38"
+          stroke-linecap="round"/>
+      </svg>
+      <i class="fas fa-arrow-up arrow-icon"></i>
+    </button>
+
+    <div id="tosModal" class="fixed inset-0 z-[300] hidden items-center justify-center bg-black/80 backdrop-blur-md">
       <div class="bg-slate-900 p-8 rounded-2xl max-w-lg border border-white/10">
-        <h2 class="text-xl font-black text-white uppercase mb-4">
-          Terms of Service
-        </h2>
-        <p class="text-slate-400 text-xs mb-6 leading-relaxed">
-          Evidence Protector is for educational forensic analysis only.
-          Unauthorized use on systems you do not own is strictly prohibited.
-        </p>
-        <button
-          onclick="closeTOS()"
-          class="w-full bg-blue-600 py-3 rounded-xl font-black text-xs uppercase text-white hover:bg-blue-500 transition-all"
-        >
-          I Accept
-        </button>
+        <h2 class="text-xl font-black text-white uppercase mb-4">Terms of Service</h2>
+        <p class="text-slate-400 text-xs mb-6 leading-relaxed">Evidence Protector is for educational forensic analysis only. Unauthorized use on systems you do not own is strictly prohibited.</p>
+        <button onclick="closeTOS()" class="w-full bg-blue-600 py-3 rounded-xl font-black text-xs uppercase text-white hover:bg-blue-500 transition-all">I Accept</button>
       </div>
     </div>
 

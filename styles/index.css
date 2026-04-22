@@ -2,33 +2,37 @@
 
 /* ── Theme Variables ─────────────────────────────────────────────────────── */
 :root {
-  --bg-primary:    #020617;
-  --bg-secondary:  #0f172a;
-  --bg-glass:      rgba(15, 23, 42, 0.6);
-  --bg-glass-hover:rgba(15, 23, 42, 0.8);
-  --border-subtle: rgba(255, 255, 255, 0.05);
-  --border-hover:  rgba(59, 130, 246, 0.4);
-  --text-main:     #f8fafc;
-  --text-muted:    #94a3b8;
-  --text-faint:    #475569;
-  --accent-blue:   #3b82f6;
-  --accent-emerald:#10b981;
-  --grid-line:     rgba(30, 41, 59, 0.3);
+  --bg-primary:     #020617;
+  --bg-secondary:   #0f172a;
+  --bg-glass:       rgba(15, 23, 42, 0.6);
+  --bg-glass-hover: rgba(15, 23, 42, 0.8);
+  --border-subtle:  rgba(255, 255, 255, 0.05);
+  --border-hover:   rgba(59, 130, 246, 0.4);
+  --text-main:      #f8fafc;
+  --text-muted:     #94a3b8;
+  --text-faint:     #475569;
+  --accent-blue:    #3b82f6;
+  --accent-emerald: #10b981;
+  --grid-line:      rgba(30, 41, 59, 0.3);
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   REVAMPED LIGHT MODE — Login Page
+   Pearl canvas · sapphire depth · soft architectural shadows
+   ══════════════════════════════════════════════════════════════════════════ */
 html[data-theme="light"] {
-  --bg-primary:    #f1f5f9;
-  --bg-secondary:  #e2e8f0;
-  --bg-glass:      rgba(255, 255, 255, 0.7);
-  --bg-glass-hover:rgba(255, 255, 255, 0.9);
-  --border-subtle: rgba(0, 0, 0, 0.08);
-  --border-hover:  rgba(59, 130, 246, 0.5);
-  --text-main:     #0f172a;
-  --text-muted:    #475569;
-  --text-faint:    #94a3b8;
-  --accent-blue:   #2563eb;
-  --accent-emerald:#059669;
-  --grid-line:     rgba(148, 163, 184, 0.25);
+  --bg-primary:     #eef1f7;
+  --bg-secondary:   #ffffff;
+  --bg-glass:       rgba(255, 255, 255, 0.92);
+  --bg-glass-hover: rgba(255, 255, 255, 1);
+  --border-subtle:  #dde3ed;
+  --border-hover:   #2563eb;
+  --text-main:      #111827;
+  --text-muted:     #4b5c77;
+  --text-faint:     #8896ad;
+  --accent-blue:    #2563eb;
+  --accent-emerald: #059669;
+  --grid-line:      rgba(99, 119, 158, 0.12);
 }
 
 /* ── Base ────────────────────────────────────────────────────────────────── */
@@ -42,7 +46,7 @@ body {
   font-family: "Space Grotesk", sans-serif;
   overflow-x: hidden;
   background-attachment: fixed;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.35s ease, color 0.35s ease;
 }
 
 /* ── Grid & Glow ─────────────────────────────────────────────────────────── */
@@ -107,6 +111,19 @@ body {
   color: var(--accent-blue);
 }
 
+html[data-theme="light"] #themeToggle {
+  background: #f0f4ff !important;
+  border-color: #dde3ed !important;
+  color: #4b5c77 !important;
+  box-shadow: 0 1px 4px rgba(17, 24, 39, 0.08) !important;
+}
+
+html[data-theme="light"] #themeToggle:hover {
+  background: #e0e9ff !important;
+  border-color: #2563eb !important;
+  color: #2563eb !important;
+}
+
 /* ── Terminal Loader ─────────────────────────────────────────────────────── */
 #terminalLoader {
   position: fixed;
@@ -162,12 +179,381 @@ body {
 
 /* ── Light mode nav override ─────────────────────────────────────────────── */
 html[data-theme="light"] nav {
-  background: rgba(241, 245, 249, 0.85) !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: #dde3ed !important;
+  box-shadow: 0 2px 16px rgba(17, 24, 39, 0.06) !important;
 }
 
 html[data-theme="light"] .glass {
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: #dde3ed !important;
+  box-shadow:
+    0 4px 16px rgba(17, 24, 39, 0.07),
+    0 1px 4px rgba(17, 24, 39, 0.04) !important;
+}
+
+html[data-theme="light"] .glass:hover {
+  box-shadow:
+    0 12px 32px rgba(37, 99, 235, 0.14),
+    0 4px 12px rgba(17, 24, 39, 0.08) !important;
+  border-color: rgba(37, 99, 235, 0.3) !important;
+}
+
+/* ── Hero heading — fix white-on-light invisibility ──────────────────────── */
+html[data-theme="light"] h1,
+html[data-theme="light"] h2,
+html[data-theme="light"] h3,
+html[data-theme="light"] h4,
+html[data-theme="light"] h5,
+html[data-theme="light"] h6 {
+  color: #0a0f1e !important;
+}
+
+/* Hero large display text (e.g. "DETECT THE") */
+html[data-theme="light"] .text-white {
+  color: #0a0f1e !important;
+}
+
+html[data-theme="light"] .text-slate-100,
+html[data-theme="light"] .text-slate-200,
+html[data-theme="light"] .text-slate-300 {
+  color: #1e293b !important;
+}
+
+html[data-theme="light"] .text-slate-400,
+html[data-theme="light"] .text-slate-500 {
+  color: #4b5c77 !important;
+}
+
+html[data-theme="light"] .text-slate-600,
+html[data-theme="light"] .text-slate-700 {
+  color: #374151 !important;
+}
+
+/* Subtitle / body text */
+html[data-theme="light"] p {
+  color: #374151 !important;
+}
+
+/* ── Ghost / outline button — fix invisible white button ─────────────────── */
+html[data-theme="light"] button:not(.login-btn):not(#themeToggle),
+html[data-theme="light"] a[role="button"] {
+  color: #1e293b !important;
+}
+
+/* Specifically target outline/secondary CTA buttons */
+html[data-theme="light"] .btn-outline,
+html[data-theme="light"] button.bg-white,
+html[data-theme="light"] button.border,
+html[data-theme="light"] button[class*="border-white"],
+html[data-theme="light"] button[class*="bg-white"] {
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #1e293b !important;
+  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.08) !important;
+}
+
+html[data-theme="light"] .btn-outline:hover,
+html[data-theme="light"] button.bg-white:hover,
+html[data-theme="light"] button.border:hover {
+  border-color: #2563eb !important;
+  color: #2563eb !important;
+  background: #f0f4ff !important;
+}
+
+/* Nav links & anchor tags */
+html[data-theme="light"] nav a,
+html[data-theme="light"] header a {
+  color: #1e293b !important;
+}
+
+html[data-theme="light"] nav a:hover,
+html[data-theme="light"] header a:hover {
+  color: #2563eb !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LOGIN PAGE — LIGHT MODE
+   ══════════════════════════════════════════════════════════════════════════ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Login body — layered radial mesh */
+html[data-theme="light"] body {
+  background:
+    radial-gradient(ellipse at 15% 20%, rgba(37, 99, 235, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 90% 75%, rgba(5, 150, 105, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 100%, rgba(124, 58, 237, 0.05) 0%, transparent 45%),
+    linear-gradient(160deg, #eef1f7 0%, #e5eaf4 100%) !important;
+  min-height: 100vh !important;
+}
+
+/* Login Container */
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+
+/* ── Login Card ──────────────────────────────────────────────────────────── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.5rem;
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 450px;
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+html[data-theme="light"] .glass-card {
+  background: #ffffff !important;
+  border: 1px solid #dde3ed !important;
+  box-shadow:
+    0 8px 32px rgba(17, 24, 39, 0.08),
+    0 2px 8px rgba(17, 24, 39, 0.04),
+    0 0 0 1px rgba(255, 255, 255, 0.8) !important;
+  border-radius: 1.5rem !important;
+}
+
+html[data-theme="light"] .glass-card:hover {
+  box-shadow:
+    0 20px 48px rgba(37, 99, 235, 0.12),
+    0 8px 20px rgba(17, 24, 39, 0.07),
+    0 0 0 1px rgba(37, 99, 235, 0.12) !important;
+  border-color: rgba(37, 99, 235, 0.2) !important;
+}
+
+/* ── Login Header ────────────────────────────────────────────────────────── */
+.login-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.login-header i {
+  font-size: 2.5rem;
+  color: #3b82f6;
+  margin-bottom: 1rem;
+}
+
+html[data-theme="light"] .login-header i {
+  color: #2563eb !important;
+  filter: drop-shadow(0 4px 12px rgba(37, 99, 235, 0.3));
+}
+
+.login-header h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+html[data-theme="light"] .login-header h2 {
+  background: linear-gradient(135deg, #0a0f1e 0%, #2563eb 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.login-header p {
+  font-size: 0.7rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+html[data-theme="light"] .login-header p {
+  color: #8896ad !important;
+}
+
+/* ── Input Groups ────────────────────────────────────────────────────────── */
+.input-group {
+  margin-bottom: 1.25rem;
+}
+
+.input-group label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+}
+
+html[data-theme="light"] .input-group label {
+  color: #4b5c77 !important;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  color: #ffffff;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.input-group input::placeholder {
+  color: #475569;
+}
+
+html[data-theme="light"] .input-group input {
+  background: #f8fafc !important;
+  border: 1.5px solid #dde3ed !important;
+  color: #111827 !important;
+  border-radius: 0.75rem !important;
+}
+
+html[data-theme="light"] .input-group input:focus {
+  border-color: #2563eb !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
+
+html[data-theme="light"] .input-group input::placeholder {
+  color: #aab4c8 !important;
+}
+
+/* ── Login Button ────────────────────────────────────────────────────────── */
+.login-btn {
+  width: 100%;
+  padding: 0.875rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border: none;
+  border-radius: 0.75rem;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 0.5rem;
+}
+
+.login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+}
+
+.login-btn:active {
+  transform: translateY(0);
+}
+
+html[data-theme="light"] .login-btn {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3) !important;
+}
+
+html[data-theme="light"] .login-btn:hover {
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* ── Register Link ───────────────────────────────────────────────────────── */
+.register-link {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.register-link a {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.register-link a:hover {
+  color: #60a5fa;
+  text-decoration: underline;
+}
+
+html[data-theme="light"] .register-link {
+  color: #8896ad !important;
+}
+
+html[data-theme="light"] .register-link a {
+  color: #2563eb !important;
+}
+
+html[data-theme="light"] .register-link a:hover {
+  color: #1d4ed8 !important;
+}
+
+/* ── Alerts ──────────────────────────────────────────────────────────────── */
+.alert {
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  margin-bottom: 1.25rem;
+  text-align: center;
+}
+
+.alert-danger {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.alert-success {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+html[data-theme="light"] .alert-danger {
+  background: #fef2f2 !important;
+  border: 1px solid #fecaca !important;
+  color: #dc2626 !important;
+}
+
+html[data-theme="light"] .alert-success {
+  background: #f0fdf4 !important;
+  border: 1px solid #bbf7d0 !important;
+  color: #16a34a !important;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.login-footer {
+  text-align: center;
+  margin-top: 2rem;
+  font-size: 0.6rem;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+html[data-theme="light"] .login-footer {
+  color: #aab4c8 !important;
 }
 
 /* ── TOS Modal ───────────────────────────────────────────────────────────── */
@@ -202,4 +588,21 @@ html[data-theme="light"] .glass {
   padding: 40px;
   position: relative;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+html[data-theme="light"] .tos-content {
+  background: #ffffff !important;
+  border: 1px solid #dde3ed !important;
+  box-shadow: 0 32px 64px rgba(17, 24, 39, 0.14) !important;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .glass-card {
+    padding: 1.5rem;
+  }
+
+  .login-header h2 {
+    font-size: 1.25rem;
+  }
 }

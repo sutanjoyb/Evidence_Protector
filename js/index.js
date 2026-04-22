@@ -129,13 +129,11 @@ function closeLogin() {
   if (!modal) return;
   modal.classList.add("hidden");
 
-  // Reset to login view
   const loginView = document.getElementById("loginView");
   const registerView = document.getElementById("registerView");
   if (loginView) loginView.classList.remove("hidden");
   if (registerView) registerView.classList.add("hidden");
 
-  // Clear all inputs
   ["loginUser", "loginPass", "regUser", "regPass"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) { el.value = ""; el.classList.remove("border-red-500/50", "border-emerald-500/50"); }
@@ -305,15 +303,46 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeLogin();
 });
 
-// ─── SCROLL TO TOP ───────────────────────────────────────────────────────────
+// ─── REACTIVE SCROLL TO TOP ───────────────────────────────────────────────────
+// Enhanced: fade+slide in/out · scroll progress ring · smooth scroll
+// Threshold: 300px (was 100px — gives user time to read before showing)
 
-const scrollBtn = document.getElementById("scrollTopBtn");
-if (scrollBtn) {
-  window.addEventListener("scroll", () => {
-    if (document.documentElement.scrollTop > 100) scrollBtn.classList.remove("hidden");
-    else scrollBtn.classList.add("hidden");
-  });
-  scrollBtn.addEventListener("click", () => {
+(function initScrollToTop() {
+  const btn = document.getElementById("scrollTopBtn");
+  const ring = document.getElementById("scrollProgressRing");
+  if (!btn) return;
+
+  // Ring circumference for r=20 circle: 2 * π * 20 ≈ 125.66
+  const CIRCUMFERENCE = 125.66;
+  const SHOW_THRESHOLD = 300; // px scrolled before button appears
+
+  function updateScrollBtn() {
+    const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+    const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+    const scrollPct = docHeight > 0 ? scrollTop / docHeight : 0;
+
+    // Show / hide with .visible class (CSS handles fade + slide)
+    if (scrollTop > SHOW_THRESHOLD) {
+      btn.classList.add("visible");
+    } else {
+      btn.classList.remove("visible");
+    }
+
+    // Update progress ring
+    if (ring) {
+      const offset = CIRCUMFERENCE - scrollPct * CIRCUMFERENCE;
+      ring.style.strokeDashoffset = offset;
+    }
+  }
+
+  // Passive listener for performance
+  window.addEventListener("scroll", updateScrollBtn, { passive: true });
+
+  // Click — smooth scroll to top
+  btn.addEventListener("click", () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
-}
+
+  // Run once on load in case page is already scrolled
+  updateScrollBtn();
+})();
