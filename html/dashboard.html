@@ -83,6 +83,72 @@
         background: #1d4ed8;
         box-shadow: 0 10px 28px rgba(37, 99, 235, 0.4);
       }
+
+      /* ── Enhanced TOS Modal Styles ───────────────────────────────────────── */
+      .tos-content {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-subtle);
+        border-radius: 24px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        transition: all 0.3s ease;
+      }
+
+      html[data-theme="light"] .tos-content {
+        background: #ffffff !important;
+        border: 1px solid #dde3ed !important;
+        box-shadow: 0 32px 64px rgba(17, 24, 39, 0.16) !important;
+      }
+
+      /* Custom scrollbar for TOS content */
+      .tos-scroll-area::-webkit-scrollbar {
+        width: 4px;
+      }
+
+      .tos-scroll-area::-webkit-scrollbar-track {
+        background: var(--border-subtle);
+        border-radius: 10px;
+      }
+
+      .tos-scroll-area::-webkit-scrollbar-thumb {
+        background: var(--accent-blue);
+        border-radius: 10px;
+      }
+
+      .tos-scroll-area::-webkit-scrollbar-thumb:hover {
+        background: var(--accent-hover);
+      }
+
+      html[data-theme="light"] .tos-scroll-area::-webkit-scrollbar-track {
+        background: #e2e8f0;
+      }
+
+      html[data-theme="light"] .tos-scroll-area::-webkit-scrollbar-thumb {
+        background: #94a3b8;
+      }
+
+      /* Section divider animation */
+      .tos-section {
+        transition: transform 0.2s ease;
+      }
+
+      .tos-section:hover {
+        transform: translateX(4px);
+      }
+
+      /* Accept button enhanced */
+      .tos-accept-btn {
+        background: linear-gradient(135deg, var(--accent-blue) 0%, #1d4ed8 100%);
+        transition: all 0.3s ease;
+      }
+
+      .tos-accept-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.5);
+      }
+
+      html[data-theme="light"] .tos-accept-btn {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      }
     </style>
   </head>
   <body class="flex min-h-screen overflow-x-hidden bg-[#020617] text-slate-300">
@@ -112,42 +178,42 @@
     <div id="sidebarOverlay" onclick="toggleSidebar()" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"></div>
 
     <nav id="sidebar" class="fixed lg:relative -translate-x-full lg:translate-x-0 transition-transform duration-300 w-64 h-full border-r border-white/5 bg-slate-950/95 flex flex-col p-6 shrink-0 z-50">
-      <div class="flex items-center gap-3 mb-10 px-2">
-        <i class="fas fa-shield-halved text-blue-500 text-2xl"></i>
-        <span class="font-black tracking-tighter uppercase italic text-lg leading-tight text-white">Evidence <br /><span class="text-blue-500 text-sm">Protector Pro</span></span>
-      </div>
+  <div class="flex items-center gap-3 mb-10 px-2">
+    <i class="fas fa-shield-halved text-blue-500 text-2xl"></i>
+    <span class="font-black tracking-tighter uppercase italic text-lg leading-tight text-white">Evidence <br /><span class="text-blue-500 text-sm">Protector Pro</span></span>
+  </div>
 
-      <div class="space-y-1 flex-1 custom-scroll overflow-y-auto">
-        <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-3 px-2">System Access</p>
-        <button onclick="window.location.href = 'index.html'" class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all w-full text-left">
-          <i class="fas fa-house-chimney w-4"></i> Home
-        </button>
+  <div class="space-y-1 flex-1 custom-scroll overflow-y-auto">
+    <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-3 px-2">System Access</p>
+    <button onclick="window.location.href = 'index.html'" class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all w-full text-left">
+      <i class="fas fa-house-chimney w-4"></i> Home
+    </button>
 
-        <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2">Analysis Engine</p>
-        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item active w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all">
-          <i class="fas fa-chart-pie w-4"></i> Dashboard
-        </button>
-        <button onclick="switchTab('registry')" id="nav-registry" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all">
-          <i class="fas fa-list-check w-4"></i> Registry
-        </button>
-        <button onclick="switchTab('history')" id="nav-history" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all">
-          <i class="fas fa-clock-rotate-left w-4"></i> Case History
-          <span id="case-count-badge" class="ml-auto bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full">0</span>
-        </button>
+    <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2">Analysis Engine</p>
+    <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item active w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all">
+      <i class="fas fa-chart-pie w-4"></i> Dashboard
+    </button>
+    <button onclick="switchTab('registry')" id="nav-registry" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all">
+      <i class="fas fa-list-check w-4"></i> Registry
+    </button>
+    <button onclick="switchTab('history')" id="nav-history" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all">
+      <i class="fas fa-clock-rotate-left w-4"></i> Case History
+      <span id="case-count-badge" class="ml-auto bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full">0</span>
+    </button>
 
-        <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2">Governance</p>
-        <button onclick="switchTab('compliance')" id="nav-compliance" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all">
-          <i class="fas fa-file-contract w-4"></i> Export Center
-        </button>
-      </div>
+    <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2">Governance</p>
+    <button onclick="switchTab('compliance')" id="nav-compliance" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all">
+      <i class="fas fa-file-contract w-4"></i> Export Center
+    </button>
+    <button onclick="showTOS()" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium transition-all">
+      <i class="fas fa-file-alt w-4"></i> Terms of Service
+    </button>
+  </div>
 
-      <div class="px-2 mb-4">
-        <button onclick="showTOS()" class="text-[9px] font-bold text-slate-700 uppercase tracking-widest hover:text-blue-500 transition-colors">Terms of Service</button>
-      </div>
-      <button onclick="logout()" class="mt-auto flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-bold text-red-500/80 hover:bg-red-500/10 transition-all">
-        <i class="fas fa-power-off"></i> Logout
-      </button>
-    </nav>
+  <button onclick="logout()" class="mt-auto flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-bold text-red-500/80 hover:bg-red-500/10 transition-all">
+    <i class="fas fa-power-off"></i> Logout
+  </button>
+</nav>
 
     <main class="flex-1 flex flex-col h-screen overflow-hidden">
       <header class="h-20 border-b border-white/5 bg-slate-950/20 backdrop-blur-md flex items-center justify-between px-8 shrink-0">
@@ -284,7 +350,7 @@
                   <th class="p-6">Time Window</th>
                   <th class="p-6 text-center">Duration</th>
                   <th class="p-6 text-right">Triage</th>
-                </tr>
+                 </tr>
               </thead>
               <tbody id="incidentBody"></tbody>
             </table>
@@ -317,7 +383,7 @@
                   <th class="p-6">Timestamp</th>
                   <th class="p-6 text-center">Score</th>
                   <th class="p-6 text-right">Actions</th>
-                </tr>
+                 </tr>
               </thead>
               <tbody id="caseHistoryBody"></tbody>
             </table>
@@ -343,11 +409,115 @@
       <i class="fas fa-arrow-up arrow-icon"></i>
     </button>
 
-    <div id="tosModal" class="fixed inset-0 z-[300] hidden items-center justify-center bg-black/80 backdrop-blur-md">
-      <div class="bg-slate-900 p-8 rounded-2xl max-w-lg border border-white/10">
-        <h2 class="text-xl font-black text-white uppercase mb-4">Terms of Service</h2>
-        <p class="text-slate-400 text-xs mb-6 leading-relaxed">Evidence Protector is for educational forensic analysis only. Unauthorized use on systems you do not own is strictly prohibited.</p>
-        <button onclick="closeTOS()" class="w-full bg-blue-600 py-3 rounded-xl font-black text-xs uppercase text-white hover:bg-blue-500 transition-all">I Accept</button>
+    <!-- ── ENHANCED TERMS OF SERVICE MODAL ─────────────────────────────────── -->
+    <div id="tosModal" class="fixed inset-0 z-[300] hidden items-center justify-center bg-black/80 backdrop-blur-md transition-all duration-300" style="backdrop-filter: blur(12px);">
+      <div class="tos-content relative w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col p-0">
+        
+        <!-- Close Button (X) - Top Right with hover effect -->
+        <button onclick="closeTOS()" 
+                class="absolute top-5 right-5 w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 z-10"
+                aria-label="Close Terms of Service">
+          <i class="fas fa-times text-sm"></i>
+        </button>
+
+        <!-- Header Section with Forensic Icon -->
+        <div class="flex items-center gap-3 p-6 pb-4 border-b border-white/10 bg-gradient-to-r from-transparent to-blue-500/5">
+          <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+            <i class="fas fa-file-contract text-blue-500 text-lg"></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-black uppercase tracking-tighter text-white">Terms of Service</h2>
+            <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Evidence Protector Pro — Enterprise Edition</p>
+          </div>
+        </div>
+
+        <!-- Scrollable Content Area with Custom Thin Scrollbar -->
+        <div class="flex-1 overflow-y-auto p-6 pt-4 tos-scroll-area" style="max-height: calc(85vh - 180px);">
+          
+          <!-- Section 1 -->
+          <div class="tos-section mb-6 transition-all duration-200">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-500 text-[10px] font-black">1</span>
+              <h3 class="text-sm font-black uppercase tracking-wide text-white">Forensic Purpose</h3>
+            </div>
+            <p class="text-slate-400 text-xs leading-relaxed pl-8">
+              Evidence Protector Pro is designed exclusively for authorized forensic analysis, security auditing, and compliance verification. This tool is intended for use on systems and data that you own or have explicit written permission to analyze. Any unauthorized access, monitoring, or data extraction is strictly prohibited and may violate local, state, and federal laws.
+            </p>
+          </div>
+
+          <!-- Section 2 -->
+          <div class="tos-section mb-6 transition-all duration-200">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-500 text-[10px] font-black">2</span>
+              <h3 class="text-sm font-black uppercase tracking-wide text-white">Data Privacy & Handling</h3>
+            </div>
+            <p class="text-slate-400 text-xs leading-relaxed pl-8">
+              All log files, evidence data, and analysis results processed through this platform remain locally stored within your browser's IndexedDB. No data is transmitted to external servers unless explicitly initiated by you via export functions. You retain full ownership and responsibility for all evidence data. We recommend maintaining proper chain-of-custody documentation for legal proceedings.
+            </p>
+          </div>
+
+          <!-- Section 3 -->
+          <div class="tos-section mb-6 transition-all duration-200">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-500 text-[10px] font-black">3</span>
+              <h3 class="text-sm font-black uppercase tracking-wide text-white">User Obligations</h3>
+            </div>
+            <p class="text-slate-400 text-xs leading-relaxed pl-8">
+              As an authorized user, you agree to: (a) maintain the confidentiality of all accessed evidence, (b) use the platform solely for legitimate security and forensic purposes, (c) not attempt to reverse engineer, decompile, or extract source code from the application, (d) report any security vulnerabilities discovered to the development team immediately, and (e) comply with all applicable data protection regulations including GDPR, CCPA, and sector-specific compliance frameworks.
+            </p>
+          </div>
+
+          <!-- Section 4 -->
+          <div class="tos-section mb-6 transition-all duration-200">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-500 text-[10px] font-black">4</span>
+              <h3 class="text-sm font-black uppercase tracking-wide text-white">Liability Disclaimer</h3>
+            </div>
+            <p class="text-slate-400 text-xs leading-relaxed pl-8">
+              Evidence Protector Pro is provided "as is" without warranties of merchantability, fitness for a particular purpose, or non-infringement. In no event shall the developers be liable for any damages, including without limitation, lost profits, lost data, or business interruption arising out of the use or inability to use this software. Users assume full responsibility for validating analysis results before using them in legal or compliance contexts.
+            </p>
+          </div>
+
+          <!-- Section 5 -->
+          <div class="tos-section mb-6 transition-all duration-200">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-500 text-[10px] font-black">5</span>
+              <h3 class="text-sm font-black uppercase tracking-wide text-white">Termination & Access</h3>
+            </div>
+            <p class="text-slate-400 text-xs leading-relaxed pl-8">
+              The developers reserve the right to terminate or suspend access to the service immediately, without prior notice, for conduct that violates these Terms of Service or is harmful to other users or the platform. Upon termination, your right to use the service will cease immediately. All provisions of these Terms which by their nature should survive termination shall survive.
+            </p>
+          </div>
+
+          <!-- Section 6 -->
+          <div class="tos-section mb-6 transition-all duration-200">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-500 text-[10px] font-black">6</span>
+              <h3 class="text-sm font-black uppercase tracking-wide text-white">Governing Law</h3>
+            </div>
+            <p class="text-slate-400 text-xs leading-relaxed pl-8">
+              These Terms shall be governed and construed in accordance with the laws of Delaware, without regard to its conflict of law provisions. Any legal action or proceeding relating to your access to or use of the platform shall be instituted exclusively in the federal or state courts located in Delaware. You agree to submit to the jurisdiction of such courts.
+            </p>
+          </div>
+
+          <!-- Last Updated -->
+          <div class="mt-6 pt-3 border-t border-white/5 text-center">
+            <p class="text-[8px] text-slate-600 font-mono uppercase tracking-wider">Last Updated: April 2026 • Version 2.4.0</p>
+          </div>
+        </div>
+
+        <!-- Footer with Accept Button -->
+        <div class="p-5 pt-3 border-t border-white/10 bg-gradient-to-b from-transparent to-black/20">
+          <button onclick="closeTOS()" 
+                  class="tos-accept-btn w-full py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest text-white transition-all duration-300 flex items-center justify-center gap-2">
+            <i class="fas fa-check-circle text-xs"></i>
+            Accept Terms & Continue
+          </button>
+          <p class="text-[8px] text-slate-600 text-center mt-3 font-mono">
+            By accepting, you agree to comply with all forensic data handling regulations
+          </p>
+        </div>
+
       </div>
     </div>
 
