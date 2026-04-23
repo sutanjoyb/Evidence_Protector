@@ -630,7 +630,38 @@
         </button>
       </div>
     </div>
+    <div
+      id="clearVaultModal"
+      class="fixed inset-0 hidden items-center justify-center bg-black/60 backdrop-blur-md z-[300]"
+      onclick="closeClearVaultModal()"
+    >
+      <div
+        onclick="event.stopPropagation()"
+        class="bg-slate-900 border border-white/10 rounded-2xl p-8 w-[90%] max-w-md text-center shadow-2xl"
+      >
+        
+        <h2 class="text-white text-lg font-bold mb-4">
+          Are you sure you want to remove your scan history?
+        </h2>
 
+        <div class="flex justify-center gap-4 mt-6">
+        
+          <button
+            onclick="confirmClearVault()"
+            class="px-6 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase rounded-lg"
+          >
+            Remove
+          </button>
+          <button
+            onclick="closeClearVaultModal()"
+            class="px-6 py-2 border border-white/20 text-slate-300 font-bold text-xs uppercase rounded-lg hover:bg-white/10"
+          >
+            Cancel
+          </button>
+
+        </div>
+      </div>
+    </div>
     <script src="../js/dashboard.js"></script>
     <script src="../js/theme.js"></script>
   </body>

@@ -202,12 +202,9 @@ function deleteCase(caseId) {
 }
 
 function clearAllHistory() {
-  if (confirm("🚨 Wipe all historical cases? This cannot be undone.")) {
-    localStorage.setItem(CASES_KEY, "[]");
-    updateCaseBadge();
-    renderCaseHistory();
-    showToast("Vault Wiped");
-  }
+  const modal = document.getElementById("clearVaultModal");
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
 }
 
 // ─── REGISTRY SEARCH & SORT ──────────────────────────────────────────────────
@@ -702,4 +699,17 @@ function initScrollToTop() {
 
   // Run once on init
   updateScrollBtn();
+}
+function closeClearVaultModal() {
+  const modal = document.getElementById("clearVaultModal");
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+}
+
+function confirmClearVault() {
+  localStorage.setItem(CASES_KEY, "[]");
+  updateCaseBadge();
+  renderCaseHistory();
+  showToast("Vault Wiped");
+  closeClearVaultModal();
 }
