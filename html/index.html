@@ -3,217 +3,187 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
     <title>Evidence Protector | Digital Integrity Suite</title>
-
-    <link
-      rel="icon"
-      type="image/svg+xml"
-      href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M20 4L6 10V20C6 27.5 12 34.5 20 37C28 34.5 34 27.5 34 20V10L20 4Z" fill="%233b82f6"/><path d="M12 20H28" stroke="white" stroke-width="4" stroke-linecap="round"/></svg>'
-    />
-
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
-    />
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
     <link rel="stylesheet" href="../styles/index.css" />
+    <style>
+      /* ── Reactive Scroll-To-Top Button ───────────────────────────────────── */
+      #scrollTopBtn {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        z-index: 99;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        /* Hidden by default — fades + slides in */
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(20px) scale(0.8);
+        transition: opacity 0.4s ease, transform 0.4s ease,
+                    box-shadow 0.3s ease, background 0.3s ease;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+      }
+
+      /* Visible state — triggered by JS */
+      #scrollTopBtn.visible {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+      }
+
+      /* Hover — lift + glow */
+      #scrollTopBtn:hover {
+        background: #1d4ed8;
+        box-shadow: 0 10px 28px rgba(37, 99, 235, 0.55);
+        transform: translateY(-4px) scale(1.1);
+      }
+
+      /* Click press */
+      #scrollTopBtn:active {
+        transform: scale(0.92);
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+      }
+
+      /* Progress ring SVG — sits behind the arrow icon */
+      #scrollTopBtn svg.scroll-ring {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+        pointer-events: none;
+      }
+
+      /* Arrow icon sits on top of ring */
+      #scrollTopBtn .arrow-icon {
+        position: relative;
+        z-index: 1;
+        font-size: 13px;
+        transition: transform 0.3s ease;
+      }
+
+      #scrollTopBtn:hover .arrow-icon {
+        transform: translateY(-2px);
+      }
+
+      /* Light mode variant */
+      html[data-theme="light"] #scrollTopBtn {
+        background: #2563eb;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+      }
+      html[data-theme="light"] #scrollTopBtn:hover {
+        background: #1d4ed8;
+        box-shadow: 0 10px 28px rgba(37, 99, 235, 0.4);
+      }
+    </style>
   </head>
 
   <body class="text-slate-200">
     <div id="terminalLoader">
       <div class="status-text">Establishing Secure Uplink...</div>
-
       <div class="uplink-bar"><div class="uplink-progress"></div></div>
     </div>
 
     <div class="fixed inset-0 bg-grid z-0"></div>
-
     <div class="fixed inset-0 hero-glow z-0"></div>
 
-    <nav
-      class="border-b border-white/5 bg-slate-950/20 backdrop-blur-xl fixed w-full z-50"
-    >
-      <div
-        class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center"
-      >
+    <nav class="border-b border-white/5 bg-slate-950/20 backdrop-blur-xl fixed w-full z-50">
+      <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
         <div class="flex items-center gap-3">
-          <svg
-            class="brand-logo"
-            width="32"
-            height="32"
-            viewBox="0 0 40 40"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M20 4L6 10V20C6 27.5 12 34.5 20 37C28 34.5 34 27.5 34 20V10L20 4Z"
-              stroke="#3b82f6"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-
-            <path
-              d="M12 20H28"
-              stroke="#60a5fa"
-              stroke-width="3"
-              stroke-linecap="round"
-            >
-              <animate
-                attributeName="opacity"
-                values="1;0.3;1"
-                dur="2s"
-                repeatCount="indefinite"
-              />
+          <svg class="brand-logo" width="32" height="32" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 4L6 10V20C6 27.5 12 34.5 20 37C28 34.5 34 27.5 34 20V10L20 4Z" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M12 20H28" stroke="#60a5fa" stroke-width="3" stroke-linecap="round">
+              <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" />
             </path>
-
             <circle cx="16" cy="20" r="1.5" fill="#3b82f6" />
-
             <circle cx="24" cy="20" r="1.5" fill="#3b82f6" />
           </svg>
-
-          <h1
-            class="font-bold text-xl tracking-tighter uppercase italic text-white"
-          >
+          <h1 class="font-bold text-xl tracking-tighter uppercase italic text-white">
             Evidence <span class="text-blue-500">Protector</span>
           </h1>
         </div>
 
-          <div class="flex items-center gap-4">
-            <a
-              href="javascript:void(0)"
-              id="terminalLink"
-              class="hidden px-6 py-2 bg-blue-600/20 border border-blue-500 text-blue-400 text-xs font-bold tracking-widest rounded hover:bg-blue-600 hover:text-white transition-all uppercase"
-              >Dashboard</a
-            >
+        <div class="flex items-center gap-4">
+          <a href="javascript:void(0)" id="terminalLink"
+            class="hidden px-6 py-2 bg-blue-600/20 border border-blue-500 text-blue-400 text-xs font-bold tracking-widest rounded hover:bg-blue-600 hover:text-white transition-all uppercase">Dashboard</a>
 
-            <button
-              id="loginBtnNav"
-              onclick="showLogin()"
-              class="px-6 py-2 bg-slate-900 rounded border border-white/10 text-xs font-bold tracking-widest hover:border-blue-500 transition-all uppercase btn-glow"
-            >
-              Login
-            </button>
-            
-          </div>
+          <button id="themeToggle" aria-label="Toggle theme">
+            <i class="fas fa-sun"></i>
+          </button>
+
+          <button id="signUpBtnNav" onclick="toggleAuthMode('register'); showLogin();"
+            class="px-6 py-2 bg-blue-600 rounded border border-blue-500 text-xs font-bold tracking-widest hover:bg-blue-500 transition-all uppercase btn-glow">
+            Sign Up
+          </button>
+
+          <button id="loginBtnNav" onclick="toggleAuthMode('login'); showLogin();"
+            class="px-6 py-2 bg-slate-900 rounded border border-white/10 text-xs font-bold tracking-widest hover:border-blue-500 transition-all uppercase btn-glow">
+            Login
+          </button>
         </div>
       </div>
     </nav>
 
-    <section
-      class="relative min-h-screen flex flex-col items-center justify-center text-center px-6 z-10"
-    >
+    <section class="relative min-h-screen flex flex-col items-center justify-center text-center px-6 z-10">
       <div data-aos="zoom-in" data-aos-duration="1200">
-        <div
-          class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold tracking-[0.2em] mb-8"
-        >
-          <i class="fas fa-circle text-[6px] animate-pulse"></i> SYSTEM VERSION
-          2.0 ONLINE
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold tracking-[0.2em] mb-8">
+          <i class="fas fa-circle text-[6px] animate-pulse"></i> SYSTEM VERSION 2.0 ONLINE
         </div>
 
-        <h2
-          class="text-6xl md:text-8xl font-black mb-6 tracking-tighter text-white uppercase leading-none"
-        >
-          Detect The <br /><span class="text-blue-500 italic glow-text"
-            >Unseen Voids.</span
-          >
+        <h2 class="text-6xl md:text-8xl font-black mb-6 tracking-tighter text-white uppercase leading-none">
+          Detect The <br /><span class="text-blue-500 italic glow-text">Unseen Voids.</span>
         </h2>
 
-        <p
-          class="text-lg text-slate-400 mb-12 leading-relaxed max-w-2xl mx-auto font-light"
-        >
+        <p class="text-lg text-slate-400 mb-12 leading-relaxed max-w-2xl mx-auto font-light">
           When hackers delete logs, they leave behind "Temporal Voids."
-
-          <br /><span class="text-slate-200">Evidence Protector</span> uses
-          forensic delta-mapping to identify tampering in seconds.
+          <br /><span class="text-slate-200">Evidence Protector</span> uses forensic delta-mapping to identify tampering in seconds.
         </p>
 
         <div class="flex flex-col md:flex-row gap-6 justify-center">
-          <button
-            onclick="handleHeroAction()"
-            id="heroActionBtn"
-            class="px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-sm rounded shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all transform hover:scale-105 btn-glow"
-          >
+          <button onclick="handleHeroAction()" id="heroActionBtn"
+            class="px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-sm rounded shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all transform hover:scale-105 btn-glow">
             Initialize Scan
           </button>
 
-          <a
-            href="#stats"
-            class="px-10 py-4 glass text-white font-black uppercase text-sm rounded transition-all flex items-center gap-2 border border-white/10 hover:border-white/20"
-            >Features
-
-            <i class="fas fa-arrow-down text-xs animate-bounce"></i
-          ></a>
+          <a href="#stats"
+            class="px-10 py-4 glass text-white font-black uppercase text-sm rounded transition-all flex items-center gap-2 border border-white/10 hover:border-white/20">
+            Features <i class="fas fa-arrow-down text-xs animate-bounce"></i>
+          </a>
         </div>
       </div>
     </section>
 
-    <section
-      id="stats"
-      class="relative py-32 z-10 bg-slate-950/40 border-t border-b border-white/5"
-    >
+    <section id="stats" class="relative py-32 z-10 bg-slate-950/40 border-t border-b border-white/5">
       <div class="max-w-7xl mx-auto px-6">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
           <div class="group" data-aos="fade-up" data-aos-delay="100">
-            <p
-              class="text-5xl font-black text-white group-hover:text-blue-500 group-hover:glow-text transition-all"
-            >
-              0.02s
-            </p>
-
-            <p
-              class="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3 font-bold"
-            >
-              Analysis Latency
-            </p>
+            <p class="text-5xl font-black text-white group-hover:text-blue-500 group-hover:glow-text transition-all">0.02s</p>
+            <p class="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3 font-bold">Analysis Latency</p>
           </div>
-
           <div class="group" data-aos="fade-up" data-aos-delay="200">
-            <p
-              class="text-5xl font-black text-white group-hover:text-blue-500 group-hover:glow-text transition-all"
-            >
-              100%
-            </p>
-
-            <p
-              class="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3 font-bold"
-            >
-              Pattern Accuracy
-            </p>
+            <p class="text-5xl font-black text-white group-hover:text-blue-500 group-hover:glow-text transition-all">100%</p>
+            <p class="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3 font-bold">Pattern Accuracy</p>
           </div>
-
           <div class="group" data-aos="fade-up" data-aos-delay="300">
-            <p
-              class="text-5xl font-black text-white group-hover:text-blue-500 group-hover:glow-text transition-all"
-            >
-              5M+
-            </p>
-
-            <p
-              class="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3 font-bold"
-            >
-              Lines Supported
-            </p>
+            <p class="text-5xl font-black text-white group-hover:text-blue-500 group-hover:glow-text transition-all">5M+</p>
+            <p class="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3 font-bold">Lines Supported</p>
           </div>
-
           <div class="group" data-aos="fade-up" data-aos-delay="400">
-            <p
-              class="text-5xl font-black text-white group-hover:text-blue-500 group-hover:glow-text transition-all"
-            >
-              Zero
-            </p>
-
-            <p
-              class="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3 font-bold"
-            >
-              Data Persistence
-            </p>
+            <p class="text-5xl font-black text-white group-hover:text-blue-500 group-hover:glow-text transition-all">Zero</p>
+            <p class="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3 font-bold">Data Persistence</p>
           </div>
         </div>
       </div>
@@ -221,75 +191,33 @@
 
     <section id="features" class="relative max-w-7xl mx-auto px-6 py-32 z-10">
       <div class="text-center mb-20" data-aos="fade-down">
-        <h3
-          class="text-4xl font-bold text-white uppercase italic tracking-tighter"
-        >
-          Engine Core
-        </h3>
-
-        <p
-          class="text-blue-500 text-xs mt-2 uppercase tracking-[0.4em] font-bold"
-        >
-          Advanced Forensic Logic
-        </p>
+        <h3 class="text-4xl font-bold text-white uppercase italic tracking-tighter">Engine Core</h3>
+        <p class="text-blue-500 text-xs mt-2 uppercase tracking-[0.4em] font-bold">Advanced Forensic Logic</p>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div class="glass p-10 rounded-2xl group" data-aos="fade-right">
-          <div
-            class="w-12 h-12 bg-blue-600/10 rounded-lg flex items-center justify-center mb-8 group-hover:bg-blue-600 transition-colors"
-          >
-            <i
-              class="fas fa-microscope text-blue-500 group-hover:text-white text-xl"
-            ></i>
+          <div class="w-12 h-12 bg-blue-600/10 rounded-lg flex items-center justify-center mb-8 group-hover:bg-blue-600 transition-colors">
+            <i class="fas fa-microscope text-blue-500 group-hover:text-white text-xl"></i>
           </div>
-
-          <h4 class="text-xl font-bold mb-4 uppercase text-white font-mono">
-            Temporal Gap Analysis
-          </h4>
-
-          <p class="text-slate-400 text-sm leading-relaxed">
-            Line-by-line delta verification detects time-jumps that indicate log
-            purging or unauthorized system downtime.
-          </p>
+          <h4 class="text-xl font-bold mb-4 uppercase text-white font-mono">Temporal Gap Analysis</h4>
+          <p class="text-slate-400 text-sm leading-relaxed">Line-by-line delta verification detects time-jumps that indicate log purging or unauthorized system downtime.</p>
         </div>
 
         <div class="glass p-10 rounded-2xl group" data-aos="fade-up">
-          <div
-            class="w-12 h-12 bg-blue-600/10 rounded-lg flex items-center justify-center mb-8 group-hover:bg-blue-600 transition-colors"
-          >
-            <i
-              class="fas fa-file-export text-blue-500 group-hover:text-white text-xl"
-            ></i>
+          <div class="w-12 h-12 bg-blue-600/10 rounded-lg flex items-center justify-center mb-8 group-hover:bg-blue-600 transition-colors">
+            <i class="fas fa-file-export text-blue-500 group-hover:text-white text-xl"></i>
           </div>
-
-          <h4 class="text-xl font-bold mb-4 uppercase text-white font-mono">
-            Forensic Triage
-          </h4>
-
-          <p class="text-slate-400 text-sm leading-relaxed">
-            Automated severity classification helps SOC analysts prioritize
-            potential breaches instantly.
-          </p>
+          <h4 class="text-xl font-bold mb-4 uppercase text-white font-mono">Forensic Triage</h4>
+          <p class="text-slate-400 text-sm leading-relaxed">Automated severity classification helps SOC analysts prioritize potential breaches instantly.</p>
         </div>
 
         <div class="glass p-10 rounded-2xl group" data-aos="fade-left">
-          <div
-            class="w-12 h-12 bg-blue-600/10 rounded-lg flex items-center justify-center mb-8 group-hover:bg-blue-600 transition-colors"
-          >
-            <i
-              class="fas fa-brain text-blue-500 group-hover:text-white text-xl"
-            ></i>
+          <div class="w-12 h-12 bg-blue-600/10 rounded-lg flex items-center justify-center mb-8 group-hover:bg-blue-600 transition-colors">
+            <i class="fas fa-brain text-blue-500 group-hover:text-white text-xl"></i>
           </div>
-
-          <h4 class="text-xl font-bold mb-4 uppercase text-white font-mono">
-            Integrity Scoring
-          </h4>
-
-          <p class="text-slate-400 text-sm leading-relaxed">
-            Proprietary algorithm calculates dynamic file health scores based on
-            frequency and duration of missing segments.
-          </p>
+          <h4 class="text-xl font-bold mb-4 uppercase text-white font-mono">Integrity Scoring</h4>
+          <p class="text-slate-400 text-sm leading-relaxed">Proprietary algorithm calculates dynamic file health scores based on frequency and duration of missing segments.</p>
         </div>
       </div>
     </section>
@@ -298,58 +226,28 @@
       <div class="max-w-7xl mx-auto px-6">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
           <div data-aos="fade-right">
-            <h3
-              class="text-4xl font-bold text-white uppercase italic tracking-tighter mb-6"
-            >
+            <h3 class="text-4xl font-bold text-white uppercase italic tracking-tighter mb-6">
               Automated <span class="text-blue-500">Chain of Custody.</span>
             </h3>
-
             <div class="space-y-6 text-sm text-slate-400">
               <div class="flex gap-4">
-                <div class="text-blue-500 mt-1">
-                  <i class="fas fa-check-double"></i>
-                </div>
-
-                <p>
-                  <strong class="text-slate-200">Immutable Auditing:</strong>
-
-                  Every scan generates a unique cryptographic signature.
-                </p>
+                <div class="text-blue-500 mt-1"><i class="fas fa-check-double"></i></div>
+                <p><strong class="text-slate-200">Immutable Auditing:</strong> Every scan generates a unique cryptographic signature.</p>
               </div>
-
               <div class="flex gap-4">
-                <div class="text-blue-500 mt-1">
-                  <i class="fas fa-fingerprint"></i>
-                </div>
-
-                <p>
-                  <strong class="text-slate-200">Format Agnostic:</strong> Our
-                  engine dynamically identifies timestamp structures.
-                </p>
+                <div class="text-blue-500 mt-1"><i class="fas fa-fingerprint"></i></div>
+                <p><strong class="text-slate-200">Format Agnostic:</strong> Our engine dynamically identifies timestamp structures.</p>
               </div>
-
               <div class="flex gap-4">
-                <div class="text-blue-500 mt-1">
-                  <i class="fas fa-bolt"></i>
-                </div>
-
-                <p>
-                  <strong class="text-slate-200">Rapid Triage:</strong>
-
-                  Visualize the "Window of Silence" left by attackers.
-                </p>
+                <div class="text-blue-500 mt-1"><i class="fas fa-bolt"></i></div>
+                <p><strong class="text-slate-200">Rapid Triage:</strong> Visualize the "Window of Silence" left by attackers.</p>
               </div>
             </div>
           </div>
 
           <div class="relative" data-aos="fade-left">
-            <div
-              class="absolute -inset-4 bg-blue-600/20 blur-3xl rounded-full"
-            ></div>
-
-            <div
-              class="glass p-8 rounded-3xl border border-blue-500/30 relative font-mono text-[11px] text-slate-400"
-            >
+            <div class="absolute -inset-4 bg-blue-600/20 blur-3xl rounded-full"></div>
+            <div class="glass p-8 rounded-3xl border border-blue-500/30 relative font-mono text-[11px] text-slate-400">
               <pre><span class="text-emerald-500"># Forensic Validation Logic</span><br>if gap_duration > threshold:<br>  severity = <span class="text-red-400">"CRITICAL"</span><br>  report.append_incident({...})</pre>
             </div>
           </div>
@@ -357,132 +255,48 @@
       </div>
     </section>
 
-    <section
-      id="deepdive"
-      class="relative py-32 z-10 bg-slate-950/60 border-t border-b border-white/5"
-    >
+    <section id="deepdive" class="relative py-32 z-10 bg-slate-950/60 border-t border-b border-white/5">
       <div class="max-w-7xl mx-auto px-6 relative z-10">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
           <div class="lg:col-span-5" data-aos="fade-right">
-            <h3
-              class="text-4xl font-bold text-white uppercase italic tracking-tighter leading-none mb-6"
-            >
+            <h3 class="text-4xl font-bold text-white uppercase italic tracking-tighter leading-none mb-6">
               Forensic Pipeline <span class="text-blue-500">Deep Dive.</span>
             </h3>
-
             <p class="text-slate-400 text-base font-light leading-relaxed mb-8">
-              Our custom Python engine processes logs in memory using a
-              non-blocking architecture. We map temporal continuity to prove log
-              file authenticity.
+              Our custom Python engine processes logs in memory using a non-blocking architecture. We map temporal continuity to prove log file authenticity.
             </p>
-
-            <div
-              class="border-l-2 border-blue-600 pl-6 py-2 text-sm text-slate-300 bg-blue-600/5 rounded-r-lg"
-            >
-              "The challenge was parsing 100k+ non-standard timestamps without
-              crashing. Our multi-regex approach handles malformed lines
-              gracefully."
+            <div class="border-l-2 border-blue-600 pl-6 py-2 text-sm text-slate-300 bg-blue-600/5 rounded-r-lg">
+              "The challenge was parsing 100k+ non-standard timestamps without crashing. Our multi-regex approach handles malformed lines gracefully."
             </div>
           </div>
 
           <div class="lg:col-span-7 space-y-10">
-            <div
-              class="flex gap-6 items-start group"
-              data-aos="fade-left"
-              data-aos-delay="100"
-            >
-              <div
-                class="text-xl font-bold font-mono text-blue-600 bg-blue-600/10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all"
-              >
-                01
-              </div>
-
+            <div class="flex gap-6 items-start group" data-aos="fade-left" data-aos-delay="100">
+              <div class="text-xl font-bold font-mono text-blue-600 bg-blue-600/10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all">01</div>
               <div>
-                <h5
-                  class="text-white font-bold text-lg mb-2 uppercase tracking-tight"
-                >
-                  Regex Extraction
-                </h5>
-
-                <p class="text-slate-500 text-sm leading-relaxed">
-                  Dynamic capture of timestamps in various formats from raw
-                  strings.
-                </p>
+                <h5 class="text-white font-bold text-lg mb-2 uppercase tracking-tight">Regex Extraction</h5>
+                <p class="text-slate-500 text-sm leading-relaxed">Dynamic capture of timestamps in various formats from raw strings.</p>
               </div>
             </div>
-
-            <div
-              class="flex gap-6 items-start group"
-              data-aos="fade-left"
-              data-aos-delay="200"
-            >
-              <div
-                class="text-xl font-bold font-mono text-blue-600 bg-blue-600/10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all"
-              >
-                02
-              </div>
-
+            <div class="flex gap-6 items-start group" data-aos="fade-left" data-aos-delay="200">
+              <div class="text-xl font-bold font-mono text-blue-600 bg-blue-600/10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all">02</div>
               <div>
-                <h5
-                  class="text-white font-bold text-lg mb-2 uppercase tracking-tight"
-                >
-                  Delta Calculation
-                </h5>
-
-                <p class="text-slate-500 text-sm leading-relaxed">
-                  Converts captures into datetime objects to calculate gaps
-                  between entries.
-                </p>
+                <h5 class="text-white font-bold text-lg mb-2 uppercase tracking-tight">Delta Calculation</h5>
+                <p class="text-slate-500 text-sm leading-relaxed">Converts captures into datetime objects to calculate gaps between entries.</p>
               </div>
             </div>
-
-            <div
-              class="flex gap-6 items-start group"
-              data-aos="fade-left"
-              data-aos-delay="300"
-            >
-              <div
-                class="text-xl font-bold font-mono text-blue-600 bg-blue-600/10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all"
-              >
-                03
-              </div>
-
+            <div class="flex gap-6 items-start group" data-aos="fade-left" data-aos-delay="300">
+              <div class="text-xl font-bold font-mono text-blue-600 bg-blue-600/10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all">03</div>
               <div>
-                <h5
-                  class="text-white font-bold text-lg mb-2 uppercase tracking-tight"
-                >
-                  Triage Reporting
-                </h5>
-
-                <p class="text-slate-500 text-sm leading-relaxed">
-                  Automated severity assignment based on duration (Gap > 300s =
-                  CRITICAL).
-                </p>
+                <h5 class="text-white font-bold text-lg mb-2 uppercase tracking-tight">Triage Reporting</h5>
+                <p class="text-slate-500 text-sm leading-relaxed">Automated severity assignment based on duration (Gap > 300s = CRITICAL).</p>
               </div>
             </div>
-
-            <div
-              class="flex gap-6 items-start group"
-              data-aos="fade-left"
-              data-aos-delay="400"
-            >
-              <div
-                class="text-xl font-bold font-mono text-blue-600 bg-blue-600/10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all"
-              >
-                04
-              </div>
-
+            <div class="flex gap-6 items-start group" data-aos="fade-left" data-aos-delay="400">
+              <div class="text-xl font-bold font-mono text-blue-600 bg-blue-600/10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all">04</div>
               <div>
-                <h5
-                  class="text-white font-bold text-lg mb-2 uppercase tracking-tight"
-                >
-                  Heatmap Generation
-                </h5>
-
-                <p class="text-slate-500 text-sm leading-relaxed">
-                  Serialization of deterministic coordinates into JSON for
-                  visualization.
-                </p>
+                <h5 class="text-white font-bold text-lg mb-2 uppercase tracking-tight">Heatmap Generation</h5>
+                <p class="text-slate-500 text-sm leading-relaxed">Serialization of deterministic coordinates into JSON for visualization.</p>
               </div>
             </div>
           </div>
@@ -490,193 +304,182 @@
       </div>
     </section>
 
-    <footer
-      class="relative bg-slate-950 border-t border-white/5 pt-20 pb-10 z-10"
-    >
-      <div
-        class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-16"
-      >
+    <footer class="relative bg-slate-950 border-t border-white/5 pt-20 pb-10 z-10">
+      <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
         <div class="col-span-1 md:col-span-2">
           <div class="flex items-center gap-3 mb-6">
             <svg width="24" height="24" viewBox="0 0 40 40" fill="none">
-              <path
-                d="M20 4L6 10V20C6 27.5 12 34.5 20 37C28 34.5 34 27.5 34 20V10L20 4Z"
-                fill="#3b82f6"
-              />
+              <path d="M20 4L6 10V20C6 27.5 12 34.5 20 37C28 34.5 34 27.5 34 20V10L20 4Z" fill="#3b82f6" />
             </svg>
-
-            <span
-              class="font-bold tracking-tight uppercase italic text-white text-lg"
-              >Evidence Protector</span
-            >
+            <span class="font-bold tracking-tight uppercase italic text-white text-lg">Evidence Protector</span>
           </div>
-
           <p class="text-slate-500 text-sm leading-loose font-light max-w-sm">
-            Automated Digital Forensics & Integrity suite designed for modern
-            Security Operation Centers. Built for high-stakes log analysis.
+            Automated Digital Forensics & Integrity suite designed for modern Security Operation Centers. Built for high-stakes log analysis.
           </p>
         </div>
 
         <div>
-          <h5
-            class="text-white font-bold text-xs uppercase tracking-widest mb-6 underline decoration-blue-500 decoration-2 underline-offset-8"
-          >
-            Technology
-          </h5>
-
+          <h5 class="text-white font-bold text-xs uppercase tracking-widest mb-6 underline decoration-blue-500 decoration-2 underline-offset-8">Technology</h5>
           <ul class="text-slate-500 text-sm space-y-4 font-light">
             <li>FastAPI Backend</li>
-
             <li>Delta Engine 2.0</li>
-
             <li>Regex Heuristics</li>
           </ul>
         </div>
 
         <div>
-          <h5
-            class="text-white font-bold text-xs uppercase tracking-widest mb-6 underline decoration-blue-500 decoration-2 underline-offset-8"
-          >
-            Resources
-          </h5>
-
+          <h5 class="text-white font-bold text-xs uppercase tracking-widest mb-6 underline decoration-blue-500 decoration-2 underline-offset-8">Resources</h5>
           <ul class="text-slate-500 text-sm space-y-4 font-light">
             <li>Documentation</li>
-
             <li>API Reference</li>
-
             <li>Security Policy</li>
           </ul>
         </div>
       </div>
 
-      <div
-        class="max-w-7xl mx-auto px-6 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6"
-      >
+      <div class="max-w-7xl mx-auto px-6 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
         <p class="text-slate-600 text-[10px] uppercase tracking-[0.4em]">
-          © 2026 EVIDENCE PROTECTOR v2.0
+          © <span id="current-year"></span> EVIDENCE PROTECTOR v2.0 | <a href="javascript:void(0)" onclick="showTOS()" class="hover:text-blue-500 transition-colors">Terms of Service</a>
         </p>
-
         <div class="flex gap-8 text-slate-500 text-lg">
-          <a href="#" class="hover:text-blue-500 transition-colors"
-            ><i class="fab fa-github"></i
-          ></a>
-
-          <a href="#" class="hover:text-blue-500 transition-colors"
-            ><i class="fab fa-linkedin"></i
-          ></a>
-
-          <a href="#" class="hover:text-blue-500 transition-colors"
-            ><i class="fas fa-envelope"></i
-          ></a>
+          <a href="#" class="hover:text-blue-500 transition-colors"><i class="fab fa-github"></i></a>
+          <a href="#" class="hover:text-blue-500 transition-colors"><i class="fab fa-linkedin"></i></a>
+          <a href="#" class="hover:text-blue-500 transition-colors"><i class="fas fa-envelope"></i></a>
         </div>
       </div>
     </footer>
 
-    <div
-      id="authModal"
-      class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[100] flex items-center justify-center p-4"
-    >
-      <div
-        class="glass w-full max-w-md p-12 rounded-3xl shadow-2xl relative overflow-hidden transition-all duration-300 transform"
-      >
-        <div
-          class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-emerald-500"
-        ></div>
+    <div id="authModal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+      <div class="glass w-full max-w-md p-12 rounded-3xl shadow-2xl relative overflow-hidden transition-all duration-300 transform">
+        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-emerald-500"></div>
 
         <div id="loginView" class="relative tab-view">
-          <div
-            class="absolute -top-12 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent blur-sm"
-          ></div>
-
+          <div class="absolute -top-12 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent blur-sm"></div>
           <div class="text-center mb-10">
-            <div
-              class="inline-block p-4 rounded-full bg-blue-600/10 mb-6 text-blue-500 text-3xl border border-blue-500/20 shadow-[0_0_25px_rgba(59,130,246,0.15)]"
-            >
+            <div class="inline-block p-4 rounded-full bg-blue-600/10 mb-6 text-blue-500 text-3xl border border-blue-500/20 shadow-[0_0_25px_rgba(59,130,246,0.15)]">
               <i class="fas fa-lock animate-pulse"></i>
             </div>
-
-            <h3
-              class="text-3xl font-black text-white uppercase tracking-tighter italic"
-            >
-              Operator <span class="text-blue-500">Auth</span>
-            </h3>
-
+            <h3 class="text-3xl font-black text-white uppercase tracking-tighter italic">Operator <span class="text-blue-500">Auth</span></h3>
           </div>
-
           <div class="space-y-6">
             <div class="group relative">
-              <label
-                class="absolute -top-2.5 left-4 px-2 bg-[#020617] text-[10px] font-bold text-blue-500 uppercase tracking-widest z-10 transition-colors group-focus-within:text-white"
-              >
-                Username
-              </label>
+              <label class="absolute -top-2.5 left-4 px-2 bg-[#020617] text-[10px] font-bold text-blue-500 uppercase tracking-widest z-10 transition-colors group-focus-within:text-white">Username</label>
               <div class="relative">
-                <span
-                  class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-500 transition-colors"
-                >
-                  <i class="fas fa-user-tag text-xs"></i>
-                </span>
-                <input
-                  type="text"
-                  id="loginUser"
-                  placeholder="Enter Username"
-                  class="w-full bg-slate-950/50 border border-white/10 rounded-xl pl-11 pr-4 py-4 text-sm text-white outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 transition-all font-mono placeholder:text-slate-800"
-                />
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-500 transition-colors"><i class="fas fa-user-tag text-xs"></i></span>
+                <input type="text" id="loginUser" placeholder="Enter Username" class="w-full bg-slate-950/50 border border-white/10 rounded-xl pl-11 pr-4 py-4 text-sm text-white outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 transition-all font-mono placeholder:text-slate-800" />
               </div>
             </div>
-
             <div class="group relative">
-              <label
-                class="absolute -top-2.5 left-4 px-2 bg-[#020617] text-[10px] font-bold text-blue-500 uppercase tracking-widest z-10 transition-colors group-focus-within:text-white"
-              >
-                Password
-              </label>
+              <label class="absolute -top-2.5 left-4 px-2 bg-[#020617] text-[10px] font-bold text-blue-500 uppercase tracking-widest z-10 transition-colors group-focus-within:text-white">Password</label>
               <div class="relative">
-                <span
-                  class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-500 transition-colors"
-                >
-                  <i class="fas fa-key text-xs"></i>
-                </span>
-                <input
-                  type="password"
-                  id="loginPass"
-                  placeholder="Enter Password"
-                  class="w-full bg-slate-950/50 border border-white/10 rounded-xl pl-11 pr-4 py-4 text-sm text-white outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 transition-all font-mono placeholder:text-slate-800"
-                />
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-500 transition-colors"><i class="fas fa-key text-xs"></i></span>
+                <input type="password" id="loginPass" placeholder="Enter Password" class="w-full bg-slate-950/50 border border-white/10 rounded-xl pl-11 pr-4 py-4 text-sm text-white outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 transition-all font-mono placeholder:text-slate-800" />
               </div>
             </div>
-
-            <button
-              onclick="handleLogin()"
-              id="authBtn"
-              class="relative w-full group overflow-hidden bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-black uppercase tracking-[0.2em] text-[11px] transition-all mt-4 shadow-[0_15px_30px_-10px_rgba(37,99,235,0.4)] active:scale-95"
-            >
-              <span
-                class="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"
-              ></span>
-
-              <span class="relative flex items-center justify-center gap-2">
-                Login
-                <i
-                  class="fas fa-chevron-right text-[9px] group-hover:translate-x-1 transition-transform"
-                ></i>
-              </span>
+            <button onclick="handleLogin()" id="authBtn" class="relative w-full group overflow-hidden bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-black uppercase tracking-[0.2em] text-[11px] transition-all mt-4 shadow-[0_15px_30px_-10px_rgba(37,99,235,0.4)] active:scale-95">
+              <span class="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"></span>
+              <span class="relative flex items-center justify-center gap-2">Login <i class="fas fa-chevron-right text-[9px] group-hover:translate-x-1 transition-transform"></i></span>
             </button>
           </div>
+          <p class="mt-8 text-center text-[10px] uppercase tracking-widest text-slate-500">
+            No credentials? <a href="javascript:void(0)" onclick="toggleAuthMode('register')" class="text-blue-500 font-bold hover:underline">Create Account</a>
+          </p>
+          <button onclick="closeLogin()" class="mt-8 text-[10px] font-bold text-slate-600 uppercase block mx-auto tracking-[0.3em] transition-all hover:text-red-500 hover:tracking-[0.4em]">Cancel</button>
+        </div>
 
-          <button
-            onclick="showLogin()"
-            class="mt-10 text-[10px] font-bold text-slate-600 uppercase block mx-auto tracking-[0.3em] transition-all hover:text-red-500 hover:tracking-[0.4em]"
-          >
-            Cancel
-          </button>
+        <div id="registerView" class="hidden relative tab-view">
+          <div class="absolute -top-12 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent blur-sm"></div>
+          <div class="text-center mb-10">
+            <div class="inline-block p-4 rounded-full bg-emerald-600/10 mb-6 text-emerald-500 text-3xl border border-emerald-500/20 shadow-[0_0_25px_rgba(16,185,129,0.15)]">
+              <i class="fas fa-user-plus animate-pulse"></i>
+            </div>
+            <h3 class="text-3xl font-black text-white uppercase tracking-tighter italic">System <span class="text-emerald-500">Registration</span></h3>
+          </div>
+          <div class="space-y-6">
+            <div class="group relative">
+              <label class="absolute -top-2.5 left-4 px-2 bg-[#020617] text-[10px] font-bold text-emerald-500 uppercase tracking-widest z-10 transition-colors group-focus-within:text-white">Operator ID</label>
+              <div class="relative">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-emerald-500 transition-colors"><i class="fas fa-id-card text-xs"></i></span>
+                <input type="text" id="regUser" placeholder="Create Username" class="w-full bg-slate-950/50 border border-white/10 rounded-xl pl-11 pr-4 py-4 text-sm text-white outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/5 transition-all font-mono placeholder:text-slate-600" />
+              </div>
+            </div>
+            <div class="group relative">
+              <label class="absolute -top-2.5 left-4 px-2 bg-[#020617] text-[10px] font-bold text-emerald-500 uppercase tracking-widest z-10 transition-colors group-focus-within:text-white">Access Key</label>
+              <div class="relative">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-emerald-500 transition-colors"><i class="fas fa-shield-alt text-xs"></i></span>
+                <input type="password" id="regPass" placeholder="Create Password" class="w-full bg-slate-950/50 border border-white/10 rounded-xl pl-11 pr-4 py-4 text-sm text-white outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/5 transition-all font-mono placeholder:text-slate-600" />
+              </div>
+            </div>
+            <button onclick="handleRegister()" id="regBtn" class="relative w-full group overflow-hidden bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-black uppercase tracking-[0.2em] text-[11px] transition-all mt-4 shadow-[0_15px_30px_-10px_rgba(16,185,129,0.4)] active:scale-95">
+              <span class="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"></span>
+              <span class="relative flex items-center justify-center gap-2">Initialize Uplink <i class="fas fa-chevron-right text-[9px] group-hover:translate-x-1 transition-transform"></i></span>
+            </button>
+          </div>
+          <p class="mt-8 text-center text-[10px] uppercase tracking-widest text-slate-500">
+            Already registered? <a href="javascript:void(0)" onclick="toggleAuthMode('login')" class="text-emerald-500 font-bold hover:underline">Operator Login</a>
+          </p>
+          <button onclick="closeLogin()" class="mt-8 text-[10px] font-bold text-slate-600 uppercase block mx-auto tracking-[0.3em] transition-all hover:text-red-500 hover:tracking-[0.4em]">Cancel</button>
         </div>
       </div>
     </div>
 
+    <div id="toast" class="fixed bottom-10 right-10 transform translate-y-24 opacity-0 z-[200] bg-blue-600 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 transition-all duration-300">
+      <i class="fas fa-shield-check"></i>
+      <span id="toastMsg">System Ready</span>
+    </div>
+
+    <!-- ── REACTIVE SCROLL TO TOP BUTTON ─────────────────────────────────── -->
+    <button id="scrollTopBtn" aria-label="Scroll to top">
+      <!-- Progress ring -->
+      <svg class="scroll-ring" viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="20" stroke="rgba(255,255,255,0.15)" stroke-width="2.5"/>
+        <circle id="scrollProgressRing" cx="24" cy="24" r="20"
+          stroke="rgba(255,255,255,0.85)" stroke-width="2.5"
+          stroke-dasharray="125.66" stroke-dashoffset="125.66"
+          stroke-linecap="round"/>
+      </svg>
+      <!-- Arrow -->
+      <i class="fas fa-arrow-up arrow-icon"></i>
+    </button>
+
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 
+    <!-- Terms of Service Modal -->
+    <div id="tosModal" class="tos-modal">
+      <div class="tos-content custom-scroll">
+        <button onclick="closeTOS()" class="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+        <div class="flex items-center gap-3 mb-8">
+          <i class="fas fa-file-contract text-blue-500 text-2xl"></i>
+          <h2 class="text-2xl font-black uppercase tracking-tight italic">Terms of Service</h2>
+        </div>
+        <div class="space-y-6 text-slate-400 text-sm leading-relaxed font-light">
+          <section>
+            <h4 class="text-white font-bold uppercase text-xs tracking-widest mb-2">1. Forensic Educational Purpose</h4>
+            <p>Evidence Protector is a forensic analysis tool developed strictly for educational and training purposes.</p>
+          </section>
+          <section>
+            <h4 class="text-white font-bold uppercase text-xs tracking-widest mb-2">2. Responsible Use</h4>
+            <p>Users agree to use this tool only for lawful activities. It must not be deployed in unauthorized environments.</p>
+          </section>
+          <section>
+            <h4 class="text-white font-bold uppercase text-xs tracking-widest mb-2">3. No Warranty</h4>
+            <p>The tool is provided "as is" without warranty of any kind.</p>
+          </section>
+          <section>
+            <h4 class="text-white font-bold uppercase text-xs tracking-widest mb-2">4. Limitation of Liability</h4>
+            <p>The developers are not liable for any damages resulting from the use or misuse of this software.</p>
+          </section>
+        </div>
+        <button onclick="closeTOS()" class="w-full mt-10 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl uppercase text-xs tracking-widest transition-all">I Understand & Accept</button>
+      </div>
+    </div>
+
+    <script src="../js/theme.js"></script>
     <script src="../js/index.js"></script>
+    <script>
+      document.getElementById('current-year').textContent = new Date().getFullYear();
+    </script>
   </body>
 </html>

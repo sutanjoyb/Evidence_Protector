@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 | Evidence Protector</title>
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <link rel="stylesheet" href="../styles/index.css" />
+    <style>
+        body {
+            color: var(--text-main);
+            background-color: var(--bg-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .text-main { color: var(--text-main); }
+        .text-muted { color: var(--text-muted); }
+        .text-faint { color: var(--text-faint); }
+
+        .glitch-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .glitch {
+            font-size: 8rem;
+            font-weight: 900;
+            line-height: 1;
+            position: relative;
+            color: var(--text-main);
+            text-shadow: 0.05em 0 0 rgba(255, 0, 0, 0.75),
+                        -0.025em -0.05em 0 rgba(0, 255, 0, 0.75),
+                        0.025em 0.05em 0 rgba(0, 0, 255, 0.75);
+            animation: glitch 500ms infinite;
+        }
+
+        @keyframes glitch {
+            0% {
+                text-shadow: 0.05em 0 0 rgba(255, 0, 0, 0.75), -0.05em -0.025em 0 rgba(0, 255, 0, 0.75), -0.025em 0.05em 0 rgba(0, 0, 255, 0.75);
+            }
+            14% {
+                text-shadow: 0.05em 0 0 rgba(255, 0, 0, 0.75), -0.05em -0.025em 0 rgba(0, 255, 0, 0.75), -0.025em 0.05em 0 rgba(0, 0, 255, 0.75);
+            }
+            15% {
+                text-shadow: -0.05em -0.025em 0 rgba(255, 0, 0, 0.75), 0.025em 0.025em 0 rgba(0, 255, 0, 0.75), -0.05em -0.05em 0 rgba(0, 0, 255, 0.75);
+            }
+            49% {
+                text-shadow: -0.05em -0.025em 0 rgba(255, 0, 0, 0.75), 0.025em 0.025em 0 rgba(0, 255, 0, 0.75), -0.05em -0.05em 0 rgba(0, 0, 255, 0.75);
+            }
+            50% {
+                text-shadow: 0.025em 0.05em 0 rgba(255, 0, 0, 0.75), 0.05em 0 0 rgba(0, 255, 0, 0.75), 0 -0.05em 0 rgba(0, 0, 255, 0.75);
+            }
+            99% {
+                text-shadow: 0.025em 0.05em 0 rgba(255, 0, 0, 0.75), 0.05em 0 0 rgba(0, 255, 0, 0.75), 0 -0.05em 0 rgba(0, 0, 255, 0.75);
+            }
+            100% {
+                text-shadow: -0.025em 0 0 rgba(255, 0, 0, 0.75), -0.025em -0.025em 0 rgba(0, 255, 0, 0.75), -0.025em -0.05em 0 rgba(0, 0, 255, 0.75);
+            }
+        }
+
+        .forensic-line {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+            width: 100%;
+            margin: 20px 0;
+            opacity: 0.3;
+        }
+
+        .error-code {
+            font-family: monospace;
+            color: var(--accent-blue);
+            font-size: 0.8rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .nav-blur {
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+    </style>
+</head>
+<body class="overflow-hidden">
+    <!-- Navbar -->
+    <nav class="fixed w-full z-50 nav-blur">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
+                    <path d="M20 4L6 10V20C6 27.5 12 34.5 20 37C28 34.5 34 27.5 34 20V10L20 4Z" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="font-bold tracking-tight uppercase italic text-main">Evidence Protector</span>
+            </div>
+            <button id="themeToggle" class="w-10 h-10 flex items-center justify-center rounded-full border border-white/5 hover:border-blue-500 transition-all text-muted">
+                <i class="fas fa-sun"></i>
+            </button>
+        </div>
+    </nav>
+
+    <div class="fixed inset-0 bg-grid z-0"></div>
+    <div class="fixed inset-0 hero-glow z-0"></div>
+
+    <main class="relative min-h-screen flex flex-col items-center justify-center p-6 z-10 pt-20">
+        <div class="glass p-12 rounded-3xl max-w-2xl w-full text-center relative overflow-hidden" data-aos="zoom-in">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent"></div>
+            
+            <div class="error-code mb-4 animate-pulse">Critical Error: Sequence Interrupted</div>
+            
+            <div class="glitch-wrapper mb-8">
+                <h1 class="glitch">404</h1>
+            </div>
+
+            <h2 class="text-3xl font-bold text-main mb-4 uppercase italic tracking-tighter">
+                Data Void <span class="text-blue-500">Detected</span>
+            </h2>
+
+            <div class="forensic-line"></div>
+
+            <p class="text-muted mb-10 leading-relaxed max-w-md mx-auto">
+                The requested temporal signature does not exist in the current log stream. 
+                The route may have been <span class="text-red-400 font-bold">purged</span> or never existed in the archive.
+            </p>
+
+            <div class="flex flex-col md:flex-row gap-6 justify-center">
+                <a href="index.html" class="px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-sm rounded shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all transform hover:scale-105 btn-glow flex items-center gap-2">
+                    <i class="fas fa-terminal"></i>
+                    Return to Home
+                </a>
+            </div>
+            
+            <div class="mt-12 pt-8 border-t border-white/5 flex items-center justify-center gap-4 text-[10px] text-faint uppercase tracking-widest">
+                <span>Session ID: ERR-404-NULL</span>
+                <span class="w-1 h-1 bg-slate-700 rounded-full"></span>
+                <span>Trace: Route compromised</span>
+                <span class="w-1 h-1 bg-slate-700 rounded-full"></span>
+                <a href="javascript:void(0)" onclick="showTOS()" class="hover:text-blue-500 transition-colors">Terms of Service</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Terms of Service Modal -->
+    <div id="tosModal" class="tos-modal">
+        <div class="tos-content custom-scroll">
+            <button onclick="closeTOS()" class="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <div class="flex items-center gap-3 mb-8">
+                <i class="fas fa-file-contract text-blue-500 text-2xl"></i>
+                <h2 class="text-2xl font-black uppercase tracking-tight italic text-main">Terms of Service</h2>
+            </div>
+            <div class="space-y-6 text-slate-400 text-sm leading-relaxed font-light text-left">
+                <section>
+                    <h4 class="text-white font-bold uppercase text-xs tracking-widest mb-2">1. Forensic Educational Purpose</h4>
+                    <p>Evidence Protector is a forensic analysis tool developed strictly for educational and training purposes. It is designed to demonstrate pattern recognition in log files and identify temporal anomalies (voids) that may occur during system events.</p>
+                </section>
+                <section>
+                    <h4 class="text-white font-bold uppercase text-xs tracking-widest mb-2">2. Responsible Use</h4>
+                    <p>Users agree to use this tool only for lawful activities. It must not be deployed in unauthorized environments or used to facilitate illegal surveillance, data tampering, or unauthorized forensic investigations.</p>
+                </section>
+                <section>
+                    <h4 class="text-white font-bold uppercase text-xs tracking-widest mb-2">3. No Warranty</h4>
+                    <p>The tool is provided "as is" without warranty of any kind. While it uses forensic heuristics, results should not be considered legally binding or 100% accurate without secondary verification by a certified forensics expert.</p>
+                </section>
+                <section>
+                    <h4 class="text-white font-bold uppercase text-xs tracking-widest mb-2">4. Limitation of Liability</h4>
+                    <p>The developers and Evidence Protector suite contributors are not liable for any damages resulting from the use or misuse of this software in real-world scenarios.</p>
+                </section>
+            </div>
+            <button onclick="closeTOS()" class="w-full mt-10 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl uppercase text-xs tracking-widest transition-all">I Understand & Accept</button>
+        </div>
+    </div>
+
+    <script src="../js/theme.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        function showTOS() {
+            const modal = document.getElementById("tosModal");
+            if (modal) modal.classList.add("active");
+        }
+
+        function closeTOS() {
+            const modal = document.getElementById("tosModal");
+            if (modal) modal.classList.remove("active");
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof AOS !== 'undefined') {
+                AOS.init({
+                    duration: 1000,
+                    easing: "ease-out-quad",
+                    once: true
+                });
+            }
+        });
+    </script>
+</body>
+</html>
