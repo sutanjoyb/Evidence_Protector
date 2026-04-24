@@ -2,6 +2,28 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import shutil
 import os
+import sys
+
+# ─── STARTUP SECRET VALIDATION ───────────────────────────────────────────────
+# Refuse to start if SECRET_KEY is missing or is the known insecure default.
+# This prevents silent JWT forgery when the env var is not set.
+_SECRET_KEY = os.getenv("SECRET_KEY", "")
+_INSECURE_DEFAULTS = {
+    "",
+    "fallback-secret-change-me",
+    "fallback-secret-change-me-in-production",
+    "change-this-to-a-long-random-secret-in-production",
+}
+if _SECRET_KEY in _INSECURE_DEFAULTS:
+    print(
+        "\n[FATAL] SECRET_KEY is not set or is using an insecure default value.\n"
+        "        Generate a secure key with:\n"
+        "            python -c \"import secrets; print(secrets.token_hex(32))\"\n"
+        "        Then add it to your .env file.\n"
+        "        Never commit .env to version control.\n",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 # Ensure the logic.py file exists and has the analyze_logs function
 try:
