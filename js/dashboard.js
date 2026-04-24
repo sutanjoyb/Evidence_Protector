@@ -188,47 +188,76 @@ function updateRegistryTable(incidents) {
   const tbody = document.getElementById("incidentBody");
   if (!tbody) return;
 
-  tbody.innerHTML = incidents
-    .map((inc, i) => {
-      const isFlagged = flaggedIncidents.has(i);
-      const startTime = inc.start.includes(" ")
-        ? inc.start.split(" ")[1]
-        : inc.start;
-      const endTime = inc.end.includes(" ") ? inc.end.split(" ")[1] : inc.end;
+  tbody.innerHTML = incidents.map((inc, i) => {
+    const isFlagged = flaggedIncidents.has(i);
+    const startTime = inc.start.includes(" ") ? inc.start.split(" ")[1] : inc.start;
+    const endTime = inc.end.includes(" ") ? inc.end.split(" ")[1] : inc.end;
+    const isCritical = inc.duration > 300;
+    const severityColor = isCritical ? "text-red-400" : "text-amber-400";
+    const dotColor = isCritical ? "bg-red-500 animate-pulse" : "bg-amber-500";
+    const severityLabel = isCritical ? "Critical Void" : "Minor Anomaly";
+    const flagClass = isFlagged ? "text-blue-500" : "text-slate-700 hover:text-blue-400";
+    const flagIcon = isFlagged ? "fas" : "far";
 
-      return `
-            <tr class="border-b border-white/5 hover:bg-white/5 transition-all">
-                <td class="p-6 font-mono">
-                    <div class="flex flex-col gap-1">
-                        <div class="flex items-center gap-2">
-                            <span class="text-[8px] text-slate-600 uppercase font-bold w-8">From:</span>
-                            <span class="text-blue-400 text-[10px] tracking-wider">${startTime}</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-[8px] text-slate-600 uppercase font-bold w-8">To:</span>
-                            <span class="text-emerald-400 text-[10px] tracking-wider">${endTime}</span>
-                        </div>
-                    </div>
-                </td>
-                <td class="p-6 text-center font-bold text-white text-sm">
-                    ${inc.duration}<span class="text-[10px] text-slate-500 ml-1 font-light">s</span>
-                </td>
-                <td class="p-6">
-                    <div class="flex items-center gap-3">
-                        <div class="w-1.5 h-1.5 rounded-full ${inc.duration > 300 ? "bg-red-500 animate-pulse" : "bg-amber-500"}"></div>
-                        <span class="text-[10px] uppercase font-bold ${inc.duration > 300 ? "text-red-400" : "text-amber-400"}">
-                            ${inc.duration > 300 ? "Critical Void" : "Minor Anomaly"}
-                        </span>
-                    </div>
-                </td>
-                <td class="p-6 text-right">
-                    <button onclick="toggleFlag(${i})" class="${isFlagged ? "text-blue-500" : "text-slate-700 hover:text-blue-400"} transition-colors">
-                        <i class="${isFlagged ? "fas" : "far"} fa-flag text-base"></i>
-                    </button>
-                </td>
-            </tr>`;
-    })
-    .join("");
+    return `
+      <!-- ── DESKTOP ROW (hidden on mobile) ── -->
+      <tr class="registry-row border-b border-white/5 hover:bg-white/5 transition-all">
+        <td class="p-6 font-mono">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2"><span class="text-[8px] text-slate-600 uppercase font-bold w-8">From:</span><span class="text-blue-400 text-[10px] tracking-wider">${startTime}</span></div>
+            <div class="flex items-center gap-2"><span class="text-[8px] text-slate-600 uppercase font-bold w-8">To:</span><span class="text-emerald-400 text-[10px] tracking-wider">${endTime}</span></div>
+          </div>
+        </td>
+        <td class="p-6 text-center font-bold text-white text-sm">${inc.duration}<span class="text-[10px] text-slate-500 ml-1 font-light">s</span></td>
+        <td class="p-6">
+          <div class="flex items-center gap-3">
+            <div class="w-1.5 h-1.5 rounded-full ${dotColor}"></div>
+            <span class="text-[10px] uppercase font-bold ${severityColor}">${severityLabel}</span>
+          </div>
+        </td>
+        <td class="p-6 text-right">
+          <button onclick="toggleFlag(${i})" class="${flagClass} transition-colors">
+            <i class="${flagIcon} fa-flag text-base"></i>
+          </button>
+        </td>
+      </tr>
+
+      <!-- ── MOBILE CARD (hidden on desktop) ── -->
+      <tr class="registry-card border-b border-white/5">
+        <td colspan="4" class="p-0">
+          <div class="m-3 rounded-xl border border-white/5 bg-slate-900/40 p-4 space-y-3">
+            <!-- Header row: severity badge + flag -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-1.5 h-1.5 rounded-full ${dotColor}"></div>
+                <span class="text-[10px] uppercase font-black ${severityColor} tracking-wider">${severityLabel}</span>
+              </div>
+              <button onclick="toggleFlag(${i})" class="${flagClass} transition-colors">
+                <i class="${flagIcon} fa-flag text-sm"></i>
+              </button>
+            </div>
+            <!-- Time window -->
+            <div class="grid grid-cols-2 gap-2 font-mono">
+              <div class="bg-slate-950/60 rounded-lg p-2.5">
+                <p class="text-[8px] text-slate-600 uppercase font-bold mb-1">From</p>
+                <p class="text-blue-400 text-[11px] tracking-wider">${startTime}</p>
+                <p class="text-[9px] text-slate-600 mt-0.5">${inc.start.split(" ")[0]}</p>
+              </div>
+              <div class="bg-slate-950/60 rounded-lg p-2.5">
+                <p class="text-[8px] text-slate-600 uppercase font-bold mb-1">To</p>
+                <p class="text-emerald-400 text-[11px] tracking-wider">${endTime}</p>
+                <p class="text-[9px] text-slate-600 mt-0.5">${inc.end.split(" ")[0]}</p>
+              </div>
+            </div>
+            <!-- Duration -->
+            <div class="flex items-center justify-between pt-1 border-t border-white/5">
+              <span class="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Gap Duration</span>
+              <span class="font-black text-white text-sm">${inc.duration}<span class="text-[10px] text-slate-500 ml-1 font-light">s</span></span>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+  }).join("");
 }
 
 function switchTab(tabId) {
