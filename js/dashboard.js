@@ -202,12 +202,9 @@ function deleteCase(caseId) {
 }
 
 function clearAllHistory() {
-  if (confirm("🚨 Wipe all historical cases? This cannot be undone.")) {
-    localStorage.setItem(CASES_KEY, "[]");
-    updateCaseBadge();
-    renderCaseHistory();
-    showToast("Vault Wiped");
-  }
+  const modal = document.getElementById("clearVaultModal");
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
 }
 
 // ─── REGISTRY SEARCH & SORT ──────────────────────────────────────────────────
@@ -246,10 +243,10 @@ function handleSortChange(criteria) {
 
 // ─── FLAG ALL FUNCTIONALITY ───────────────────────────────────────────────────
 function setupSelectAllCheckbox() {
-  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+  const selectAllCheckbox = document.getElementById("selectAllCheckbox");
   if (!selectAllCheckbox) return;
-  selectAllCheckbox.removeEventListener('change', handleSelectAll);
-  selectAllCheckbox.addEventListener('change', handleSelectAll);
+  selectAllCheckbox.removeEventListener("change", handleSelectAll);
+  selectAllCheckbox.addEventListener("change", handleSelectAll);
 }
 
 function handleSelectAll(e) {
@@ -271,11 +268,14 @@ function handleSelectAll(e) {
     showToast("Cleared all flags");
   }
 
-  localStorage.setItem("flagged_items", JSON.stringify(Array.from(flaggedIncidents)));
+  localStorage.setItem(
+    "flagged_items",
+    JSON.stringify(Array.from(flaggedIncidents)),
+  );
   updateFlagCount();
   updateRegistryTable(lastScanResults.incidents);
 
-  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+  const selectAllCheckbox = document.getElementById("selectAllCheckbox");
   if (selectAllCheckbox && selectAllCheckbox.checked !== isChecked) {
     selectAllCheckbox.checked = isChecked;
   }
@@ -283,7 +283,7 @@ function handleSelectAll(e) {
 
 function handleIndividualCheckboxChange(e) {
   const checkbox = e.target;
-  const index = parseInt(checkbox.getAttribute('data-index'));
+  const index = parseInt(checkbox.getAttribute("data-index"));
 
   if (checkbox.checked) {
     flaggedIncidents.add(index);
@@ -291,16 +291,21 @@ function handleIndividualCheckboxChange(e) {
     flaggedIncidents.delete(index);
   }
 
-  localStorage.setItem("flagged_items", JSON.stringify(Array.from(flaggedIncidents)));
+  localStorage.setItem(
+    "flagged_items",
+    JSON.stringify(Array.from(flaggedIncidents)),
+  );
 
-  const flagButton = checkbox.closest('tr').querySelector(`button[onclick="toggleFlag(${index})"]`);
+  const flagButton = checkbox
+    .closest("tr")
+    .querySelector(`button[onclick="toggleFlag(${index})"]`);
   if (flagButton) {
     if (checkbox.checked) {
-      flagButton.classList.add('text-blue-500');
-      flagButton.classList.remove('text-slate-700');
+      flagButton.classList.add("text-blue-500");
+      flagButton.classList.remove("text-slate-700");
     } else {
-      flagButton.classList.remove('text-blue-500');
-      flagButton.classList.add('text-slate-700');
+      flagButton.classList.remove("text-blue-500");
+      flagButton.classList.add("text-slate-700");
     }
   }
 
@@ -309,8 +314,9 @@ function handleIndividualCheckboxChange(e) {
 }
 
 function updateSelectAllCheckboxState() {
-  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-  if (!selectAllCheckbox || !lastScanResults || !lastScanResults.incidents) return;
+  const selectAllCheckbox = document.getElementById("selectAllCheckbox");
+  if (!selectAllCheckbox || !lastScanResults || !lastScanResults.incidents)
+    return;
 
   const totalIncidents = lastScanResults.incidents.length;
   const flaggedCount = flaggedIncidents.size;
@@ -397,7 +403,9 @@ function exportChartAsJPG() {
 // ─── EXPORT CENTER ───────────────────────────────────────────────────────────
 function exportForensicJSON() {
   if (!lastScanResults) return showToast("No data available");
-  const blob = new Blob([JSON.stringify(lastScanResults, null, 4)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify(lastScanResults, null, 4)], {
+    type: "application/json",
+  });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `Forensic_Report_${Date.now()}.json`;
@@ -408,7 +416,9 @@ function exportForensicJSON() {
 function exportRegistryCSV() {
   if (!lastScanResults) return showToast("Registry empty");
   let csv = "Start,End,Duration\n";
-  lastScanResults.incidents.forEach((i) => (csv += `${i.start},${i.end},${i.duration}\n`));
+  lastScanResults.incidents.forEach(
+    (i) => (csv += `${i.start},${i.end},${i.duration}\n`),
+  );
   const blob = new Blob([csv], { type: "text/csv" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -417,11 +427,78 @@ function exportRegistryCSV() {
   showToast("CSV Exported");
 }
 
+async function exportForensicPDF() {
+  if (!lastScanResults) return showToast("No scan data available for PDF");
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const timestamp = new Date().toLocaleString();
+
+  // ─── PDF HEADER ──────────────────────────────────────────────────────────
+  doc.setFontSize(20);
+  doc.setTextColor(40, 116, 240); // Evidence Blue
+  doc.text("EVIDENCE PROTECTOR PRO", 14, 22);
+
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text("OFFICIAL FORENSIC ANALYSIS REPORT", 14, 30);
+  doc.text(`Generated on: ${timestamp}`, 14, 35);
+  doc.line(14, 40, 196, 40); // Divider
+
+  // ─── SUMMARY SECTION ─────────────────────────────────────────────────────
+  doc.setFontSize(12);
+  doc.setTextColor(0);
+  doc.text("Executive Summary", 14, 50);
+
+  doc.setFontSize(10);
+  const summary = [
+    `Integrity Score: ${lastScanResults.integrity_score}%`,
+    `Total Gaps Detected: ${lastScanResults.total_gaps}`,
+    `Source File: ${document.getElementById("lastFileName")?.innerText || "Unknown"}`,
+  ];
+  doc.text(summary, 14, 60);
+
+  // ─── INCIDENT TABLE ──────────────────────────────────────────────────────
+  const tableData = lastScanResults.incidents.map((inc, index) => [
+    index + 1,
+    inc.start,
+    inc.end,
+    `${inc.duration}s`,
+    inc.duration > 300 ? "CRITICAL" : "WARNING",
+  ]);
+
+  doc.autoTable({
+    startY: 85,
+    head: [["ID", "Start Window", "End Window", "Duration", "Severity"]],
+    body: tableData,
+    theme: "grid",
+    headStyles: { fillStyle: [40, 116, 240], textColor: [255, 255, 255] },
+    alternateRowStyles: { fillColor: [245, 245, 245] },
+  });
+
+  // ─── FOOTER ──────────────────────────────────────────────────────────────
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.text(`Page ${i} of ${pageCount} - Confidential Forensic Data`, 14, 285);
+  }
+
+  doc.save(`Forensic_Report_${Date.now()}.pdf`);
+  showToast("PDF Report Generated Successfully");
+}
+
 // ─── UI & NAVIGATION UTILS ───────────────────────────────────────────────────
 function switchTab(tabId) {
-  document.querySelectorAll(".nav-item").forEach((el) => el.classList.remove("active", "text-blue-500"));
-  document.getElementById(`nav-${tabId}`)?.classList.add("active", "text-blue-500");
-  document.querySelectorAll(".tab-view").forEach((v) => v.classList.add("hidden"));
+  document
+    .querySelectorAll(".nav-item")
+    .forEach((el) => el.classList.remove("active", "text-blue-500"));
+  document
+    .getElementById(`nav-${tabId}`)
+    ?.classList.add("active", "text-blue-500");
+  document
+    .querySelectorAll(".tab-view")
+    .forEach((v) => v.classList.add("hidden"));
   document.getElementById(`view-${tabId}`)?.classList.remove("hidden");
 
   if (tabId === "history") renderCaseHistory();
@@ -461,13 +538,15 @@ function initDropZone() {
   if (!dropArea || !fileInput) return;
   fileInput.addEventListener("change", () => {
     if (fileInput.files.length > 0)
-      document.getElementById("fileNameDisplay").innerText = fileInput.files[0].name;
+      document.getElementById("fileNameDisplay").innerText =
+        fileInput.files[0].name;
   });
   dropArea.addEventListener("drop", (e) => {
     e.preventDefault();
     if (e.dataTransfer.files.length > 0) {
       fileInput.files = e.dataTransfer.files;
-      document.getElementById("fileNameDisplay").innerText = fileInput.files[0].name;
+      document.getElementById("fileNameDisplay").innerText =
+        fileInput.files[0].name;
     }
   });
 }
@@ -497,7 +576,9 @@ async function checkApiStatus() {
   if (!indicator) return;
   try {
     const res = await fetch("http://localhost:8000/", { method: "GET" });
-    indicator.className = res.ok ? "status-indicator online" : "status-indicator offline";
+    indicator.className = res.ok
+      ? "status-indicator online"
+      : "status-indicator offline";
   } catch {
     indicator.className = "status-indicator offline";
   }
@@ -505,8 +586,10 @@ async function checkApiStatus() {
 
 function renderResults(data) {
   if (!data) return;
-  document.getElementById("integrityScoreCard").innerText = parseFloat(data.integrity_score).toFixed(1) + "%";
-  document.getElementById("financialRisk").innerText = (100 - parseFloat(data.integrity_score)).toFixed(1) + "%";
+  document.getElementById("integrityScoreCard").innerText =
+    parseFloat(data.integrity_score).toFixed(1) + "%";
+  document.getElementById("financialRisk").innerText =
+    (100 - parseFloat(data.integrity_score)).toFixed(1) + "%";
   document.getElementById("gapCount").innerText = data.total_gaps;
   updateRegistryTable(data.incidents);
   updateChart(data.incidents);
@@ -521,7 +604,7 @@ function updateRegistryTable(incidents) {
       (inc, i) => `
         <tr class="border-b border-white/5 hover:bg-white/5 transition-all">
             <td class="p-6 w-10">
-                <input type="checkbox" class="incident-checkbox rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-0" data-index="${i}" ${flaggedIncidents.has(i) ? 'checked' : ''} />
+                <input type="checkbox" class="incident-checkbox rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-0" data-index="${i}" ${flaggedIncidents.has(i) ? "checked" : ""} />
             </td>
             <td class="p-6 text-blue-400 font-mono text-[10px]">${inc.start} → ${inc.end}</td>
             <td class="p-6 text-center font-bold text-white">${inc.duration}s</td>
@@ -534,10 +617,10 @@ function updateRegistryTable(incidents) {
     )
     .join("");
 
-  const checkboxes = document.querySelectorAll('.incident-checkbox');
-  checkboxes.forEach(checkbox => {
-    checkbox.removeEventListener('change', handleIndividualCheckboxChange);
-    checkbox.addEventListener('change', handleIndividualCheckboxChange);
+  const checkboxes = document.querySelectorAll(".incident-checkbox");
+  checkboxes.forEach((checkbox) => {
+    checkbox.removeEventListener("change", handleIndividualCheckboxChange);
+    checkbox.addEventListener("change", handleIndividualCheckboxChange);
   });
 
   updateSelectAllCheckboxState();
@@ -550,9 +633,14 @@ function toggleFlag(index) {
     flaggedIncidents.add(index);
   }
 
-  localStorage.setItem("flagged_items", JSON.stringify(Array.from(flaggedIncidents)));
+  localStorage.setItem(
+    "flagged_items",
+    JSON.stringify(Array.from(flaggedIncidents)),
+  );
 
-  const checkbox = document.querySelector(`.incident-checkbox[data-index="${index}"]`);
+  const checkbox = document.querySelector(
+    `.incident-checkbox[data-index="${index}"]`,
+  );
   if (checkbox) checkbox.checked = flaggedIncidents.has(index);
 
   updateFlagCount();
@@ -581,7 +669,8 @@ function initScrollToTop() {
 
   function updateScrollBtn() {
     const scrollTop = scrollContainer.scrollTop;
-    const scrollHeight = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+    const scrollHeight =
+      scrollContainer.scrollHeight - scrollContainer.clientHeight;
     const scrollPct = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
 
     // Show / hide with .visible class (CSS handles fade + slide)
@@ -599,7 +688,9 @@ function initScrollToTop() {
   }
 
   // Listen on the inner scroll container, not window
-  scrollContainer.addEventListener("scroll", updateScrollBtn, { passive: true });
+  scrollContainer.addEventListener("scroll", updateScrollBtn, {
+    passive: true,
+  });
 
   // Click — smooth scroll to top of the container
   btn.addEventListener("click", () => {
@@ -608,4 +699,17 @@ function initScrollToTop() {
 
   // Run once on init
   updateScrollBtn();
+}
+function closeClearVaultModal() {
+  const modal = document.getElementById("clearVaultModal");
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+}
+
+function confirmClearVault() {
+  localStorage.setItem(CASES_KEY, "[]");
+  updateCaseBadge();
+  renderCaseHistory();
+  showToast("Vault Wiped");
+  closeClearVaultModal();
 }
