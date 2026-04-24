@@ -397,12 +397,27 @@
                     class="w-full mt-2 px-3 py-2 bg-slate-900 border border-white/10 rounded text-white text-sm"
                   />
                 </div>
-                <button
-                  onclick="analyzeLogs(event)"
-                  class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest mt-4"
-                >
-                  Analyze stream
-                </button>
+                <div class="flex gap-3 mt-4">
+                  <button onclick="analyzeLogs(event)" class="flex-1 bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all">
+                    <i class="fas fa-chart-line mr-2"></i> Analyze
+                  </button>
+                  <button onclick="previewLogFile()" id="previewBtn" disabled class="flex-1 bg-slate-700 hover:bg-slate-600 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-eye mr-2"></i> Preview
+                  </button>
+                </div>
+
+                <!-- Preview Box -->
+                <div id="previewBox" class="hidden mt-4 glass-card p-4 rounded-xl border-l-4 border-blue-500">
+                  <div class="flex justify-between items-center mb-3">
+                    <h4 class="text-[10px] font-bold uppercase text-blue-500 tracking-widest flex items-center gap-2">
+                      <i class="fas fa-code"></i> Log Preview (First 10 lines)
+                    </h4>
+                    <button onclick="closePreview()" class="text-slate-500 hover:text-red-400 transition-colors">
+                      <i class="fas fa-times text-xs"></i>
+                    </button>
+                  </div>
+                  <pre id="previewContent" class="font-mono text-[10px] text-slate-300 bg-slate-900/50 p-4 rounded-lg overflow-x-auto custom-scroll max-h-64 leading-relaxed"></pre>
+                </div>
               </div>
               <div
                 id="signatureCard"
@@ -502,7 +517,7 @@
                   <th class="p-6">Time Window</th>
                   <th class="p-6 text-center">Duration</th>
                   <th class="p-6 text-right">Triage</th>
-                 </tr>
+                </tr>
               </thead>
               <tbody id="incidentBody"></tbody>
             </table>
@@ -580,7 +595,7 @@
                   <th class="p-6">Timestamp</th>
                   <th class="p-6 text-center">Score</th>
                   <th class="p-6 text-right">Actions</th>
-                 </tr>
+                </tr>
               </thead>
               <tbody id="caseHistoryBody"></tbody>
             </table>
@@ -746,13 +761,10 @@
         onclick="event.stopPropagation()"
         class="bg-slate-900 border border-white/10 rounded-2xl p-8 w-[90%] max-w-md text-center shadow-2xl"
       >
-        
         <h2 class="text-white text-lg font-bold mb-4">
           Are you sure you want to remove your scan history?
         </h2>
-
         <div class="flex justify-center gap-4 mt-6">
-        
           <button
             onclick="confirmClearVault()"
             class="px-6 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase rounded-lg"
@@ -765,11 +777,66 @@
           >
             Cancel
           </button>
-
         </div>
       </div>
     </div>
+
     <script src="../js/dashboard.js"></script>
     <script src="../js/theme.js"></script>
+
+    <!-- Preview Script -->
+    <script>
+    (function() {
+        let currentLogContent = null;
+        const fileInput = document.getElementById('logFile');
+        const previewBtn = document.getElementById('previewBtn');
+
+        window.previewLogFile = function() {
+            if (!currentLogContent) {
+                alert("Please select a log file first!");
+                return;
+            }
+            const lines = currentLogContent.split('\n');
+            const first10 = lines.slice(0, 10);
+            let output = '';
+            for (let i = 0; i < first10.length; i++) {
+                output += (i+1).toString().padStart(3,' ') + ' | ' + first10[i] + '\n';
+            }
+            if (lines.length > 10) output += '\n... (+' + (lines.length-10) + ' more lines)';
+            const previewContent = document.getElementById('previewContent');
+            const previewBox = document.getElementById('previewBox');
+            if (previewContent && previewBox) {
+                previewContent.textContent = output;
+                previewBox.classList.remove('hidden');
+            }
+        };
+
+        window.closePreview = function() {
+            const previewBox = document.getElementById('previewBox');
+            if (previewBox) previewBox.classList.add('hidden');
+        };
+
+        if (fileInput && previewBtn) {
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    previewBtn.disabled = false;
+                    previewBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    const reader = new FileReader();
+                    reader.onload = function(ev) {
+                        currentLogContent = ev.target.result;
+                        const fileNameDisplay = document.getElementById('fileNameDisplay');
+                        if (fileNameDisplay) fileNameDisplay.innerText = file.name;
+                    };
+                    reader.readAsText(file);
+                } else {
+                    previewBtn.disabled = true;
+                    previewBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    currentLogContent = null;
+                }
+            });
+        }
+    })();
+    </script>
   </body>
 </html>
