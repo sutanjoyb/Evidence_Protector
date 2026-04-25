@@ -1,59 +1,97 @@
-let chart;
+/**
+ * EVIDENCE PROTECTOR PRO - CORE DASHBOARD LOGIC
+ * Features: Automated Archiving, Session Persistence, Forensic Exports, Dynamic Search, Flag All
+ */
+
+// ─── STATE & CONSTANTS ───────────────────────────────────────────────────────
+let chart = null;
 let lastScanResults = null;
 let flaggedIncidents = new Set();
-
-// 1. IMPROVED VERTICAL SCANNER PLUGIN
-const verticalLinePlugin = {
-  id: "verticalLine",
-  afterDraw: (chart) => {
-    if (chart.tooltip?._active?.length) {
-      const x = chart.tooltip._active[0].element.x;
-      const yAxis = chart.scales.y;
-      const ctx = chart.ctx;
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(x, yAxis.top);
-      ctx.lineTo(x, yAxis.bottom);
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = "rgba(59, 130, 246, 0.6)";
-      ctx.setLineDash([5, 5]);
-      ctx.stroke();
-      ctx.restore();
-    }
-  },
+const CASES_KEY = "forensic_cases";
+const ANALYSIS_SETTINGS_KEY = "analysis_settings";
+const DEFAULT_ANALYSIS_SETTINGS = {
+  threshold: 60,
+  fileTypes: [".log", ".txt", ".csv"],
 };
+let analysisSettings = { ...DEFAULT_ANALYSIS_SETTINGS };
 
+// ─── INITIALIZATION ──────────────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", () => {
-  if (!sessionStorage.getItem("isLoggedIn")) {
+  // 1. Unified Authentication Check
+  const hasAuth =
+    !!localStorage.getItem("access_token") ||
+    !!sessionStorage.getItem("isLoggedIn");
+  if (!hasAuth) {
     window.location.href = "index.html";
     return;
   }
+
+  // 2. Restore Flagged Items
   const savedFlags = localStorage.getItem("flagged_items");
   if (savedFlags) {
-    flaggedIncidents = new Set(JSON.parse(savedFlags));
-    updateFlagCount();
+    try {
+      flaggedIncidents = new Set(JSON.parse(savedFlags));
+      updateFlagCount();
+    } catch (e) {
+      console.warn("Flag restoration failed");
+    }
   }
+
+  // 3. UI Bootstrap
+  loadAnalysisSettings();
+  applyAnalysisSettingsToUI();
+  updateGreeting();
+  updateCaseBadge();
   loadLastSession();
+  initDropZone();
+  setupSelectAllCheckbox();
+
+  // 4. API Monitoring
+  checkApiStatus();
+  setInterval(checkApiStatus, 5000);
+
+  // 5. Reactive Scroll-To-Top (dashboard scrolls inside #mainScroll)
+  initScrollToTop();
 });
 
+// ─── SESSION PERSISTENCE ─────────────────────────────────────────────────────
 function loadLastSession() {
   const savedData = localStorage.getItem("last_forensic_scan");
   const savedMeta = localStorage.getItem("last_scan_metadata");
+
   if (savedData && savedMeta) {
-    lastScanResults = JSON.parse(savedData);
-    const meta = JSON.parse(savedMeta);
-    const timeEl = document.getElementById("lastScanTime");
-    const fileEl = document.getElementById("lastFileName");
-    if (timeEl) timeEl.innerText = meta.timestamp;
-    if (fileEl) fileEl.innerText = meta.fileName;
-    renderResults(lastScanResults);
+    try {
+      lastScanResults = JSON.parse(savedData);
+      const meta = JSON.parse(savedMeta);
+
+      const timeEl = document.getElementById("lastScanTime");
+      const fileEl = document.getElementById("lastFileName");
+      if (timeEl) timeEl.innerText = meta.timestamp;
+      if (fileEl) fileEl.innerText = meta.fileName;
+
+      renderResults(lastScanResults);
+    } catch (e) {
+      console.error("Session restoration failed", e);
+    }
   }
 }
 
+// ─── ANALYSIS & AUTO-ARCHIVING ───────────────────────────────────────────────
 async function analyzeLogs(event) {
+  if (event) event.preventDefault();
   const fileInput = document.getElementById("logFile");
-  const file = fileInput.files[0];
-  if (!file) return showToast("Critical: No source file selected");
+  const file = fileInput.files[0] || fileInput._droppedFile;
+
+  if (!file) {
+    document.getElementById("dropArea")?.classList.add("border-red-500/50");
+    return showToast("Critical: No source file selected");
+  }
+
+  if (!isFileAllowedBySettings(file)) {
+    return showToast(
+      `File type not allowed: ${getFileExtension(file.name) || "unknown"}`,
+    );
+  }
 
   const overlay = document.getElementById("scanOverlay");
   const statusText = document.getElementById("loaderStatus");
@@ -61,26 +99,23 @@ async function analyzeLogs(event) {
 
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("threshold", 60);
+  const thresholdValue =
+    document.getElementById("thresholdInput")?.value || analysisSettings.threshold;
+  formData.append("threshold", thresholdValue);
 
   try {
+    const token = localStorage.getItem("access_token");
     const res = await fetch("http://localhost:8000/analyze", {
       method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
     });
-    if (!res.ok) throw new Error("Connection Refused");
+
+    if (res.status === 401) return logout();
     const data = await res.json();
 
-    const steps = [
-      "Hashing Payload...",
-      "Mapping Voids...",
-      "Assessing Risk...",
-      "Finalizing Reports...",
-    ];
-    for (const step of steps) {
-      statusText.innerText = step;
-      await new Promise((r) => setTimeout(r, 400));
-    }
+    statusText.innerText = "Finalizing Reports...";
+    await new Promise((r) => setTimeout(r, 600));
 
     const meta = {
       timestamp: new Date().toLocaleString().toUpperCase(),
@@ -89,145 +124,185 @@ async function analyzeLogs(event) {
     localStorage.setItem("last_forensic_scan", JSON.stringify(data));
     localStorage.setItem("last_scan_metadata", JSON.stringify(meta));
 
+    saveToVault(data, file.name);
+
     lastScanResults = data;
     renderResults(data);
-    showToast("Analysis Finalized");
+    showToast("Analysis Finalized — Case Archived");
   } catch (e) {
-    showToast("Backend Link Error: Ensure server is online");
+    showToast("Backend Link Error");
   } finally {
     overlay.classList.add("hidden");
   }
 }
 
-function renderResults(data) {
-  if (!data || !data.incidents) return;
+function loadAnalysisSettings() {
+  const saved = localStorage.getItem(ANALYSIS_SETTINGS_KEY);
+  if (!saved) return;
 
-  const score = parseFloat(data.integrity_score);
-  const compromiseRisk = (100 - score).toFixed(1);
+  try {
+    const parsed = JSON.parse(saved);
+    const threshold = Number.parseInt(parsed?.threshold, 10);
+    const fileTypes = Array.isArray(parsed?.fileTypes)
+      ? parsed.fileTypes.filter((type) =>
+          DEFAULT_ANALYSIS_SETTINGS.fileTypes.includes(type),
+        )
+      : [];
 
-  // 1. Update KPI Cards
-  document.getElementById("integrityScoreCard").innerText =
-    score.toFixed(1) + "%";
-  document.getElementById("financialRisk").innerText = compromiseRisk + "%";
-  document.getElementById("gapCount").innerText = data.total_gaps;
-
-  // 2. Metadata
-  const meta = JSON.parse(localStorage.getItem("last_scan_metadata") || "{}");
-  document.getElementById("lastScanTime").innerText =
-    meta.timestamp || new Date().toLocaleTimeString();
-  document.getElementById("lastFileName").innerText =
-    meta.fileName || "Unknown Source";
-
-  const forensicSessionID = `FS-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-
-  // 3. TACTICAL SIGNATURE GENERATOR
-  const signatureCard = document.getElementById("signatureCard");
-  const reasoning = document.getElementById("tacticalReasoning");
-
-  if (signatureCard && reasoning) {
-    signatureCard.classList.remove("hidden");
-
-    const durations = data.incidents.map((i) => i.duration);
-    const maxGap = Math.max(...durations, 0);
-    const totalGapTime = durations.reduce((a, b) => a + b, 0);
-    const gapFrequency = data.total_gaps;
-
-    let signatureTitle = "";
-    let signatureBody = "";
-    let statusColor = "";
-
-    if (gapFrequency === 0) {
-      statusColor = "text-emerald-500";
-      signatureTitle = "LINEAR_CONTINUITY_VERIFIED";
-      signatureBody = `Session ${forensicSessionID}: No temporal anomalies detected. Sequence validation confirms 100% log stream integrity.`;
-    } else if (maxGap > 600) {
-      statusColor = "text-red-500";
-      signatureTitle = "SHADOW_WINDOW_PURGE";
-      signatureBody = `Session ${forensicSessionID}: Critical alert. A massive void of ${maxGap}s detected. This signature indicates a manual overwrite or deliberate service suspension to mask major activity.`;
-    } else if (gapFrequency > 10) {
-      statusColor = "text-amber-500";
-      signatureTitle = "FRAGMENTED_LOG_SHAVING";
-      signatureBody = `Session ${forensicSessionID}: Heuristic match found. Detected ${gapFrequency} micro-voids. This pattern is consistent with 'Log Shaving'—automated scripts deleting individual alert lines while leaving the rest of the file intact.`;
-    } else if (score < 85) {
-      statusColor = "text-orange-400";
-      signatureTitle = "UNAUTHORIZED_SERVICE_GAP";
-      signatureBody = `Session ${forensicSessionID}: Analysis shows a cumulative integrity loss of ${compromiseRisk}%. The distribution of gaps suggests a system-level interruption or unauthorized 'stop-start' command sequence.`;
-    } else {
-      statusColor = "text-blue-400";
-      signatureTitle = "TEMPORAL_DRIFT_SYNC";
-      signatureBody = `Session ${forensicSessionID}: Minor anomalies detected (${totalGapTime}s total). Pattern matches standard network latency or NTP clock-sync drift. No malicious manipulation signatures identified.`;
-    }
-
-    reasoning.innerHTML = `
-        <div class="mb-2">
-            <span class="${statusColor} font-black uppercase tracking-widest">[ ${signatureTitle} ]</span>
-        </div>
-        <div class="text-slate-400 italic">
-            ${signatureBody}
-        </div>
-        <div class="mt-2 pt-2 border-t border-white/5 text-[8px] text-slate-600">
-            SECURE_HASH: ${forensicSessionID} | ADMISSIBILITY: ${score > 90 ? "CERTIFIED" : "REVIEW_REQUIRED"}
-        </div>
-      `;
-
-    const sorter = document.getElementById("durationSorter");
-    const placeholder = document.getElementById("sortPlaceholder");
-
-    if (sorter && placeholder) {
-      placeholder.disabled = false;
-      sorter.value = "none";
-    }
+    analysisSettings = {
+      threshold:
+        Number.isFinite(threshold) && threshold > 0
+          ? threshold
+          : DEFAULT_ANALYSIS_SETTINGS.threshold,
+      fileTypes:
+        fileTypes.length > 0 ? fileTypes : [...DEFAULT_ANALYSIS_SETTINGS.fileTypes],
+    };
+  } catch (_) {
+    analysisSettings = { ...DEFAULT_ANALYSIS_SETTINGS };
   }
-
-  updateRegistryTable(data.incidents);
-  updateHeatmapBar(data.incidents);
-  updateChart(data.incidents);
 }
 
-function updateRegistryTable(incidents) {
-  const tbody = document.getElementById("incidentBody");
+function saveAnalysisSettings() {
+  localStorage.setItem(ANALYSIS_SETTINGS_KEY, JSON.stringify(analysisSettings));
+}
+
+function applyAnalysisSettingsToUI() {
+  const thresholdInput = document.getElementById("thresholdInput");
+  if (thresholdInput) thresholdInput.value = String(analysisSettings.threshold);
+
+  const fileInput = document.getElementById("logFile");
+  if (fileInput) {
+    fileInput.setAttribute("accept", analysisSettings.fileTypes.join(","));
+  }
+
+  const checkboxes = document.querySelectorAll(".settings-file-type");
+  checkboxes.forEach((checkbox) => {
+    checkbox.checked = analysisSettings.fileTypes.includes(checkbox.value);
+  });
+
+  const summaryEl = document.getElementById("settingsSummary");
+  if (summaryEl) {
+    summaryEl.innerText = `Threshold: ${analysisSettings.threshold}s • Types: ${analysisSettings.fileTypes.join(", ")}`;
+  }
+}
+
+function getFileExtension(fileName) {
+  if (!fileName || !fileName.includes(".")) return "";
+  const dotIndex = fileName.lastIndexOf(".");
+  return fileName.slice(dotIndex).toLowerCase();
+}
+
+function isFileAllowedBySettings(file) {
+  const ext = getFileExtension(file?.name);
+  return analysisSettings.fileTypes.includes(ext);
+}
+
+function openAnalysisSettingsModal() {
+  applyAnalysisSettingsToUI();
+  const modal = document.getElementById("analysisSettingsModal");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+}
+
+function closeAnalysisSettingsModal() {
+  const modal = document.getElementById("analysisSettingsModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+}
+
+function applyAnalysisSettings() {
+  const thresholdInput = document.getElementById("thresholdInput");
+  const parsedThreshold = Number.parseInt(thresholdInput?.value, 10);
+  const threshold = Number.isFinite(parsedThreshold)
+    ? Math.min(3600, Math.max(1, parsedThreshold))
+    : DEFAULT_ANALYSIS_SETTINGS.threshold;
+
+  const selectedFileTypes = Array.from(
+    document.querySelectorAll(".settings-file-type:checked"),
+  ).map((input) => input.value);
+
+  if (selectedFileTypes.length === 0) {
+    showToast("Select at least one file type");
+    return;
+  }
+
+  analysisSettings = {
+    threshold,
+    fileTypes: selectedFileTypes,
+  };
+
+  saveAnalysisSettings();
+  applyAnalysisSettingsToUI();
+  closeAnalysisSettingsModal();
+  showToast("Analysis settings updated");
+
+  const fileInput = document.getElementById("logFile");
+  const currentFile = fileInput?.files?.[0] || null;
+  if (currentFile && !isFileAllowedBySettings(currentFile)) {
+    fileInput.value = "";
+    const fileNameDisplay = document.getElementById("fileNameDisplay");
+    if (fileNameDisplay) fileNameDisplay.innerText = "Select Log File";
+    const previewBtn = document.getElementById("previewBtn");
+    if (previewBtn) previewBtn.disabled = true;
+    showToast(`Current file removed (${getFileExtension(currentFile.name)} blocked)`);
+  }
+}
+
+// ─── VAULT & HISTORY LOGIC ───────────────────────────────────────────────────
+function saveToVault(data, fileName) {
+  const cases = JSON.parse(localStorage.getItem(CASES_KEY) || "[]");
+  const newCase = {
+    id: `FS-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
+    name: fileName,
+    timestamp: new Date().toISOString(),
+    integrityScore: parseFloat(data.integrity_score),
+    totalGaps: data.total_gaps,
+    incidents: data.incidents,
+  };
+  cases.unshift(newCase);
+  if (cases.length > 50) cases.pop();
+  localStorage.setItem(CASES_KEY, JSON.stringify(cases));
+  updateCaseBadge();
+}
+
+function renderCaseHistory() {
+  const cases = JSON.parse(localStorage.getItem(CASES_KEY) || "[]");
+  const tbody = document.getElementById("caseHistoryBody");
+  const emptyState = document.getElementById("caseHistoryEmpty");
+  const clearBtn = document.getElementById("clearVaultBtn");
+
   if (!tbody) return;
+  if (clearBtn) clearBtn.disabled = cases.length === 0;
 
-  tbody.innerHTML = incidents
-    .map((inc, i) => {
-      const isFlagged = flaggedIncidents.has(i);
-      const startTime = inc.start.includes(" ")
-        ? inc.start.split(" ")[1]
-        : inc.start;
-      const endTime = inc.end.includes(" ") ? inc.end.split(" ")[1] : inc.end;
+  if (cases.length === 0) {
+    tbody.innerHTML = "";
+    emptyState?.classList.remove("hidden");
+    return;
+  }
 
-      return `
-            <tr class="border-b border-white/5 hover:bg-white/5 transition-all">
-                <td class="p-6 font-mono">
-                    <div class="flex flex-col gap-1">
-                        <div class="flex items-center gap-2">
-                            <span class="text-[8px] text-slate-600 uppercase font-bold w-8">From:</span>
-                            <span class="text-blue-400 text-[10px] tracking-wider">${startTime}</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-[8px] text-slate-600 uppercase font-bold w-8">To:</span>
-                            <span class="text-emerald-400 text-[10px] tracking-wider">${endTime}</span>
-                        </div>
-                    </div>
-                </td>
-                <td class="p-6 text-center font-bold text-white text-sm">
-                    ${inc.duration}<span class="text-[10px] text-slate-500 ml-1 font-light">s</span>
-                </td>
-                <td class="p-6">
-                    <div class="flex items-center gap-3">
-                        <div class="w-1.5 h-1.5 rounded-full ${inc.duration > 300 ? "bg-red-500 animate-pulse" : "bg-amber-500"}"></div>
-                        <span class="text-[10px] uppercase font-bold ${inc.duration > 300 ? "text-red-400" : "text-amber-400"}">
-                            ${inc.duration > 300 ? "Critical Void" : "Minor Anomaly"}
-                        </span>
-                    </div>
-                </td>
-                <td class="p-6 text-right">
-                    <button onclick="toggleFlag(${i})" class="${isFlagged ? "text-blue-500" : "text-slate-700 hover:text-blue-400"} transition-colors">
-                        <i class="${isFlagged ? "fas" : "far"} fa-flag text-base"></i>
-                    </button>
-                </td>
-            </tr>`;
-    })
+  emptyState?.classList.add("hidden");
+  tbody.innerHTML = cases
+    .map(
+      (c) => `
+        <tr class="border-b border-white/5 hover:bg-white/5 transition-all">
+            <td class="p-6">
+                <div class="text-white font-bold text-xs">${c.name}</div>
+                <div class="text-[9px] text-slate-600 font-mono">${c.id}</div>
+            </td>
+            <td class="p-6 text-[10px] text-slate-400 font-mono">${new Date(c.timestamp).toLocaleString()}</td>
+            <td class="p-6 text-center">
+                <span class="px-2 py-1 rounded text-[10px] font-black ${c.integrityScore > 80 ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"}">
+                    ${c.integrityScore.toFixed(1)}%
+                </span>
+            </td>
+            <td class="p-6 text-right">
+                <button onclick="loadCase('${c.id}')" class="text-blue-500 hover:text-blue-400 mr-4 text-[10px] font-bold uppercase">Load</button>
+                <button onclick="deleteCase('${c.id}')" class="text-slate-600 hover:text-red-500"><i class="fas fa-trash-can"></i></button>
+            </td>
+        </tr>`,
+    )
     .join("");
 }
 
@@ -247,161 +322,407 @@ function switchTab(tabId) {
   const navItem = document.getElementById(`nav-${tabId}`);
   if (navItem) navItem.classList.add("active", "text-blue-500");
 
-  const titles = {
-    dashboard: "Executive Overview",
-    registry: "Incident Registry",
-    compliance: "Export Center",
-  };
-  const titleEl = document.getElementById("viewTitle");
-  if (titleEl) titleEl.innerText = titles[tabId];
-
-  document
-    .querySelectorAll(".tab-view")
-    .forEach((view) => view.classList.add("hidden"));
-  const targetView = document.getElementById(`view-${tabId}`);
-  if (targetView) targetView.classList.remove("hidden");
-
-  if (lastScanResults && tabId === "dashboard") {
-    setTimeout(() => updateChart(lastScanResults.incidents), 50);
-  }
+function deleteCase(caseId) {
+  let cases = JSON.parse(localStorage.getItem(CASES_KEY) || "[]");
+  cases = cases.filter((c) => c.id !== caseId);
+  localStorage.setItem(CASES_KEY, JSON.stringify(cases));
+  updateCaseBadge();
+  renderCaseHistory();
+  showToast("Case Deleted");
 }
 
-function updateHeatmapBar(incidents) {
-  const container = document.getElementById("forensicHeatmap");
-  if (!container || !incidents.length) return;
-
-  const startEl = document.getElementById("heatmap-start");
-  const endEl = document.getElementById("heatmap-end");
-  if (startEl) startEl.innerText = incidents[0].start.split(" ")[1];
-  if (endEl)
-    endEl.innerText = incidents[incidents.length - 1].end.split(" ")[1];
-
-  const resolution = 100;
-  const barHtml = [];
-  for (let i = 0; i < resolution; i++) {
-    const isAnomaly = incidents.some(
-      (inc, idx) => Math.abs(idx / incidents.length - i / resolution) < 0.02,
-    );
-    const statusClass = isAnomaly ? "status-red" : "status-green";
-    barHtml.push(
-      `<div class="heatmap-segment ${statusClass}" style="width: ${100 / resolution}%"></div>`,
-    );
-  }
-  container.innerHTML = barHtml.join("");
+function clearAllHistory() {
+  const modal = document.getElementById("clearVaultModal");
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
 }
 
-function updateChart(incidents) {
-  const canvas = document.getElementById("timelineChart");
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  if (chart) chart.destroy();
+  tbody.innerHTML = incidents.map((inc, i) => {
+    const isFlagged = flaggedIncidents.has(i);
+    const startTime = inc.start.includes(" ") ? inc.start.split(" ")[1] : inc.start;
+    const endTime = inc.end.includes(" ") ? inc.end.split(" ")[1] : inc.end;
+    const isCritical = inc.duration > 300;
+    const severityColor = isCritical ? "text-red-400" : "text-amber-400";
+    const dotColor = isCritical ? "bg-red-500 animate-pulse" : "bg-amber-500";
+    const severityLabel = isCritical ? "Critical Void" : "Minor Anomaly";
+    const flagClass = isFlagged ? "text-blue-500" : "text-slate-700 hover:text-blue-400";
+    const flagIcon = isFlagged ? "fas" : "far";
 
-  const chartLabels = incidents.map((i) => i.start.split(" ")[1]);
-  const chartData = incidents.map((i) => Math.max(0, 100 - i.duration / 300));
+    return `
+      <!-- ── DESKTOP ROW (hidden on mobile) ── -->
+      <tr class="registry-row border-b border-white/5 hover:bg-white/5 transition-all">
+        <td class="p-6 font-mono">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2"><span class="text-[8px] text-slate-600 uppercase font-bold w-8">From:</span><span class="text-blue-400 text-[10px] tracking-wider">${startTime}</span></div>
+            <div class="flex items-center gap-2"><span class="text-[8px] text-slate-600 uppercase font-bold w-8">To:</span><span class="text-emerald-400 text-[10px] tracking-wider">${endTime}</span></div>
+          </div>
+        </td>
+        <td class="p-6 text-center font-bold text-white text-sm">${inc.duration}<span class="text-[10px] text-slate-500 ml-1 font-light">s</span></td>
+        <td class="p-6">
+          <div class="flex items-center gap-3">
+            <div class="w-1.5 h-1.5 rounded-full ${dotColor}"></div>
+            <span class="text-[10px] uppercase font-bold ${severityColor}">${severityLabel}</span>
+          </div>
+        </td>
+        <td class="p-6 text-right">
+          <button onclick="toggleFlag(${i})" class="${flagClass} transition-colors">
+            <i class="${flagIcon} fa-flag text-base"></i>
+          </button>
+        </td>
+      </tr>
 
-  chart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: chartLabels,
-      datasets: [
-        {
-          label: "Integrity",
-          data: chartData,
-          borderColor: "#3b82f6",
-          backgroundColor: "rgba(59, 130, 246, 0.15)",
-          fill: "origin",
-          tension: 0,
-          borderWidth: 2,
-          pointRadius: 0,
-          pointHitRadius: 20,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: "index", intersect: false },
-      scales: {
-        y: {
-          beginAtZero: true,
-          min: 0,
-          max: 100,
-          ticks: {
-            callback: (v) => v + "%",
-            color: "#64748b",
-            font: { family: "JetBrains Mono" },
-          },
-          grid: { color: "rgba(255,255,255,0.03)" },
-        },
-        x: {
-          ticks: {
-            color: "#64748b",
-            autoSkip: true,
-            maxTicksLimit: 10,
-            font: { family: "JetBrains Mono" },
-          },
-          grid: { display: false },
-        },
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          enabled: true,
-          backgroundColor: "rgba(15, 23, 42, 0.95)",
-          titleFont: { size: 13, family: "JetBrains Mono" },
-          bodyFont: { size: 12, family: "JetBrains Mono" },
-          padding: 12,
-          displayColors: false,
-          callbacks: {
-            title: (items) => `Timestamp: ${items[0].label}`,
-            label: (item) => {
-              const index = item.dataIndex;
-              const gap = incidents[index].duration;
-              return [
-                `Integrity: ${item.parsed.y.toFixed(1)}%`,
-                `Gap Duration: ${gap}s`,
-              ];
-            },
-          },
-        },
-      },
-    },
-    plugins: [verticalLinePlugin],
-  });
+      <!-- ── MOBILE CARD (hidden on desktop) ── -->
+      <tr class="registry-card border-b border-white/5">
+        <td colspan="4" class="p-0">
+          <div class="m-3 rounded-xl border border-white/5 bg-slate-900/40 p-4 space-y-3">
+            <!-- Header row: severity badge + flag -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-1.5 h-1.5 rounded-full ${dotColor}"></div>
+                <span class="text-[10px] uppercase font-black ${severityColor} tracking-wider">${severityLabel}</span>
+              </div>
+              <button onclick="toggleFlag(${i})" class="${flagClass} transition-colors">
+                <i class="${flagIcon} fa-flag text-sm"></i>
+              </button>
+            </div>
+            <!-- Time window -->
+            <div class="grid grid-cols-2 gap-2 font-mono">
+              <div class="bg-slate-950/60 rounded-lg p-2.5">
+                <p class="text-[8px] text-slate-600 uppercase font-bold mb-1">From</p>
+                <p class="text-blue-400 text-[11px] tracking-wider">${startTime}</p>
+                <p class="text-[9px] text-slate-600 mt-0.5">${inc.start.split(" ")[0]}</p>
+              </div>
+              <div class="bg-slate-950/60 rounded-lg p-2.5">
+                <p class="text-[8px] text-slate-600 uppercase font-bold mb-1">To</p>
+                <p class="text-emerald-400 text-[11px] tracking-wider">${endTime}</p>
+                <p class="text-[9px] text-slate-600 mt-0.5">${inc.end.split(" ")[0]}</p>
+              </div>
+            </div>
+            <!-- Duration -->
+            <div class="flex items-center justify-between pt-1 border-t border-white/5">
+              <span class="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Gap Duration</span>
+              <span class="font-black text-white text-sm">${inc.duration}<span class="text-[10px] text-slate-500 ml-1 font-light">s</span></span>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+  }).join("");
+// ─── REGISTRY SEARCH & SORT ──────────────────────────────────────────────────
+function filterRegistry() {
+  const term = document.getElementById("searchInput")?.value.toLowerCase();
+  const noMatchMsg = document.getElementById("noMatchMessage");
+  const tableBody = document.getElementById("incidentBody");
+
+  if (!lastScanResults) return;
+
+  const filtered = lastScanResults.incidents.filter(
+    (inc) =>
+      inc.start.toLowerCase().includes(term) ||
+      inc.duration.toString().includes(term),
+  );
+
+  if (filtered.length === 0) {
+    tableBody.innerHTML = "";
+    noMatchMsg?.classList.remove("hidden");
+  } else {
+    noMatchMsg?.classList.add("hidden");
+    updateRegistryTable(filtered);
+  }
 }
 
 function handleSortChange(criteria) {
-  if (!lastScanResults || !lastScanResults.incidents) {
-    showToast("No data to sort");
-    return;
-  }
+  if (!lastScanResults) return showToast("No data to sort");
   const placeholder = document.getElementById("sortPlaceholder");
-  if (criteria === "high") {
+  if (criteria === "high")
     lastScanResults.incidents.sort((a, b) => b.duration - a.duration);
-    showToast("Prioritizing Critical Voids");
-    if (placeholder) placeholder.disabled = true;
-  } else if (criteria === "low") {
+  else if (criteria === "low")
     lastScanResults.incidents.sort((a, b) => a.duration - b.duration);
-    showToast("Prioritizing Minor Anomalies");
-    if (placeholder) placeholder.disabled = true;
-  }
+  if (placeholder) placeholder.disabled = true;
   updateRegistryTable(lastScanResults.incidents);
 }
 
-function toggleFlag(index) {
-  if (flaggedIncidents.has(index)) flaggedIncidents.delete(index);
-  else flaggedIncidents.add(index);
+// ─── FLAG ALL FUNCTIONALITY ───────────────────────────────────────────────────
+function setupSelectAllCheckbox() {
+  const selectAllCheckbox = document.getElementById("selectAllCheckbox");
+  if (!selectAllCheckbox) return;
+  selectAllCheckbox.removeEventListener("change", handleSelectAll);
+  selectAllCheckbox.addEventListener("change", handleSelectAll);
+}
+
+function handleSelectAll(e) {
+  const isChecked = e.target.checked;
+
+  if (!lastScanResults || !lastScanResults.incidents) {
+    showToast("No incidents to flag");
+    e.target.checked = false;
+    return;
+  }
+
+  if (isChecked) {
+    for (let i = 0; i < lastScanResults.incidents.length; i++) {
+      flaggedIncidents.add(i);
+    }
+    showToast(`Flagged all ${lastScanResults.incidents.length} incidents`);
+  } else {
+    flaggedIncidents.clear();
+    showToast("Cleared all flags");
+  }
+
   localStorage.setItem(
     "flagged_items",
     JSON.stringify(Array.from(flaggedIncidents)),
   );
   updateFlagCount();
   updateRegistryTable(lastScanResults.incidents);
+
+  const selectAllCheckbox = document.getElementById("selectAllCheckbox");
+  if (selectAllCheckbox && selectAllCheckbox.checked !== isChecked) {
+    selectAllCheckbox.checked = isChecked;
+  }
 }
 
-function updateFlagCount() {
-  const el = document.getElementById("flag-count");
-  if (el) el.innerText = `${flaggedIncidents.size} Flagged`;
+function handleIndividualCheckboxChange(e) {
+  const checkbox = e.target;
+  const index = parseInt(checkbox.getAttribute("data-index"));
+
+  if (checkbox.checked) {
+    flaggedIncidents.add(index);
+  } else {
+    flaggedIncidents.delete(index);
+  }
+
+  localStorage.setItem(
+    "flagged_items",
+    JSON.stringify(Array.from(flaggedIncidents)),
+  );
+
+  const flagButton = checkbox
+    .closest("tr")
+    .querySelector(`button[onclick="toggleFlag(${index})"]`);
+  if (flagButton) {
+    if (checkbox.checked) {
+      flagButton.classList.add("text-blue-500");
+      flagButton.classList.remove("text-slate-700");
+    } else {
+      flagButton.classList.remove("text-blue-500");
+      flagButton.classList.add("text-slate-700");
+    }
+  }
+
+  updateFlagCount();
+  updateSelectAllCheckboxState();
+}
+
+function updateSelectAllCheckboxState() {
+  const selectAllCheckbox = document.getElementById("selectAllCheckbox");
+  if (!selectAllCheckbox || !lastScanResults || !lastScanResults.incidents)
+    return;
+
+  const totalIncidents = lastScanResults.incidents.length;
+  const flaggedCount = flaggedIncidents.size;
+
+  if (totalIncidents === 0) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  } else if (flaggedCount === totalIncidents) {
+    selectAllCheckbox.checked = true;
+    selectAllCheckbox.indeterminate = false;
+  } else if (flaggedCount > 0 && flaggedCount < totalIncidents) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = true;
+  } else {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  }
+}
+
+// ─── CHART & IMAGE EXPORTS ────────────────────────────────────────────────────
+function updateChart(incidents) {
+  const canvas = document.getElementById("timelineChart");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (chart) chart.destroy();
+
+  chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: incidents.map((i) => i.start.split(" ")[1] || i.start),
+      datasets: [
+        {
+          label: "Integrity",
+          data: incidents.map((i) => Math.max(0, 100 - i.duration / 300)),
+          borderColor: "#3b82f6",
+          backgroundColor: "rgba(59,130,246,0.1)",
+          fill: true,
+          tension: 0.4,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { min: 0, max: 100, ticks: { color: "#64748b" } },
+        x: { ticks: { color: "#64748b", maxTicksLimit: 10 } },
+      },
+      plugins: {
+        legend: { display: false },
+        zoom: {
+          zoom: { wheel: { enabled: true }, mode: "x" },
+          pan: { enabled: true, mode: "x" },
+        },
+      },
+    },
+  });
+}
+
+function exportChartAsPNG() {
+  if (!chart) return showToast("No chart data");
+  const a = document.createElement("a");
+  a.download = `Chart_${Date.now()}.png`;
+  a.href = chart.canvas.toDataURL("image/png");
+  a.click();
+}
+
+function exportChartAsJPG() {
+  if (!chart) return showToast("No chart data");
+  const canvas = chart.canvas;
+  const tmp = document.createElement("canvas");
+  tmp.width = canvas.width;
+  tmp.height = canvas.height;
+  const ctx = tmp.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, tmp.width, tmp.height);
+  ctx.drawImage(canvas, 0, 0);
+  const a = document.createElement("a");
+  a.download = `Chart_${Date.now()}.jpg`;
+  a.href = tmp.toDataURL("image/jpeg", 0.9);
+  a.click();
+}
+
+// ─── EXPORT CENTER ───────────────────────────────────────────────────────────
+function exportForensicJSON() {
+  if (!lastScanResults) return showToast("No data available");
+  const blob = new Blob([JSON.stringify(lastScanResults, null, 4)], {
+    type: "application/json",
+  });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `Forensic_Report_${Date.now()}.json`;
+  a.click();
+  showToast("JSON Exported");
+}
+
+function exportRegistryCSV() {
+  if (!lastScanResults) return showToast("Registry empty");
+  let csv = "Start,End,Duration\n";
+  lastScanResults.incidents.forEach(
+    (i) => (csv += `${i.start},${i.end},${i.duration}\n`),
+  );
+  const blob = new Blob([csv], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `Registry_${Date.now()}.csv`;
+  a.click();
+  showToast("CSV Exported");
+}
+
+async function exportForensicPDF() {
+  if (!lastScanResults) return showToast("No scan data available for PDF");
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const timestamp = new Date().toLocaleString();
+
+  // ─── PDF HEADER ──────────────────────────────────────────────────────────
+  doc.setFontSize(20);
+  doc.setTextColor(40, 116, 240); // Evidence Blue
+  doc.text("EVIDENCE PROTECTOR PRO", 14, 22);
+
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text("OFFICIAL FORENSIC ANALYSIS REPORT", 14, 30);
+  doc.text(`Generated on: ${timestamp}`, 14, 35);
+  doc.line(14, 40, 196, 40); // Divider
+
+  // ─── SUMMARY SECTION ─────────────────────────────────────────────────────
+  doc.setFontSize(12);
+  doc.setTextColor(0);
+  doc.text("Executive Summary", 14, 50);
+
+  doc.setFontSize(10);
+  const summary = [
+    `Integrity Score: ${lastScanResults.integrity_score}%`,
+    `Total Gaps Detected: ${lastScanResults.total_gaps}`,
+    `Source File: ${document.getElementById("lastFileName")?.innerText || "Unknown"}`,
+  ];
+  doc.text(summary, 14, 60);
+
+  // ─── INCIDENT TABLE ──────────────────────────────────────────────────────
+  const tableData = lastScanResults.incidents.map((inc, index) => [
+    index + 1,
+    inc.start,
+    inc.end,
+    `${inc.duration}s`,
+    inc.duration > 300 ? "CRITICAL" : "WARNING",
+  ]);
+
+  doc.autoTable({
+    startY: 85,
+    head: [["ID", "Start Window", "End Window", "Duration", "Severity"]],
+    body: tableData,
+    theme: "grid",
+    headStyles: { fillStyle: [40, 116, 240], textColor: [255, 255, 255] },
+    alternateRowStyles: { fillColor: [245, 245, 245] },
+  });
+
+  // ─── FOOTER ──────────────────────────────────────────────────────────────
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.text(`Page ${i} of ${pageCount} - Confidential Forensic Data`, 14, 285);
+  }
+
+  doc.save(`Forensic_Report_${Date.now()}.pdf`);
+  showToast("PDF Report Generated Successfully");
+}
+
+// ─── UI & NAVIGATION UTILS ───────────────────────────────────────────────────
+function switchTab(tabId) {
+  document
+    .querySelectorAll(".nav-item")
+    .forEach((el) => el.classList.remove("active", "text-blue-500"));
+  document
+    .getElementById(`nav-${tabId}`)
+    ?.classList.add("active", "text-blue-500");
+  document
+    .querySelectorAll(".tab-view")
+    .forEach((v) => v.classList.add("hidden"));
+  document.getElementById(`view-${tabId}`)?.classList.remove("hidden");
+
+  // ISSUE #72: Hide greeting panel on non-dashboard tabs
+  const greetingPanel = document.querySelector('.glass-card.p-6.border-l-4.border-blue-500.flex.items-center.justify-between');
+  if (greetingPanel) {
+    greetingPanel.style.display = tabId === 'dashboard' ? 'flex' : 'none';
+  }
+
+  if (tabId === "history") renderCaseHistory();
+  if (tabId === "dashboard" && lastScanResults)
+    setTimeout(() => updateChart(lastScanResults.incidents), 50);
+}
+
+function updateCaseBadge() {
+  const badge = document.getElementById("case-count-badge");
+  const count = JSON.parse(localStorage.getItem(CASES_KEY) || "[]").length;
+  if (badge) badge.innerText = count;
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  sidebar.classList.toggle("-translate-x-full");
+  overlay.classList.toggle("hidden");
 }
 
 function showToast(msg) {
@@ -417,21 +738,57 @@ function showToast(msg) {
   }, 3000);
 }
 
-function updateFileName() {
+function initDropZone() {
+  const dropArea = document.getElementById("dropArea");
   const fileInput = document.getElementById("logFile");
-  const fileNameDisplay = document.getElementById("fileNameDisplay");
-  if (fileInput.files.length > 0) {
-    fileNameDisplay.innerText = fileInput.files[0].name;
-    fileNameDisplay.classList.remove("text-slate-500");
-    fileNameDisplay.classList.add("text-blue-400");
-  } else {
-    fileNameDisplay.innerText = "Select Log Source";
-  }
+  if (!dropArea || !fileInput) return;
+
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files.length === 0) return;
+
+    const selectedFile = fileInput.files[0];
+    if (!isFileAllowedBySettings(selectedFile)) {
+      fileInput.value = "";
+      document.getElementById("fileNameDisplay").innerText = "Select Log File";
+      showToast(
+        `Unsupported type: ${getFileExtension(selectedFile.name) || "unknown"}`,
+      );
+      return;
+    }
+
+    document.getElementById("fileNameDisplay").innerText = selectedFile.name;
+  });
+
+  dropArea.addEventListener("drop", (e) => {
+    e.preventDefault();
+
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (!droppedFile) return;
+
+    if (!isFileAllowedBySettings(droppedFile)) {
+      showToast(
+        `Unsupported type: ${getFileExtension(droppedFile.name) || "unknown"}`,
+      );
+      return;
+    }
+
+    const transfer = new DataTransfer();
+    transfer.items.add(droppedFile);
+    fileInput.files = transfer.files;
+    document.getElementById("fileNameDisplay").innerText = droppedFile.name;
+  });
+}
+
+function updateGreeting() {
+  const el = document.getElementById("userGreeting");
+  if (!el) return;
+  const hour = new Date().getHours();
+  el.innerText = `${hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening"}, Operator`;
 }
 
 function logout() {
+  localStorage.removeItem("access_token");
   sessionStorage.clear();
-  localStorage.clear();
   window.location.href = "index.html";
 }
 
@@ -480,75 +837,145 @@ function exportForensicJSON() {
   showToast("Signed JSON Exported");
 }
 
-function exportRegistryCSV() {
-  if (!lastScanResults || !lastScanResults.incidents.length)
-    return showToast("Notice: Incident Registry is empty");
-  let csv = "Incident,Start,End,Duration(s),Severity\n";
-  lastScanResults.incidents.forEach((inc, i) => {
-    csv += `VOID-${i + 1},${inc.start},${inc.end},${inc.duration},${inc.duration > 300 ? "CRITICAL" : "WARNING"}\n`;
+async function checkApiStatus() {
+  const indicator = document.getElementById("apiStatusIndicator");
+  if (!indicator) return;
+  try {
+    const res = await fetch("http://localhost:8000/", { method: "GET" });
+    indicator.className = res.ok
+      ? "status-indicator online"
+      : "status-indicator offline";
+  } catch {
+    indicator.className = "status-indicator offline";
+  }
+}
+
+function renderResults(data) {
+  if (!data) return;
+  document.getElementById("integrityScoreCard").innerText =
+    parseFloat(data.integrity_score).toFixed(1) + "%";
+  document.getElementById("financialRisk").innerText =
+    (100 - parseFloat(data.integrity_score)).toFixed(1) + "%";
+  document.getElementById("gapCount").innerText = data.total_gaps;
+  updateRegistryTable(data.incidents);
+  updateChart(data.incidents);
+}
+
+function updateRegistryTable(incidents) {
+  const tbody = document.getElementById("incidentBody");
+  if (!tbody) return;
+
+  tbody.innerHTML = incidents
+    .map(
+      (inc, i) => `
+        <tr class="border-b border-white/5 hover:bg-white/5 transition-all">
+            <td class="p-6 w-10">
+                <input type="checkbox" class="incident-checkbox rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-0" data-index="${i}" ${flaggedIncidents.has(i) ? "checked" : ""} />
+            </td>
+            <td class="p-6 text-blue-400 font-mono text-[10px]">${inc.start} → ${inc.end}</td>
+            <td class="p-6 text-center font-bold text-white">${inc.duration}s</td>
+            <td class="p-6 text-right">
+                <button onclick="toggleFlag(${i})" class="${flaggedIncidents.has(i) ? "text-blue-500" : "text-slate-700"}">
+                    <i class="fas fa-flag"></i>
+                </button>
+            </td>
+        </tr>`,
+    )
+    .join("");
+
+  const checkboxes = document.querySelectorAll(".incident-checkbox");
+  checkboxes.forEach((checkbox) => {
+    checkbox.removeEventListener("change", handleIndividualCheckboxChange);
+    checkbox.addEventListener("change", handleIndividualCheckboxChange);
   });
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `Registry_Log_${Date.now()}.csv`;
-  a.click();
-  showToast("Registry CSV Downloaded");
+
+  updateSelectAllCheckboxState();
 }
 
-// Export chart as PNG
-function exportChartAsPNG() {
-    if (!chart) {
-        showToast("No chart data available");
-        return;
-    }
-    const canvas = chart.canvas;
-    const link = document.createElement('a');
-    link.download = `chart_export_${Date.now()}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-    showToast("Chart exported as PNG");
+function toggleFlag(index) {
+  if (flaggedIncidents.has(index)) {
+    flaggedIncidents.delete(index);
+  } else {
+    flaggedIncidents.add(index);
+  }
+
+  localStorage.setItem(
+    "flagged_items",
+    JSON.stringify(Array.from(flaggedIncidents)),
+  );
+
+  const checkbox = document.querySelector(
+    `.incident-checkbox[data-index="${index}"]`,
+  );
+  if (checkbox) checkbox.checked = flaggedIncidents.has(index);
+
+  updateFlagCount();
+  updateSelectAllCheckboxState();
+
+  if (lastScanResults) updateRegistryTable(lastScanResults.incidents);
 }
 
-// Export chart as JPG
-function exportChartAsJPG() {
-    if (!chart) {
-        showToast("No chart data available");
-        return;
-    }
-    const canvas = chart.canvas;
-    // Create white background for JPG (JPG doesn't support transparency)
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCtx.fillStyle = 'white';
-    tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-    tempCtx.drawImage(canvas, 0, 0);
-    const link = document.createElement('a');
-    link.download = `chart_export_${Date.now()}.jpg`;
-    link.href = tempCanvas.toDataURL('image/jpeg', 0.9);
-    link.click();
-    showToast("Chart exported as JPG");
+function updateFlagCount() {
+  const el = document.getElementById("flag-count");
+  if (el) el.innerText = `${flaggedIncidents.size} Flagged`;
 }
 
-// Search/Filter functionality for Incident Registry
-function filterRegistry() {
-    const searchTerm = document.getElementById("searchInput").value.toLowerCase();
-    if (!lastScanResults || !lastScanResults.incidents) return;
-    
-    let filteredIncidents = lastScanResults.incidents;
-    
-    if (searchTerm) {
-        filteredIncidents = lastScanResults.incidents.filter(inc => {
-            // Search by timestamp (start or end time)
-            const timeMatch = inc.start.toLowerCase().includes(searchTerm) || 
-                              inc.end.toLowerCase().includes(searchTerm);
-            // Search by duration
-            const durationMatch = inc.duration.toString().includes(searchTerm);
-            return timeMatch || durationMatch;
-        });
+// ─── REACTIVE SCROLL TO TOP (DASHBOARD) ──────────────────────────────────────
+// Dashboard scrolls inside #mainScroll div, NOT window — so we listen on that.
+
+function initScrollToTop() {
+  const btn = document.getElementById("scrollTopBtn");
+  const ring = document.getElementById("scrollProgressRing");
+  const scrollContainer = document.getElementById("mainScroll");
+  if (!btn || !scrollContainer) return;
+
+  // Ring circumference for r=19 circle: 2 * π * 19 ≈ 119.38
+  const CIRCUMFERENCE = 119.38;
+  const SHOW_THRESHOLD = 300; // px scrolled before button appears
+
+  function updateScrollBtn() {
+    const scrollTop = scrollContainer.scrollTop;
+    const scrollHeight =
+      scrollContainer.scrollHeight - scrollContainer.clientHeight;
+    const scrollPct = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
+
+    // Show / hide with .visible class (CSS handles fade + slide)
+    if (scrollTop > SHOW_THRESHOLD) {
+      btn.classList.add("visible");
+    } else {
+      btn.classList.remove("visible");
     }
-    
-    updateRegistryTable(filteredIncidents);
+
+    // Update progress ring stroke
+    if (ring) {
+      const offset = CIRCUMFERENCE - scrollPct * CIRCUMFERENCE;
+      ring.style.strokeDashoffset = offset;
+    }
+  }
+
+  // Listen on the inner scroll container, not window
+  scrollContainer.addEventListener("scroll", updateScrollBtn, {
+    passive: true,
+  });
+
+  // Click — smooth scroll to top of the container
+  btn.addEventListener("click", () => {
+    scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  // Run once on init
+  updateScrollBtn();
+}
+function closeClearVaultModal() {
+  const modal = document.getElementById("clearVaultModal");
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+}
+
+function confirmClearVault() {
+  localStorage.setItem(CASES_KEY, "[]");
+  updateCaseBadge();
+  renderCaseHistory();
+  showToast("Vault Wiped");
+  closeClearVaultModal();
 }
