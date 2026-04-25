@@ -12,29 +12,37 @@
     />
     <link rel="stylesheet" href="../styles/dashboard.css" />
   </head>
-  <body class="flex min-h-screen">
+  <body class="flex min-h-screen overflow-x-hidden">
     <!-- Scan Overlay -->
     <div id="scanOverlay" class="hidden fixed inset-0 bg-[#020617]/95 backdrop-blur-xl z-[100] flex items-center justify-center">
-      <div class="text-center">
-        <div class="relative w-24 h-24 mx-auto mb-8">
+      <div class="text-center px-4">
+        <div class="relative w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-6 sm:mb-8">
           <div class="absolute inset-0 border-4 border-blue-500/10 border-t-blue-500 rounded-full animate-spin"></div>
           <div class="absolute inset-4 bg-blue-600/20 rounded-full flex items-center justify-center">
-            <i class="fas fa-fingerprint text-blue-500 text-3xl"></i>
+            <i class="fas fa-fingerprint text-blue-500 text-2xl sm:text-3xl"></i>
           </div>
         </div>
-        <h3 class="text-white font-black tracking-[0.4em] uppercase text-sm mb-3">Forensic Deep Scan</h3>
+        <h3 class="text-white font-black tracking-[0.3em] sm:tracking-[0.4em] uppercase text-xs sm:text-sm mb-3">Forensic Deep Scan</h3>
         <p id="loaderStatus" class="text-blue-500/60 font-mono text-[10px] uppercase">Initializing data buffers...</p>
       </div>
     </div>
 
     <!-- Toast -->
-    <div id="toast" class="fixed bottom-10 right-10 transform translate-y-24 opacity-0 z-[200] bg-blue-600 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3">
-      <i class="fas fa-shield-check"></i>
-      <span id="toastMsg">System Ready</span>
+    <div id="toast" class="fixed bottom-4 right-4 sm:bottom-10 sm:right-10 transform translate-y-24 opacity-0 z-[200] bg-blue-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] text-sm">
+      <i class="fas fa-shield-check shrink-0"></i>
+      <span id="toastMsg" class="truncate">System Ready</span>
     </div>
 
+    <!-- Mobile hamburger button -->
+    <button id="sidebarToggle" onclick="toggleSidebar()" class="lg:hidden fixed top-4 left-4 z-[60] bg-slate-900 border border-white/10 p-2.5 rounded-xl text-slate-400 hover:text-blue-400 transition-all">
+      <i class="fas fa-bars text-sm"></i>
+    </button>
+
+    <!-- Mobile sidebar overlay -->
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"></div>
+
     <!-- Sidebar -->
-    <nav class="w-64 border-r border-white/5 bg-slate-950/50 flex flex-col p-6 shrink-0 z-50">
+    <nav id="sidebar" class="fixed lg:relative -translate-x-full lg:translate-x-0 transition-transform duration-300 w-64 h-full border-r border-white/5 bg-slate-950/95 lg:bg-slate-950/50 flex flex-col p-6 shrink-0 z-50">
       <div class="flex items-center gap-3 mb-10 px-2">
         <i class="fas fa-shield-halved text-blue-500 text-2xl"></i>
         <span class="font-black tracking-tighter uppercase italic text-lg leading-tight">Evidence <br /><span class="text-blue-500 text-sm">Protector Pro</span></span>
@@ -43,30 +51,30 @@
         <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-3 px-2">System Access</p>
         <a href="index.html" class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-house-chimney w-4"></i> Home</a>
         <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2">Analysis Engine</p>
-        <div onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item active flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-chart-pie w-4"></i> Dashboard</div>
-        <div onclick="switchTab('registry')" id="nav-registry" class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-list-check w-4"></i> Registry</div>
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item active w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-chart-pie w-4"></i> Dashboard</button>
+        <button onclick="switchTab('registry')" id="nav-registry" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-list-check w-4"></i> Registry</button>
         <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-8 mb-3 px-2">Governance</p>
-        <div onclick="switchTab('compliance')" id="nav-compliance" class="nav-item flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-file-contract w-4"></i> Export Center</div>
+        <button onclick="switchTab('compliance')" id="nav-compliance" class="nav-item w-full text-left flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-medium"><i class="fas fa-file-contract w-4"></i> Export Center</button>
       </div>
       <button onclick="logout()" class="mt-4 flex items-center gap-4 py-3 px-4 rounded-xl text-sm font-bold text-red-500/80 hover:bg-red-500/10 transition-all"><i class="fas fa-power-off"></i> Logout</button>
     </nav>
 
     <!-- Main Content -->
-    <main class="flex-1 flex flex-col h-screen overflow-hidden">
-      <header class="h-20 border-b border-white/5 bg-slate-950/20 backdrop-blur-md flex items-center justify-between px-8 shrink-0">
-        <h2 id="viewTitle" class="text-lg font-bold">Executive Overview</h2>
-        <div class="bg-slate-900 px-4 py-2 rounded-full border border-white/5 text-[9px] font-bold text-slate-500 uppercase">Status: <span class="text-emerald-500">Active</span></div>
+    <main class="flex-1 flex flex-col h-screen overflow-hidden w-full min-w-0">
+      <header class="h-14 sm:h-20 border-b border-white/5 bg-slate-950/20 backdrop-blur-md flex items-center justify-between px-4 sm:px-8 shrink-0 pl-16 lg:pl-8">
+        <h2 id="viewTitle" class="text-sm sm:text-lg font-bold truncate">Executive Overview</h2>
+        <div class="bg-slate-900 px-3 py-1.5 rounded-full border border-white/5 text-[9px] font-bold text-slate-500 uppercase shrink-0">Status: <span class="text-emerald-500">Active</span></div>
       </header>
 
-      <div class="flex-1 overflow-y-auto p-8 space-y-8 custom-scroll">
+      <div class="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 space-y-6 custom-scroll">
         <!-- DASHBOARD TAB -->
         <div id="view-dashboard" class="tab-view space-y-6">
-          <!-- KPI Cards -->
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div class="glass-card p-5 border-t-2 border-blue-500"><p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Integrity Score</p><h3 id="integrityScoreCard" class="text-2xl font-black text-white">--%</h3></div>
-            <div class="glass-card p-5 border-t-2 border-red-500"><p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Compromise Risk</p><h3 id="financialRisk" class="text-2xl font-black text-red-400">0%</h3></div>
-            <div class="glass-card p-5 border-t-2 border-purple-500"><p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Gaps Detected</p><h3 id="gapCount" class="text-2xl font-black text-white">0</h3></div>
-            <div class="glass-card p-5 border-t-2 border-emerald-500"><p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Last Scan Session</p><p id="lastScanTime" class="text-[10px] font-mono text-emerald-400 truncate">Awaiting Data</p><p id="lastFileName" class="text-[8px] text-slate-600 truncate mt-1">--</p></div>
+          <!-- KPI Cards: 2-col on mobile, 4-col on desktop -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div class="glass-card p-4 sm:p-5 border-t-2 border-blue-500"><p class="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase mb-1">Integrity Score</p><h3 id="integrityScoreCard" class="text-xl sm:text-2xl font-black text-white">--%</h3></div>
+            <div class="glass-card p-4 sm:p-5 border-t-2 border-red-500"><p class="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase mb-1">Compromise Risk</p><h3 id="financialRisk" class="text-xl sm:text-2xl font-black text-red-400">0%</h3></div>
+            <div class="glass-card p-4 sm:p-5 border-t-2 border-purple-500"><p class="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase mb-1">Gaps Detected</p><h3 id="gapCount" class="text-xl sm:text-2xl font-black text-white">0</h3></div>
+            <div class="glass-card p-4 sm:p-5 border-t-2 border-emerald-500"><p class="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase mb-1">Last Scan Session</p><p id="lastScanTime" class="text-[9px] sm:text-[10px] font-mono text-emerald-400 truncate">Awaiting Data</p><p id="lastFileName" class="text-[8px] text-slate-600 truncate mt-1">--</p></div>
           </div>
 
           <!-- Heatmap -->
@@ -101,7 +109,7 @@
                     <button onclick="exportChartAsJPG()" class="text-[9px] bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 font-bold uppercase tracking-wider"><i class="fas fa-camera text-xs"></i> JPG</button>
                   </div>
                 </div>
-                <div class="h-[400px] w-full"><canvas id="timelineChart"></canvas></div>
+                <div class="h-[240px] sm:h-[320px] lg:h-[400px] w-full"><canvas id="timelineChart"></canvas></div>
               </div>
             </div>
           </div>
@@ -109,8 +117,8 @@
 
         <!-- REGISTRY TAB -->
         <div id="view-registry" class="tab-view hidden glass-card overflow-hidden">
-          <div class="p-6 border-b border-white/5 bg-slate-900/20 flex justify-between items-center flex-wrap gap-3">
-            <div class="flex items-center gap-4 flex-wrap">
+          <div class="p-4 sm:p-6 border-b border-white/5 bg-slate-900/20 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+            <div class="flex items-center gap-3 flex-wrap">
               <h4 class="text-xs font-bold uppercase text-slate-400">Incident Registry</h4>
               <select id="durationSorter" onchange="handleSortChange(this.value)" class="bg-slate-950 border border-white/10 text-[10px] text-blue-400 font-bold uppercase py-1 px-3 rounded-lg outline-none focus:border-blue-500 transition-all cursor-pointer">
                 <option id="sortPlaceholder" value="none">Sort By</option>
@@ -118,15 +126,14 @@
                 <option value="low">Shortest Gaps First (Minor)</option>
               </select>
             </div>
-            <!-- SEARCH INPUT -->
-            <div class="flex items-center gap-2">
-              <i class="fas fa-search text-slate-500 text-xs"></i>
-              <input type="text" id="searchInput" placeholder="Search by time or duration..." onkeyup="filterRegistry()" class="bg-slate-950 border border-white/10 text-xs text-slate-300 px-3 py-1.5 rounded-lg outline-none focus:border-blue-500 transition-all w-64">
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <i class="fas fa-search text-slate-500 text-xs shrink-0"></i>
+              <input type="text" id="searchInput" placeholder="Search by time or duration..." onkeyup="filterRegistry()" class="bg-slate-950 border border-white/10 text-xs text-slate-300 px-3 py-1.5 rounded-lg outline-none focus:border-blue-500 transition-all w-full sm:w-48 lg:w-64">
             </div>
-            <span id="flag-count" class="text-[10px] bg-blue-600 px-3 py-1 rounded-full text-white font-black">0 Flagged</span>
+            <span id="flag-count" class="text-[10px] bg-blue-600 px-3 py-1 rounded-full text-white font-black self-start sm:self-auto">0 Flagged</span>
           </div>
-          <div class="max-h-[600px] overflow-y-auto custom-scroll">
-            <table class="w-full text-left" id="incidentTable">
+          <div class="max-h-[600px] overflow-y-auto overflow-x-auto custom-scroll">
+            <table class="w-full min-w-[520px] text-left" id="incidentTable">
               <thead class="sticky top-0 bg-slate-900 border-b border-white/5">
                 <tr class="text-slate-500 text-[9px] uppercase tracking-widest">
                   <th class="p-6">Time Window</th>

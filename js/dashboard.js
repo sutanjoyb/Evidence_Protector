@@ -232,6 +232,15 @@ function updateRegistryTable(incidents) {
 }
 
 function switchTab(tabId) {
+  // Auto-close mobile sidebar on nav tap
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  if (sidebar && sidebar.classList.contains("open")) {
+    sidebar.classList.remove("open");
+    if (overlay) overlay.classList.add("hidden");
+    document.body.classList.remove("sidebar-open");
+  }
+
   document
     .querySelectorAll(".nav-item")
     .forEach((el) => el.classList.remove("active", "text-blue-500"));
@@ -424,6 +433,24 @@ function logout() {
   sessionStorage.clear();
   localStorage.clear();
   window.location.href = "index.html";
+}
+
+// ─── MOBILE SIDEBAR TOGGLE ───────────────────────────────────────────────────
+
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  if (!sidebar) return;
+  const isOpen = sidebar.classList.contains("open");
+  if (isOpen) {
+    sidebar.classList.remove("open");
+    if (overlay) overlay.classList.add("hidden");
+    document.body.classList.remove("sidebar-open");
+  } else {
+    sidebar.classList.add("open");
+    if (overlay) overlay.classList.remove("hidden");
+    document.body.classList.add("sidebar-open");
+  }
 }
 
 function exportForensicJSON() {
