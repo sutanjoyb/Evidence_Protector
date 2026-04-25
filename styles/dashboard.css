@@ -628,6 +628,37 @@ html[data-theme="light"] #view-compliance h2 {
   letter-spacing: -0.03em !important;
 }
 
+/* ── Analysis Settings Modal ─────────────────────────────────────────────── */
+.settings-modal-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.settings-type-option {
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.settings-type-option:hover {
+  border-color: var(--border-hover);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+html[data-theme="light"] .settings-modal-panel {
+  background: #ffffff !important;
+  border: 1px solid #dde3ed !important;
+  box-shadow: 0 24px 64px rgba(17, 24, 39, 0.2) !important;
+}
+
+html[data-theme="light"] .settings-type-option {
+  background: #f8fafc !important;
+  border-color: #dde3ed !important;
+}
+
+html[data-theme="light"] .settings-type-option:hover {
+  background: #eff6ff !important;
+  border-color: #2563eb !important;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    TOS MODAL — CLEAN FIX (Dark + Light fully handled)
    ═══════════════════════════════════════════════════════════════ */

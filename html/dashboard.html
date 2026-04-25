@@ -380,22 +380,22 @@
                     </p>
                   </label>
                 </div>
-                <div class="mt-4">
-                  <label class="text-[10px] text-slate-400 font-bold uppercase">
-                    Threshold
-                    <span
-                      class="ml-2 text-blue-400 cursor-pointer"
-                      title="Maximum allowed seconds between log entries before flagging a gap."
-                    >
-                      ❓
-                    </span>
-                  </label>
-                  <input
-                    type="number"
-                    id="thresholdInput"
-                    value="60"
-                    class="w-full mt-2 px-3 py-2 bg-slate-900 border border-white/10 rounded text-white text-sm"
-                  />
+                <div class="mt-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase">
+                      Analysis Settings
+                    </p>
+                    <p id="settingsSummary" class="text-[9px] text-slate-500 font-mono mt-1">
+                      Threshold: 60s • Types: .log, .txt, .csv
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onclick="openAnalysisSettingsModal()"
+                    class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest border border-white/10"
+                  >
+                    <i class="fas fa-sliders mr-2"></i> Settings
+                  </button>
                 </div>
                 <div class="flex gap-3 mt-4">
                   <button onclick="analyzeLogs(event)" class="flex-1 bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all">
@@ -753,6 +753,90 @@
     </div>
 
     <div
+      id="analysisSettingsModal"
+      class="fixed inset-0 hidden items-center justify-center bg-black/65 backdrop-blur-md z-[300]"
+      onclick="closeAnalysisSettingsModal()"
+    >
+      <div
+        onclick="event.stopPropagation()"
+        class="settings-modal-panel w-[92%] max-w-xl rounded-2xl border border-white/10 bg-slate-900/95 shadow-2xl"
+      >
+        <div class="flex items-center justify-between p-6 border-b border-white/10">
+          <div>
+            <h3 class="text-white text-lg font-black uppercase tracking-wide">Analysis Settings</h3>
+            <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+              Configure thresholds and accepted file types
+            </p>
+          </div>
+          <button
+            type="button"
+            onclick="closeAnalysisSettingsModal()"
+            class="text-slate-500 hover:text-red-400 transition-colors"
+            aria-label="Close analysis settings"
+          >
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="p-6 space-y-6">
+          <div>
+            <label for="thresholdInput" class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+              Gap Threshold (seconds)
+            </label>
+            <input
+              type="number"
+              id="thresholdInput"
+              min="1"
+              max="3600"
+              value="60"
+              class="w-full mt-2 px-3 py-2 bg-slate-900 border border-white/10 rounded text-white text-sm"
+            />
+            <p class="text-[9px] text-slate-600 mt-2 font-mono">
+              Larger values reduce sensitivity to short interruptions.
+            </p>
+          </div>
+
+          <div>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-3">
+              Allowed File Types
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <label class="settings-type-option flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 bg-slate-950/50 text-slate-300 text-sm">
+                <input type="checkbox" class="settings-file-type" value=".log" checked />
+                <span class="font-mono">.log</span>
+              </label>
+              <label class="settings-type-option flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 bg-slate-950/50 text-slate-300 text-sm">
+                <input type="checkbox" class="settings-file-type" value=".txt" checked />
+                <span class="font-mono">.txt</span>
+              </label>
+              <label class="settings-type-option flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 bg-slate-950/50 text-slate-300 text-sm">
+                <input type="checkbox" class="settings-file-type" value=".csv" checked />
+                <span class="font-mono">.csv</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-6 pt-4 border-t border-white/10 flex justify-end gap-3">
+          <button
+            type="button"
+            onclick="closeAnalysisSettingsModal()"
+            class="px-5 py-2 border border-white/20 text-slate-300 font-bold text-xs uppercase rounded-lg hover:bg-white/10"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onclick="applyAnalysisSettings()"
+            class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase rounded-lg"
+          >
+            Save Settings
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
       id="clearVaultModal"
       class="fixed inset-0 hidden items-center justify-center bg-black/60 backdrop-blur-md z-[300]"
       onclick="closeClearVaultModal()"
@@ -820,6 +904,16 @@
             fileInput.addEventListener('change', function(e) {
                 const file = e.target.files[0];
                 if (file) {
+              if (typeof window.isFileAllowedBySettings === 'function' && !window.isFileAllowedBySettings(file)) {
+                previewBtn.disabled = true;
+                previewBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                currentLogContent = null;
+                fileInput.value = '';
+                const fileNameDisplay = document.getElementById('fileNameDisplay');
+                if (fileNameDisplay) fileNameDisplay.innerText = 'Select Log File';
+                return;
+              }
+
                     previewBtn.disabled = false;
                     previewBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                     const reader = new FileReader();

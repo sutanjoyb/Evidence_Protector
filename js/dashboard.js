@@ -8,6 +8,12 @@ let chart = null;
 let lastScanResults = null;
 let flaggedIncidents = new Set();
 const CASES_KEY = "forensic_cases";
+const ANALYSIS_SETTINGS_KEY = "analysis_settings";
+const DEFAULT_ANALYSIS_SETTINGS = {
+  threshold: 60,
+  fileTypes: [".log", ".txt", ".csv"],
+};
+let analysisSettings = { ...DEFAULT_ANALYSIS_SETTINGS };
 
 // ─── INITIALIZATION ──────────────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", () => {
@@ -32,6 +38,8 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   // 3. UI Bootstrap
+  loadAnalysisSettings();
+  applyAnalysisSettingsToUI();
   updateGreeting();
   updateCaseBadge();
   loadLastSession();
@@ -79,13 +87,20 @@ async function analyzeLogs(event) {
     return showToast("Critical: No source file selected");
   }
 
+  if (!isFileAllowedBySettings(file)) {
+    return showToast(
+      `File type not allowed: ${getFileExtension(file.name) || "unknown"}`,
+    );
+  }
+
   const overlay = document.getElementById("scanOverlay");
   const statusText = document.getElementById("loaderStatus");
   overlay.classList.remove("hidden");
 
   const formData = new FormData();
   formData.append("file", file);
-  const thresholdValue = document.getElementById("thresholdInput")?.value || 60;
+  const thresholdValue =
+    document.getElementById("thresholdInput")?.value || analysisSettings.threshold;
   formData.append("threshold", thresholdValue);
 
   try {
@@ -118,6 +133,120 @@ async function analyzeLogs(event) {
     showToast("Backend Link Error");
   } finally {
     overlay.classList.add("hidden");
+  }
+}
+
+function loadAnalysisSettings() {
+  const saved = localStorage.getItem(ANALYSIS_SETTINGS_KEY);
+  if (!saved) return;
+
+  try {
+    const parsed = JSON.parse(saved);
+    const threshold = Number.parseInt(parsed?.threshold, 10);
+    const fileTypes = Array.isArray(parsed?.fileTypes)
+      ? parsed.fileTypes.filter((type) =>
+          DEFAULT_ANALYSIS_SETTINGS.fileTypes.includes(type),
+        )
+      : [];
+
+    analysisSettings = {
+      threshold:
+        Number.isFinite(threshold) && threshold > 0
+          ? threshold
+          : DEFAULT_ANALYSIS_SETTINGS.threshold,
+      fileTypes:
+        fileTypes.length > 0 ? fileTypes : [...DEFAULT_ANALYSIS_SETTINGS.fileTypes],
+    };
+  } catch (_) {
+    analysisSettings = { ...DEFAULT_ANALYSIS_SETTINGS };
+  }
+}
+
+function saveAnalysisSettings() {
+  localStorage.setItem(ANALYSIS_SETTINGS_KEY, JSON.stringify(analysisSettings));
+}
+
+function applyAnalysisSettingsToUI() {
+  const thresholdInput = document.getElementById("thresholdInput");
+  if (thresholdInput) thresholdInput.value = String(analysisSettings.threshold);
+
+  const fileInput = document.getElementById("logFile");
+  if (fileInput) {
+    fileInput.setAttribute("accept", analysisSettings.fileTypes.join(","));
+  }
+
+  const checkboxes = document.querySelectorAll(".settings-file-type");
+  checkboxes.forEach((checkbox) => {
+    checkbox.checked = analysisSettings.fileTypes.includes(checkbox.value);
+  });
+
+  const summaryEl = document.getElementById("settingsSummary");
+  if (summaryEl) {
+    summaryEl.innerText = `Threshold: ${analysisSettings.threshold}s • Types: ${analysisSettings.fileTypes.join(", ")}`;
+  }
+}
+
+function getFileExtension(fileName) {
+  if (!fileName || !fileName.includes(".")) return "";
+  const dotIndex = fileName.lastIndexOf(".");
+  return fileName.slice(dotIndex).toLowerCase();
+}
+
+function isFileAllowedBySettings(file) {
+  const ext = getFileExtension(file?.name);
+  return analysisSettings.fileTypes.includes(ext);
+}
+
+function openAnalysisSettingsModal() {
+  applyAnalysisSettingsToUI();
+  const modal = document.getElementById("analysisSettingsModal");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+}
+
+function closeAnalysisSettingsModal() {
+  const modal = document.getElementById("analysisSettingsModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+}
+
+function applyAnalysisSettings() {
+  const thresholdInput = document.getElementById("thresholdInput");
+  const parsedThreshold = Number.parseInt(thresholdInput?.value, 10);
+  const threshold = Number.isFinite(parsedThreshold)
+    ? Math.min(3600, Math.max(1, parsedThreshold))
+    : DEFAULT_ANALYSIS_SETTINGS.threshold;
+
+  const selectedFileTypes = Array.from(
+    document.querySelectorAll(".settings-file-type:checked"),
+  ).map((input) => input.value);
+
+  if (selectedFileTypes.length === 0) {
+    showToast("Select at least one file type");
+    return;
+  }
+
+  analysisSettings = {
+    threshold,
+    fileTypes: selectedFileTypes,
+  };
+
+  saveAnalysisSettings();
+  applyAnalysisSettingsToUI();
+  closeAnalysisSettingsModal();
+  showToast("Analysis settings updated");
+
+  const fileInput = document.getElementById("logFile");
+  const currentFile = fileInput?.files?.[0] || null;
+  if (currentFile && !isFileAllowedBySettings(currentFile)) {
+    fileInput.value = "";
+    const fileNameDisplay = document.getElementById("fileNameDisplay");
+    if (fileNameDisplay) fileNameDisplay.innerText = "Select Log File";
+    const previewBtn = document.getElementById("previewBtn");
+    if (previewBtn) previewBtn.disabled = true;
+    showToast(`Current file removed (${getFileExtension(currentFile.name)} blocked)`);
   }
 }
 
@@ -542,18 +671,40 @@ function initDropZone() {
   const dropArea = document.getElementById("dropArea");
   const fileInput = document.getElementById("logFile");
   if (!dropArea || !fileInput) return;
+
   fileInput.addEventListener("change", () => {
-    if (fileInput.files.length > 0)
-      document.getElementById("fileNameDisplay").innerText =
-        fileInput.files[0].name;
+    if (fileInput.files.length === 0) return;
+
+    const selectedFile = fileInput.files[0];
+    if (!isFileAllowedBySettings(selectedFile)) {
+      fileInput.value = "";
+      document.getElementById("fileNameDisplay").innerText = "Select Log File";
+      showToast(
+        `Unsupported type: ${getFileExtension(selectedFile.name) || "unknown"}`,
+      );
+      return;
+    }
+
+    document.getElementById("fileNameDisplay").innerText = selectedFile.name;
   });
+
   dropArea.addEventListener("drop", (e) => {
     e.preventDefault();
-    if (e.dataTransfer.files.length > 0) {
-      fileInput.files = e.dataTransfer.files;
-      document.getElementById("fileNameDisplay").innerText =
-        fileInput.files[0].name;
+
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (!droppedFile) return;
+
+    if (!isFileAllowedBySettings(droppedFile)) {
+      showToast(
+        `Unsupported type: ${getFileExtension(droppedFile.name) || "unknown"}`,
+      );
+      return;
     }
+
+    const transfer = new DataTransfer();
+    transfer.items.add(droppedFile);
+    fileInput.files = transfer.files;
+    document.getElementById("fileNameDisplay").innerText = droppedFile.name;
   });
 }
 
