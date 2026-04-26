@@ -1,68 +1,144 @@
-# Evidence Protector
+# 🛡️ Evidence Protector Pro
 
-## Project Overview
-Evidence Protector is a log analysis tool that helps verify the integrity of digital evidence. It analyzes system log files to detect unusual time gaps that may indicate potential tampering or system inconsistencies.
+**Enterprise-Grade Forensic Log Analysis & Data Integrity Suite**
 
-## Purpose
-This project aims to identify irregularities in log data by:
-- Extracting timestamps from log entries  
-- Calculating time differences between consecutive events  
-- Detecting abnormal gaps that may indicate possible tampering or system issues  
+Evidence Protector Pro is a specialized forensic utility designed to bridge the gap between raw system logs and actionable legal evidence. By identifying **"Time Voids"** and log-shaving attempts, it ensures that digital evidence remains untampered, transparent, and admissible through local, high-speed analysis.
 
-## Installation / Setup
+---
 
-### 1. Clone the repository
-git clone https://github.com/sutanjoyb/Evidence_Protector.git  
-cd Evidence_Protector  
+## 🛠️ How To Run
 
-### 2. Create a virtual environment
-python -m venv venv  
+Get your local forensic environment up and running with these steps:
 
-Activate the environment:
+---
 
-Windows:  
-venv\Scripts\activate  
+### 1. Prerequisites
 
-macOS / Linux:  
-source venv/bin/activate  
+- **Python 3.9+**
+- **Live Server** (VS Code extension) or any local web server
 
-### 3. Install dependencies
-pip install -r requirements.txt  
+---
 
-## Usage Instructions
+### 2. Backend Setup (FastAPI)
 
-### Run the application
-python main.py  
+```bash
+# Clone the repository
+git clone https://github.com/your-username/evidence-protector-pro.git
+cd evidence-protector-pro
 
-### Access the application
-Open your browser and go to:  
-http://127.0.0.1:8000  
+# Create a virtual environment
+python -m venv venv
 
-From there, you can:
-- Login  
-- Upload a log file  
-- Analyze the results  
+# Activate environment
+# macOS/Linux:
+source venv/bin/activate
 
-## Dependencies Required
-- Python 3.9+  
-- FastAPI  
-- Uvicorn  
-- python-jose  
-- passlib  
-- python-dotenv  
+# Windows:
+venv\Scripts\activate
 
-## Contribution Guidelines
-To contribute to this project:
+# Install dependencies
+pip install -r requirements.txt
 
-1. Fork the repository  
-2. Create a new branch  
-git checkout -b feature/your-feature-name  
+# Run the FastAPI server
+uvicorn main:app --reload
+```
 
-3. Make your changes  
-4. Commit your changes  
-git commit -m "Describe your changes"  
+### 3. Frontend Setup
 
-5. Push to your fork  
-git push origin feature/your-feature-name  
+- **Open Project**
+  - Open the project folder in your preferred code editor
 
-6. Open a Pull Request  
+- **Run Frontend**
+  - Right-click `index.html` → **Open with Live Server** (recommended)
+  - OR manually open the file in your browser
+
+- **Backend Requirement**
+  - Ensure the FastAPI backend server is running
+  - Required for **SSE (Server-Sent Events) Analysis Stream**
+
+- **Verify Functionality**
+  - Real-time updates should stream without page reload
+  - UI should dynamically respond to incoming analysis data
+
+> ⚠️ **Note:**  
+> The application uses **localized session persistence** to ensure maximum data privacy.
+
+## 🚀 Key Capabilities
+
+- 🔍 **Anomaly Detection**
+  - Detects missing timestamps (seconds/minutes)
+  - Identifies log tampering and "Time Voids"
+
+- 📊 **Interactive Analytics**
+  - Dynamic integrity delta charts
+  - Session-based heatmaps for pattern analysis
+
+- 📂 **Export Center**
+  - Supports multiple formats:
+    - PDF (legal documentation)
+    - CSV (data analysis)
+    - JSON (system integration)
+
+- ⚡ **Real-Time Progress (SSE)**
+  - Live updates using Server-Sent Events
+  - No page refresh required
+
+- 🔒 **Privacy-First Architecture**
+  - 100% local processing
+  - No external data transmission
+
+- 🌓 **Adaptive Interface**
+  - Mobile-first responsive design
+  - Supports Dark Mode and Light Mode
+
+## 🤝 Contribution Rules
+
+Contributions are welcome! You can contribute by improving code, suggesting features, or reporting issues.
+
+---
+
+### 🐛 Issues
+
+- Creating issues is **open to everyone**
+- Report bugs, suggest features, or propose improvements
+- Clearly describe the problem or idea for better discussion
+
+---
+
+### 📥 Pull Request (PR) Guidelines
+
+- Link your PR to an existing issue
+  - Example: `Fix: Resolved mobile overflow in #42`
+
+- Keep changes **focused and minimal**
+
+- Ensure:
+  - UI remains responsive (mobile-friendly)
+  - No data integrity issues (use safe file handling like `uuid4`)
+
+---
+
+### 🔄 Contribution Workflow
+
+# 1. Star and fork the repository
+
+# 2. Create a feature branch
+
+git checkout -b feature/issue-ID
+
+# 3. Commit changes
+
+git commit -m "feat: meaningful description"
+
+# 4. Push changes
+
+git push origin feature/issue-ID
+
+# 5. Open a Pull Request referencing the Issue ID
+
+---
+
+## ⭐ Support
+
+If you find this project useful, consider giving it a **Star ⭐** on GitHub.  
+It helps the project grow and reach more developers.
