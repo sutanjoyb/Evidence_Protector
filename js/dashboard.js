@@ -17,10 +17,6 @@ const DEFAULT_ANALYSIS_SETTINGS = {
 };
 let analysisSettings = { ...DEFAULT_ANALYSIS_SETTINGS };
 
-// ─── TABLE ↔ CHART SYNC ───────────────────────────────────────────────────────
-// Maps timestamp string → chart dataset index for O(1) row-click lookups.
-let timestampIndexMap = {};
-
 // ─── INITIALIZATION ──────────────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", () => {
   // 1. Unified Authentication Check
@@ -58,6 +54,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // 5. Reactive Scroll-To-Top (dashboard scrolls inside #mainScroll)
   initScrollToTop();
+
+  // 6. Mobile Sidebar Setup
+  setupMobileSidebar();
 });
 
 // ─── SESSION PERSISTENCE ─────────────────────────────────────────────────────
@@ -583,15 +582,6 @@ function updateChart(incidents) {
   const ctx = canvas.getContext("2d");
   if (chart) chart.destroy();
 
-  // Build O(1) timestamp → index map for row-click lookups
-  timestampIndexMap = {};
-  incidents.forEach((inc, idx) => {
-    const label = inc.start.split(" ")[1] || inc.start;
-    if (!(label in timestampIndexMap)) {
-      timestampIndexMap[label] = idx;
-    }
-  });
-
   chart = new Chart(ctx, {
     type: "line",
     data: {
@@ -604,11 +594,6 @@ function updateChart(incidents) {
           backgroundColor: "rgba(59,130,246,0.1)",
           fill: true,
           tension: 0.4,
-          pointRadius: 4,
-          pointHoverRadius: 8,
-          pointBackgroundColor: "#3b82f6",
-          pointBorderColor: "rgba(59,130,246,0.4)",
-          pointBorderWidth: 2,
         },
       ],
     },
@@ -625,58 +610,9 @@ function updateChart(incidents) {
           zoom: { wheel: { enabled: true }, mode: "x" },
           pan: { enabled: true, mode: "x" },
         },
-        tooltip: {
-          callbacks: {
-            title: (items) => `⏱ ${items[0].label}`,
-            label: (item) => `Integrity: ${item.raw.toFixed(1)}%`,
-          },
-        },
       },
     },
   });
-}
-
-/**
- * Highlights a data point in the chart that corresponds to the given
- * incident index.  Scrolls the chart into view and activates the tooltip.
- * @param {number} incidentIndex - 0-based index into the incidents array
- */
-function highlightChartPoint(incidentIndex) {
-  if (!chart) return;
-
-  // Activate the matching data point
-  chart.setActiveElements([{ datasetIndex: 0, index: incidentIndex }]);
-
-  // Show the tooltip over that point
-  chart.tooltip.setActiveElements(
-    [{ datasetIndex: 0, index: incidentIndex }],
-    { x: 0, y: 0 }
-  );
-
-  chart.update();
-
-  // Scroll the chart panel smoothly into view
-  const chartEl = document.getElementById("timelineChart");
-  if (chartEl) {
-    chartEl.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-}
-
-/**
- * Called when a registry row is clicked.
- * Switches to the Dashboard tab (which contains the chart) and then
- * highlights the data point that matches the clicked incident.
- * @param {number} incidentIndex
- */
-function onRegistryRowClick(incidentIndex) {
-  // Switch to the dashboard tab first
-  switchTab("dashboard");
-
-  // Give Chart.js time to render after the tab switch, then highlight
-  setTimeout(() => highlightChartPoint(incidentIndex), 80);
-
-  // Provide lightweight toast feedback
-  showToast(`📍 Highlighted incident #${incidentIndex + 1} on graph`);
 }
 
 function exportChartAsPNG() {
@@ -816,13 +752,6 @@ function updateCaseBadge() {
   if (badge) badge.innerText = count;
 }
 
-function toggleSidebar() {
-  const sidebar = document.getElementById("sidebar");
-  const overlay = document.getElementById("sidebarOverlay");
-  sidebar.classList.toggle("-translate-x-full");
-  overlay.classList.toggle("hidden");
-}
-
 function showToast(msg) {
   const toast = document.getElementById("toast");
   const msgEl = document.getElementById("toastMsg");
@@ -928,30 +857,18 @@ function updateRegistryTable(incidents) {
   tbody.innerHTML = incidents
     .map(
       (inc, i) => `
-        <tr
-          id="registry-row-${i}"
-          class="registry-row border-b border-white/5 hover:bg-white/5 transition-all cursor-pointer group"
-          onclick="onRegistryRowClick(${i})"
-          title="Click to highlight on graph"
-        >
-            <td class="p-6 w-10" onclick="event.stopPropagation()">
+        <tr class="border-b border-white/5 hover:bg-white/5 transition-all">
+            <td class="p-6 w-10">
                 <input type="checkbox" class="incident-checkbox rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-0" data-index="${i}" ${flaggedIncidents.has(i) ? "checked" : ""} />
             </td>
-            <td class="p-6 font-mono text-[10px]">
-              <span class="text-blue-400">${inc.start}</span>
-              <span class="text-slate-600 mx-1">→</span>
-              <span class="text-emerald-400">${inc.end}</span>
-              <span class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity text-[8px] text-slate-500 uppercase tracking-widest">
-                <i class="fas fa-chart-line mr-1"></i>View on graph
-              </span>
-            </td>
+            <td class="p-6 text-blue-400 font-mono text-[10px]">${inc.start} → ${inc.end}</td>
             <td class="p-6 text-center font-bold text-white">${inc.duration}s</td>
-            <td class="p-6 text-right" onclick="event.stopPropagation()">
+            <td class="p-6 text-right">
                 <button onclick="toggleFlag(${i})" class="${flaggedIncidents.has(i) ? "text-blue-500" : "text-slate-700"}">
                     <i class="fas fa-flag"></i>
                 </button>
             </td>
-        </tr>`,
+        </td>`,
     )
     .join("");
 
@@ -1030,4 +947,40 @@ function initScrollToTop() {
   });
 
   updateScrollBtn();
+}
+
+// ─── MOBILE SIDEBAR TOGGLE ───────────────────────────────────────────────────
+
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  
+  if (!sidebar || !overlay) return;
+  
+  sidebar.classList.toggle("-translate-x-full");
+  overlay.classList.toggle("hidden");
+  
+  // Prevent body scroll when sidebar is open on mobile
+  if (!sidebar.classList.contains("-translate-x-full")) {
+    document.body.style.overflow = "hidden";
+  } else {
+    document.body.style.overflow = "";
+  }
+}
+
+function setupMobileSidebar() {
+  const navLinks = document.querySelectorAll("#sidebar .nav-item, #sidebar a, #sidebar button");
+  navLinks.forEach(link => {
+    link.addEventListener("click", () => {
+      if (window.innerWidth < 1024) {
+        const sidebar = document.getElementById("sidebar");
+        const overlay = document.getElementById("sidebarOverlay");
+        if (sidebar && overlay) {
+          sidebar.classList.add("-translate-x-full");
+          overlay.classList.add("hidden");
+          document.body.style.overflow = "";
+        }
+      }
+    });
+  });
 }
