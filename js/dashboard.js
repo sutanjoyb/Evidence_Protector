@@ -8,6 +8,8 @@ let chart = null;
 let lastScanResults = null;
 let flaggedIncidents = new Set();
 const CASES_KEY = "forensic_cases";
+let currentUploadController = null;
+let isUploadCancelled = false;
 
 // ─── INITIALIZATION ──────────────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", () => {
@@ -68,8 +70,9 @@ function loadLastSession() {
   }
 }
 
-// ─── ANALYSIS & AUTO-ARCHIVING ───────────────────────────────────────────────
-async function analyzeLogs(event) {
+// ─── PROGRESS BAR FUNCTIONS ─────────────────────────────────────────────────
+
+async function analyzeLogsWithProgress(event) {
   if (event) event.preventDefault();
   const fileInput = document.getElementById("logFile");
   const file = fileInput.files[0] || fileInput._droppedFile;
@@ -79,6 +82,86 @@ async function analyzeLogs(event) {
     return showToast("Critical: No source file selected");
   }
 
+  // Show progress bar
+  const progressContainer = document.getElementById("uploadProgressContainer");
+  const progressFill = document.getElementById("progressBarFill");
+  const progressPercent = document.getElementById("progressPercent");
+  const progressStatus = document.getElementById("progressStatus");
+  const cancelBtn = document.getElementById("cancelUploadBtn");
+  
+  if (progressContainer) progressContainer.classList.remove("hidden");
+  if (cancelBtn) cancelBtn.classList.remove("hidden");
+  isUploadCancelled = false;
+  
+  // Simulated progress stages
+  const stages = [
+    { percent: 20, status: "Uploading file...", duration: 800 },
+    { percent: 40, status: "Hashing payload...", duration: 600 },
+    { percent: 60, status: "Mapping voids...", duration: 700 },
+    { percent: 80, status: "Analyzing patterns...", duration: 500 },
+    { percent: 95, status: "Finalizing report...", duration: 400 }
+  ];
+  
+  for (const stage of stages) {
+    if (isUploadCancelled) {
+      resetProgressBar();
+      showToast("Upload cancelled");
+      return;
+    }
+    
+    if (progressStatus) progressStatus.textContent = stage.status;
+    if (progressFill) progressFill.style.width = `${stage.percent}%`;
+    if (progressPercent) progressPercent.textContent = `${stage.percent}%`;
+    await new Promise(r => setTimeout(r, stage.duration));
+  }
+  
+  if (progressStatus) progressStatus.textContent = "Processing on server...";
+  if (progressFill) progressFill.style.width = "100%";
+  if (progressPercent) progressPercent.textContent = "100%";
+  
+  // Call actual analysis
+  const result = await analyzeLogsWithFile(file);
+  
+  if (result && !isUploadCancelled) {
+    if (progressStatus) progressStatus.textContent = "Complete!";
+    showToast("Analysis completed successfully");
+    setTimeout(() => resetProgressBar(), 1500);
+  } else if (!isUploadCancelled) {
+    if (progressStatus) progressStatus.textContent = "Failed!";
+    showToast("Analysis failed. Please try again.");
+    setTimeout(() => resetProgressBar(), 2000);
+  }
+}
+
+function resetProgressBar() {
+  const progressContainer = document.getElementById("uploadProgressContainer");
+  const progressFill = document.getElementById("progressBarFill");
+  const progressPercent = document.getElementById("progressPercent");
+  const progressStatus = document.getElementById("progressStatus");
+  const cancelBtn = document.getElementById("cancelUploadBtn");
+  
+  if (progressContainer) progressContainer.classList.add("hidden");
+  if (progressFill) progressFill.style.width = "0%";
+  if (progressPercent) progressPercent.textContent = "0%";
+  if (progressStatus) progressStatus.textContent = "Connecting...";
+  if (cancelBtn) cancelBtn.classList.add("hidden");
+  
+  isUploadCancelled = false;
+  currentUploadController = null;
+}
+
+function cancelUpload() {
+  isUploadCancelled = true;
+  if (currentUploadController) {
+    currentUploadController.abort();
+  }
+  resetProgressBar();
+  showToast("Upload cancelled");
+}
+
+// ─── ACTUAL ANALYSIS FUNCTION ────────────────────────────────────────────────
+
+async function analyzeLogsWithFile(file) {
   const overlay = document.getElementById("scanOverlay");
   const statusText = document.getElementById("loaderStatus");
   overlay.classList.remove("hidden");
@@ -96,7 +179,10 @@ async function analyzeLogs(event) {
       body: formData,
     });
 
-    if (res.status === 401) return logout();
+    if (res.status === 401) {
+      logout();
+      return null;
+    }
     const data = await res.json();
 
     statusText.innerText = "Finalizing Reports...";
@@ -114,11 +200,18 @@ async function analyzeLogs(event) {
     lastScanResults = data;
     renderResults(data);
     showToast("Analysis Finalized — Case Archived");
+    return data;
   } catch (e) {
     showToast("Backend Link Error");
+    return null;
   } finally {
     overlay.classList.add("hidden");
   }
+}
+
+// Legacy analyzeLogs function (kept for compatibility)
+async function analyzeLogs(event) {
+  return analyzeLogsWithProgress(event);
 }
 
 // ─── VAULT & HISTORY LOGIC ───────────────────────────────────────────────────
@@ -161,7 +254,7 @@ function renderCaseHistory() {
             <td class="p-6">
                 <div class="text-white font-bold text-xs">${c.name}</div>
                 <div class="text-[9px] text-slate-600 font-mono">${c.id}</div>
-            </td>
+            </table>
             <td class="p-6 text-[10px] text-slate-400 font-mono">${new Date(c.timestamp).toLocaleString()}</td>
             <td class="p-6 text-center">
                 <span class="px-2 py-1 rounded text-[10px] font-black ${c.integrityScore > 80 ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"}">
@@ -205,6 +298,20 @@ function clearAllHistory() {
   const modal = document.getElementById("clearVaultModal");
   modal.classList.remove("hidden");
   modal.classList.add("flex");
+}
+
+function closeClearVaultModal() {
+  const modal = document.getElementById("clearVaultModal");
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+}
+
+function confirmClearVault() {
+  localStorage.setItem(CASES_KEY, "[]");
+  updateCaseBadge();
+  renderCaseHistory();
+  showToast("Vault Wiped");
+  closeClearVaultModal();
 }
 
 // ─── REGISTRY SEARCH & SORT ──────────────────────────────────────────────────
@@ -434,18 +541,16 @@ async function exportForensicPDF() {
   const doc = new jsPDF();
   const timestamp = new Date().toLocaleString();
 
-  // ─── PDF HEADER ──────────────────────────────────────────────────────────
   doc.setFontSize(20);
-  doc.setTextColor(40, 116, 240); // Evidence Blue
+  doc.setTextColor(40, 116, 240);
   doc.text("EVIDENCE PROTECTOR PRO", 14, 22);
 
   doc.setFontSize(10);
   doc.setTextColor(100);
   doc.text("OFFICIAL FORENSIC ANALYSIS REPORT", 14, 30);
   doc.text(`Generated on: ${timestamp}`, 14, 35);
-  doc.line(14, 40, 196, 40); // Divider
+  doc.line(14, 40, 196, 40);
 
-  // ─── SUMMARY SECTION ─────────────────────────────────────────────────────
   doc.setFontSize(12);
   doc.setTextColor(0);
   doc.text("Executive Summary", 14, 50);
@@ -458,7 +563,6 @@ async function exportForensicPDF() {
   ];
   doc.text(summary, 14, 60);
 
-  // ─── INCIDENT TABLE ──────────────────────────────────────────────────────
   const tableData = lastScanResults.incidents.map((inc, index) => [
     index + 1,
     inc.start,
@@ -476,7 +580,6 @@ async function exportForensicPDF() {
     alternateRowStyles: { fillColor: [245, 245, 245] },
   });
 
-  // ─── FOOTER ──────────────────────────────────────────────────────────────
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
@@ -501,7 +604,6 @@ function switchTab(tabId) {
     .forEach((v) => v.classList.add("hidden"));
   document.getElementById(`view-${tabId}`)?.classList.remove("hidden");
 
-  // ISSUE #72: Hide greeting panel on non-dashboard tabs
   const greetingPanel = document.querySelector('.glass-card.p-6.border-l-4.border-blue-500.flex.items-center.justify-between');
   if (greetingPanel) {
     greetingPanel.style.display = tabId === 'dashboard' ? 'flex' : 'none';
@@ -661,7 +763,6 @@ function updateFlagCount() {
 }
 
 // ─── REACTIVE SCROLL TO TOP (DASHBOARD) ──────────────────────────────────────
-// Dashboard scrolls inside #mainScroll div, NOT window — so we listen on that.
 
 function initScrollToTop() {
   const btn = document.getElementById("scrollTopBtn");
@@ -669,9 +770,8 @@ function initScrollToTop() {
   const scrollContainer = document.getElementById("mainScroll");
   if (!btn || !scrollContainer) return;
 
-  // Ring circumference for r=19 circle: 2 * π * 19 ≈ 119.38
   const CIRCUMFERENCE = 119.38;
-  const SHOW_THRESHOLD = 300; // px scrolled before button appears
+  const SHOW_THRESHOLD = 300;
 
   function updateScrollBtn() {
     const scrollTop = scrollContainer.scrollTop;
@@ -679,43 +779,25 @@ function initScrollToTop() {
       scrollContainer.scrollHeight - scrollContainer.clientHeight;
     const scrollPct = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
 
-    // Show / hide with .visible class (CSS handles fade + slide)
     if (scrollTop > SHOW_THRESHOLD) {
       btn.classList.add("visible");
     } else {
       btn.classList.remove("visible");
     }
 
-    // Update progress ring stroke
     if (ring) {
       const offset = CIRCUMFERENCE - scrollPct * CIRCUMFERENCE;
       ring.style.strokeDashoffset = offset;
     }
   }
 
-  // Listen on the inner scroll container, not window
   scrollContainer.addEventListener("scroll", updateScrollBtn, {
     passive: true,
   });
 
-  // Click — smooth scroll to top of the container
   btn.addEventListener("click", () => {
     scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
   });
 
-  // Run once on init
   updateScrollBtn();
-}
-function closeClearVaultModal() {
-  const modal = document.getElementById("clearVaultModal");
-  modal.classList.add("hidden");
-  modal.classList.remove("flex");
-}
-
-function confirmClearVault() {
-  localStorage.setItem(CASES_KEY, "[]");
-  updateCaseBadge();
-  renderCaseHistory();
-  showToast("Vault Wiped");
-  closeClearVaultModal();
 }

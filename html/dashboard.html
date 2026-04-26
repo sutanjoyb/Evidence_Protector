@@ -398,12 +398,24 @@
                   />
                 </div>
                 <div class="flex gap-3 mt-4">
-                  <button onclick="analyzeLogs(event)" class="flex-1 bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all">
+                  <button onclick="analyzeLogsWithProgress(event)" class="flex-1 bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all">
                     <i class="fas fa-chart-line mr-2"></i> Analyze
                   </button>
                   <button onclick="previewLogFile()" id="previewBtn" disabled class="flex-1 bg-slate-700 hover:bg-slate-600 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                     <i class="fas fa-eye mr-2"></i> Preview
                   </button>
+                </div>
+
+                <!-- Progress Bar Section -->
+                <div id="uploadProgressContainer" class="hidden mt-4">
+                  <div class="flex justify-between items-center mb-2">
+                    <span id="progressStatus" class="text-[9px] font-bold uppercase text-blue-400">Connecting...</span>
+                    <span id="progressPercent" class="text-[9px] font-mono text-slate-400">0%</span>
+                  </div>
+                  <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div id="progressBarFill" class="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                  </div>
+                  <button id="cancelUploadBtn" onclick="cancelUpload()" class="mt-2 text-[9px] font-bold uppercase text-red-400 hover:text-red-300 transition-all hidden">Cancel</button>
                 </div>
 
                 <!-- Preview Box -->
