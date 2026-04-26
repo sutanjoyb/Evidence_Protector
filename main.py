@@ -280,7 +280,7 @@ async def upload_log(
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
-@app.get("analyze-process")
+@app.get("/analyze-process")
 async def analyze_process():
     async def event_generator():
         yield f"data: {json.dumps({'percent':10, 'message':'Starting analysis...'})}\n\n"
