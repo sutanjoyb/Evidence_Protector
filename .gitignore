@@ -1,6 +1,33 @@
-venv/
-__pycache__/
-*.pyc
+# ─── Secrets & credentials ───────────────────────────────────────────────────
 .env
-uploads/
+.env.*
+!.env.example
+
+# User database — contains bcrypt password hashes, never commit
 users.json
+
+# ─── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+*.pyc
+
+# ─── Uploads (temp files from scan ingestion) ────────────────────────────────
+uploads/
+
+# ─── OS & editor ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

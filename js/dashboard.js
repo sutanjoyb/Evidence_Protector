@@ -8,6 +8,12 @@ let chart = null;
 let lastScanResults = null;
 let flaggedIncidents = new Set();
 const CASES_KEY = "forensic_cases";
+const ANALYSIS_SETTINGS_KEY = "analysis_settings";
+const DEFAULT_ANALYSIS_SETTINGS = {
+  threshold: 60,
+  fileTypes: [".log", ".txt", ".csv"],
+};
+let analysisSettings = { ...DEFAULT_ANALYSIS_SETTINGS };
 
 // ─── INITIALIZATION ──────────────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", () => {
@@ -32,6 +38,8 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   // 3. UI Bootstrap
+  loadAnalysisSettings();
+  applyAnalysisSettingsToUI();
   updateGreeting();
   updateCaseBadge();
   loadLastSession();
@@ -79,13 +87,20 @@ async function analyzeLogs(event) {
     return showToast("Critical: No source file selected");
   }
 
+  if (!isFileAllowedBySettings(file)) {
+    return showToast(
+      `File type not allowed: ${getFileExtension(file.name) || "unknown"}`,
+    );
+  }
+
   const overlay = document.getElementById("scanOverlay");
   const statusText = document.getElementById("loaderStatus");
   overlay.classList.remove("hidden");
 
   const formData = new FormData();
   formData.append("file", file);
-  const thresholdValue = document.getElementById("thresholdInput")?.value || 60;
+  const thresholdValue =
+    document.getElementById("thresholdInput")?.value || analysisSettings.threshold;
   formData.append("threshold", thresholdValue);
 
   try {
@@ -118,6 +133,120 @@ async function analyzeLogs(event) {
     showToast("Backend Link Error");
   } finally {
     overlay.classList.add("hidden");
+  }
+}
+
+function loadAnalysisSettings() {
+  const saved = localStorage.getItem(ANALYSIS_SETTINGS_KEY);
+  if (!saved) return;
+
+  try {
+    const parsed = JSON.parse(saved);
+    const threshold = Number.parseInt(parsed?.threshold, 10);
+    const fileTypes = Array.isArray(parsed?.fileTypes)
+      ? parsed.fileTypes.filter((type) =>
+          DEFAULT_ANALYSIS_SETTINGS.fileTypes.includes(type),
+        )
+      : [];
+
+    analysisSettings = {
+      threshold:
+        Number.isFinite(threshold) && threshold > 0
+          ? threshold
+          : DEFAULT_ANALYSIS_SETTINGS.threshold,
+      fileTypes:
+        fileTypes.length > 0 ? fileTypes : [...DEFAULT_ANALYSIS_SETTINGS.fileTypes],
+    };
+  } catch (_) {
+    analysisSettings = { ...DEFAULT_ANALYSIS_SETTINGS };
+  }
+}
+
+function saveAnalysisSettings() {
+  localStorage.setItem(ANALYSIS_SETTINGS_KEY, JSON.stringify(analysisSettings));
+}
+
+function applyAnalysisSettingsToUI() {
+  const thresholdInput = document.getElementById("thresholdInput");
+  if (thresholdInput) thresholdInput.value = String(analysisSettings.threshold);
+
+  const fileInput = document.getElementById("logFile");
+  if (fileInput) {
+    fileInput.setAttribute("accept", analysisSettings.fileTypes.join(","));
+  }
+
+  const checkboxes = document.querySelectorAll(".settings-file-type");
+  checkboxes.forEach((checkbox) => {
+    checkbox.checked = analysisSettings.fileTypes.includes(checkbox.value);
+  });
+
+  const summaryEl = document.getElementById("settingsSummary");
+  if (summaryEl) {
+    summaryEl.innerText = `Threshold: ${analysisSettings.threshold}s • Types: ${analysisSettings.fileTypes.join(", ")}`;
+  }
+}
+
+function getFileExtension(fileName) {
+  if (!fileName || !fileName.includes(".")) return "";
+  const dotIndex = fileName.lastIndexOf(".");
+  return fileName.slice(dotIndex).toLowerCase();
+}
+
+function isFileAllowedBySettings(file) {
+  const ext = getFileExtension(file?.name);
+  return analysisSettings.fileTypes.includes(ext);
+}
+
+function openAnalysisSettingsModal() {
+  applyAnalysisSettingsToUI();
+  const modal = document.getElementById("analysisSettingsModal");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+}
+
+function closeAnalysisSettingsModal() {
+  const modal = document.getElementById("analysisSettingsModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+}
+
+function applyAnalysisSettings() {
+  const thresholdInput = document.getElementById("thresholdInput");
+  const parsedThreshold = Number.parseInt(thresholdInput?.value, 10);
+  const threshold = Number.isFinite(parsedThreshold)
+    ? Math.min(3600, Math.max(1, parsedThreshold))
+    : DEFAULT_ANALYSIS_SETTINGS.threshold;
+
+  const selectedFileTypes = Array.from(
+    document.querySelectorAll(".settings-file-type:checked"),
+  ).map((input) => input.value);
+
+  if (selectedFileTypes.length === 0) {
+    showToast("Select at least one file type");
+    return;
+  }
+
+  analysisSettings = {
+    threshold,
+    fileTypes: selectedFileTypes,
+  };
+
+  saveAnalysisSettings();
+  applyAnalysisSettingsToUI();
+  closeAnalysisSettingsModal();
+  showToast("Analysis settings updated");
+
+  const fileInput = document.getElementById("logFile");
+  const currentFile = fileInput?.files?.[0] || null;
+  if (currentFile && !isFileAllowedBySettings(currentFile)) {
+    fileInput.value = "";
+    const fileNameDisplay = document.getElementById("fileNameDisplay");
+    if (fileNameDisplay) fileNameDisplay.innerText = "Select Log File";
+    const previewBtn = document.getElementById("previewBtn");
+    if (previewBtn) previewBtn.disabled = true;
+    showToast(`Current file removed (${getFileExtension(currentFile.name)} blocked)`);
   }
 }
 
@@ -202,14 +331,81 @@ function deleteCase(caseId) {
 }
 
 function clearAllHistory() {
-  if (confirm("🚨 Wipe all historical cases? This cannot be undone.")) {
-    localStorage.setItem(CASES_KEY, "[]");
-    updateCaseBadge();
-    renderCaseHistory();
-    showToast("Vault Wiped");
-  }
+  const modal = document.getElementById("clearVaultModal");
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
 }
 
+  tbody.innerHTML = incidents.map((inc, i) => {
+    const isFlagged = flaggedIncidents.has(i);
+    const startTime = inc.start.includes(" ") ? inc.start.split(" ")[1] : inc.start;
+    const endTime = inc.end.includes(" ") ? inc.end.split(" ")[1] : inc.end;
+    const isCritical = inc.duration > 300;
+    const severityColor = isCritical ? "text-red-400" : "text-amber-400";
+    const dotColor = isCritical ? "bg-red-500 animate-pulse" : "bg-amber-500";
+    const severityLabel = isCritical ? "Critical Void" : "Minor Anomaly";
+    const flagClass = isFlagged ? "text-blue-500" : "text-slate-700 hover:text-blue-400";
+    const flagIcon = isFlagged ? "fas" : "far";
+
+    return `
+      <!-- ── DESKTOP ROW (hidden on mobile) ── -->
+      <tr class="registry-row border-b border-white/5 hover:bg-white/5 transition-all">
+        <td class="p-6 font-mono">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2"><span class="text-[8px] text-slate-600 uppercase font-bold w-8">From:</span><span class="text-blue-400 text-[10px] tracking-wider">${startTime}</span></div>
+            <div class="flex items-center gap-2"><span class="text-[8px] text-slate-600 uppercase font-bold w-8">To:</span><span class="text-emerald-400 text-[10px] tracking-wider">${endTime}</span></div>
+          </div>
+        </td>
+        <td class="p-6 text-center font-bold text-white text-sm">${inc.duration}<span class="text-[10px] text-slate-500 ml-1 font-light">s</span></td>
+        <td class="p-6">
+          <div class="flex items-center gap-3">
+            <div class="w-1.5 h-1.5 rounded-full ${dotColor}"></div>
+            <span class="text-[10px] uppercase font-bold ${severityColor}">${severityLabel}</span>
+          </div>
+        </td>
+        <td class="p-6 text-right">
+          <button onclick="toggleFlag(${i})" class="${flagClass} transition-colors">
+            <i class="${flagIcon} fa-flag text-base"></i>
+          </button>
+        </td>
+      </tr>
+
+      <!-- ── MOBILE CARD (hidden on desktop) ── -->
+      <tr class="registry-card border-b border-white/5">
+        <td colspan="4" class="p-0">
+          <div class="m-3 rounded-xl border border-white/5 bg-slate-900/40 p-4 space-y-3">
+            <!-- Header row: severity badge + flag -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-1.5 h-1.5 rounded-full ${dotColor}"></div>
+                <span class="text-[10px] uppercase font-black ${severityColor} tracking-wider">${severityLabel}</span>
+              </div>
+              <button onclick="toggleFlag(${i})" class="${flagClass} transition-colors">
+                <i class="${flagIcon} fa-flag text-sm"></i>
+              </button>
+            </div>
+            <!-- Time window -->
+            <div class="grid grid-cols-2 gap-2 font-mono">
+              <div class="bg-slate-950/60 rounded-lg p-2.5">
+                <p class="text-[8px] text-slate-600 uppercase font-bold mb-1">From</p>
+                <p class="text-blue-400 text-[11px] tracking-wider">${startTime}</p>
+                <p class="text-[9px] text-slate-600 mt-0.5">${inc.start.split(" ")[0]}</p>
+              </div>
+              <div class="bg-slate-950/60 rounded-lg p-2.5">
+                <p class="text-[8px] text-slate-600 uppercase font-bold mb-1">To</p>
+                <p class="text-emerald-400 text-[11px] tracking-wider">${endTime}</p>
+                <p class="text-[9px] text-slate-600 mt-0.5">${inc.end.split(" ")[0]}</p>
+              </div>
+            </div>
+            <!-- Duration -->
+            <div class="flex items-center justify-between pt-1 border-t border-white/5">
+              <span class="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Gap Duration</span>
+              <span class="font-black text-white text-sm">${inc.duration}<span class="text-[10px] text-slate-500 ml-1 font-light">s</span></span>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+  }).join("");
 // ─── REGISTRY SEARCH & SORT ──────────────────────────────────────────────────
 function filterRegistry() {
   const term = document.getElementById("searchInput")?.value.toLowerCase();
@@ -246,10 +442,10 @@ function handleSortChange(criteria) {
 
 // ─── FLAG ALL FUNCTIONALITY ───────────────────────────────────────────────────
 function setupSelectAllCheckbox() {
-  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+  const selectAllCheckbox = document.getElementById("selectAllCheckbox");
   if (!selectAllCheckbox) return;
-  selectAllCheckbox.removeEventListener('change', handleSelectAll);
-  selectAllCheckbox.addEventListener('change', handleSelectAll);
+  selectAllCheckbox.removeEventListener("change", handleSelectAll);
+  selectAllCheckbox.addEventListener("change", handleSelectAll);
 }
 
 function handleSelectAll(e) {
@@ -271,11 +467,14 @@ function handleSelectAll(e) {
     showToast("Cleared all flags");
   }
 
-  localStorage.setItem("flagged_items", JSON.stringify(Array.from(flaggedIncidents)));
+  localStorage.setItem(
+    "flagged_items",
+    JSON.stringify(Array.from(flaggedIncidents)),
+  );
   updateFlagCount();
   updateRegistryTable(lastScanResults.incidents);
 
-  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+  const selectAllCheckbox = document.getElementById("selectAllCheckbox");
   if (selectAllCheckbox && selectAllCheckbox.checked !== isChecked) {
     selectAllCheckbox.checked = isChecked;
   }
@@ -283,7 +482,7 @@ function handleSelectAll(e) {
 
 function handleIndividualCheckboxChange(e) {
   const checkbox = e.target;
-  const index = parseInt(checkbox.getAttribute('data-index'));
+  const index = parseInt(checkbox.getAttribute("data-index"));
 
   if (checkbox.checked) {
     flaggedIncidents.add(index);
@@ -291,16 +490,21 @@ function handleIndividualCheckboxChange(e) {
     flaggedIncidents.delete(index);
   }
 
-  localStorage.setItem("flagged_items", JSON.stringify(Array.from(flaggedIncidents)));
+  localStorage.setItem(
+    "flagged_items",
+    JSON.stringify(Array.from(flaggedIncidents)),
+  );
 
-  const flagButton = checkbox.closest('tr').querySelector(`button[onclick="toggleFlag(${index})"]`);
+  const flagButton = checkbox
+    .closest("tr")
+    .querySelector(`button[onclick="toggleFlag(${index})"]`);
   if (flagButton) {
     if (checkbox.checked) {
-      flagButton.classList.add('text-blue-500');
-      flagButton.classList.remove('text-slate-700');
+      flagButton.classList.add("text-blue-500");
+      flagButton.classList.remove("text-slate-700");
     } else {
-      flagButton.classList.remove('text-blue-500');
-      flagButton.classList.add('text-slate-700');
+      flagButton.classList.remove("text-blue-500");
+      flagButton.classList.add("text-slate-700");
     }
   }
 
@@ -309,8 +513,9 @@ function handleIndividualCheckboxChange(e) {
 }
 
 function updateSelectAllCheckboxState() {
-  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-  if (!selectAllCheckbox || !lastScanResults || !lastScanResults.incidents) return;
+  const selectAllCheckbox = document.getElementById("selectAllCheckbox");
+  if (!selectAllCheckbox || !lastScanResults || !lastScanResults.incidents)
+    return;
 
   const totalIncidents = lastScanResults.incidents.length;
   const flaggedCount = flaggedIncidents.size;
@@ -397,7 +602,9 @@ function exportChartAsJPG() {
 // ─── EXPORT CENTER ───────────────────────────────────────────────────────────
 function exportForensicJSON() {
   if (!lastScanResults) return showToast("No data available");
-  const blob = new Blob([JSON.stringify(lastScanResults, null, 4)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify(lastScanResults, null, 4)], {
+    type: "application/json",
+  });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `Forensic_Report_${Date.now()}.json`;
@@ -408,7 +615,9 @@ function exportForensicJSON() {
 function exportRegistryCSV() {
   if (!lastScanResults) return showToast("Registry empty");
   let csv = "Start,End,Duration\n";
-  lastScanResults.incidents.forEach((i) => (csv += `${i.start},${i.end},${i.duration}\n`));
+  lastScanResults.incidents.forEach(
+    (i) => (csv += `${i.start},${i.end},${i.duration}\n`),
+  );
   const blob = new Blob([csv], { type: "text/csv" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -417,12 +626,85 @@ function exportRegistryCSV() {
   showToast("CSV Exported");
 }
 
+async function exportForensicPDF() {
+  if (!lastScanResults) return showToast("No scan data available for PDF");
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const timestamp = new Date().toLocaleString();
+
+  // ─── PDF HEADER ──────────────────────────────────────────────────────────
+  doc.setFontSize(20);
+  doc.setTextColor(40, 116, 240); // Evidence Blue
+  doc.text("EVIDENCE PROTECTOR PRO", 14, 22);
+
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text("OFFICIAL FORENSIC ANALYSIS REPORT", 14, 30);
+  doc.text(`Generated on: ${timestamp}`, 14, 35);
+  doc.line(14, 40, 196, 40); // Divider
+
+  // ─── SUMMARY SECTION ─────────────────────────────────────────────────────
+  doc.setFontSize(12);
+  doc.setTextColor(0);
+  doc.text("Executive Summary", 14, 50);
+
+  doc.setFontSize(10);
+  const summary = [
+    `Integrity Score: ${lastScanResults.integrity_score}%`,
+    `Total Gaps Detected: ${lastScanResults.total_gaps}`,
+    `Source File: ${document.getElementById("lastFileName")?.innerText || "Unknown"}`,
+  ];
+  doc.text(summary, 14, 60);
+
+  // ─── INCIDENT TABLE ──────────────────────────────────────────────────────
+  const tableData = lastScanResults.incidents.map((inc, index) => [
+    index + 1,
+    inc.start,
+    inc.end,
+    `${inc.duration}s`,
+    inc.duration > 300 ? "CRITICAL" : "WARNING",
+  ]);
+
+  doc.autoTable({
+    startY: 85,
+    head: [["ID", "Start Window", "End Window", "Duration", "Severity"]],
+    body: tableData,
+    theme: "grid",
+    headStyles: { fillStyle: [40, 116, 240], textColor: [255, 255, 255] },
+    alternateRowStyles: { fillColor: [245, 245, 245] },
+  });
+
+  // ─── FOOTER ──────────────────────────────────────────────────────────────
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.text(`Page ${i} of ${pageCount} - Confidential Forensic Data`, 14, 285);
+  }
+
+  doc.save(`Forensic_Report_${Date.now()}.pdf`);
+  showToast("PDF Report Generated Successfully");
+}
+
 // ─── UI & NAVIGATION UTILS ───────────────────────────────────────────────────
 function switchTab(tabId) {
-  document.querySelectorAll(".nav-item").forEach((el) => el.classList.remove("active", "text-blue-500"));
-  document.getElementById(`nav-${tabId}`)?.classList.add("active", "text-blue-500");
-  document.querySelectorAll(".tab-view").forEach((v) => v.classList.add("hidden"));
+  document
+    .querySelectorAll(".nav-item")
+    .forEach((el) => el.classList.remove("active", "text-blue-500"));
+  document
+    .getElementById(`nav-${tabId}`)
+    ?.classList.add("active", "text-blue-500");
+  document
+    .querySelectorAll(".tab-view")
+    .forEach((v) => v.classList.add("hidden"));
   document.getElementById(`view-${tabId}`)?.classList.remove("hidden");
+
+  // ISSUE #72: Hide greeting panel on non-dashboard tabs
+  const greetingPanel = document.querySelector('.glass-card.p-6.border-l-4.border-blue-500.flex.items-center.justify-between');
+  if (greetingPanel) {
+    greetingPanel.style.display = tabId === 'dashboard' ? 'flex' : 'none';
+  }
 
   if (tabId === "history") renderCaseHistory();
   if (tabId === "dashboard" && lastScanResults)
@@ -459,16 +741,40 @@ function initDropZone() {
   const dropArea = document.getElementById("dropArea");
   const fileInput = document.getElementById("logFile");
   if (!dropArea || !fileInput) return;
+
   fileInput.addEventListener("change", () => {
-    if (fileInput.files.length > 0)
-      document.getElementById("fileNameDisplay").innerText = fileInput.files[0].name;
+    if (fileInput.files.length === 0) return;
+
+    const selectedFile = fileInput.files[0];
+    if (!isFileAllowedBySettings(selectedFile)) {
+      fileInput.value = "";
+      document.getElementById("fileNameDisplay").innerText = "Select Log File";
+      showToast(
+        `Unsupported type: ${getFileExtension(selectedFile.name) || "unknown"}`,
+      );
+      return;
+    }
+
+    document.getElementById("fileNameDisplay").innerText = selectedFile.name;
   });
+
   dropArea.addEventListener("drop", (e) => {
     e.preventDefault();
-    if (e.dataTransfer.files.length > 0) {
-      fileInput.files = e.dataTransfer.files;
-      document.getElementById("fileNameDisplay").innerText = fileInput.files[0].name;
+
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (!droppedFile) return;
+
+    if (!isFileAllowedBySettings(droppedFile)) {
+      showToast(
+        `Unsupported type: ${getFileExtension(droppedFile.name) || "unknown"}`,
+      );
+      return;
     }
+
+    const transfer = new DataTransfer();
+    transfer.items.add(droppedFile);
+    fileInput.files = transfer.files;
+    document.getElementById("fileNameDisplay").innerText = droppedFile.name;
   });
 }
 
@@ -497,7 +803,9 @@ async function checkApiStatus() {
   if (!indicator) return;
   try {
     const res = await fetch("http://localhost:8000/", { method: "GET" });
-    indicator.className = res.ok ? "status-indicator online" : "status-indicator offline";
+    indicator.className = res.ok
+      ? "status-indicator online"
+      : "status-indicator offline";
   } catch {
     indicator.className = "status-indicator offline";
   }
@@ -505,8 +813,10 @@ async function checkApiStatus() {
 
 function renderResults(data) {
   if (!data) return;
-  document.getElementById("integrityScoreCard").innerText = parseFloat(data.integrity_score).toFixed(1) + "%";
-  document.getElementById("financialRisk").innerText = (100 - parseFloat(data.integrity_score)).toFixed(1) + "%";
+  document.getElementById("integrityScoreCard").innerText =
+    parseFloat(data.integrity_score).toFixed(1) + "%";
+  document.getElementById("financialRisk").innerText =
+    (100 - parseFloat(data.integrity_score)).toFixed(1) + "%";
   document.getElementById("gapCount").innerText = data.total_gaps;
   updateRegistryTable(data.incidents);
   updateChart(data.incidents);
@@ -521,7 +831,7 @@ function updateRegistryTable(incidents) {
       (inc, i) => `
         <tr class="border-b border-white/5 hover:bg-white/5 transition-all">
             <td class="p-6 w-10">
-                <input type="checkbox" class="incident-checkbox rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-0" data-index="${i}" ${flaggedIncidents.has(i) ? 'checked' : ''} />
+                <input type="checkbox" class="incident-checkbox rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-0" data-index="${i}" ${flaggedIncidents.has(i) ? "checked" : ""} />
             </td>
             <td class="p-6 text-blue-400 font-mono text-[10px]">${inc.start} → ${inc.end}</td>
             <td class="p-6 text-center font-bold text-white">${inc.duration}s</td>
@@ -534,10 +844,10 @@ function updateRegistryTable(incidents) {
     )
     .join("");
 
-  const checkboxes = document.querySelectorAll('.incident-checkbox');
-  checkboxes.forEach(checkbox => {
-    checkbox.removeEventListener('change', handleIndividualCheckboxChange);
-    checkbox.addEventListener('change', handleIndividualCheckboxChange);
+  const checkboxes = document.querySelectorAll(".incident-checkbox");
+  checkboxes.forEach((checkbox) => {
+    checkbox.removeEventListener("change", handleIndividualCheckboxChange);
+    checkbox.addEventListener("change", handleIndividualCheckboxChange);
   });
 
   updateSelectAllCheckboxState();
@@ -550,9 +860,14 @@ function toggleFlag(index) {
     flaggedIncidents.add(index);
   }
 
-  localStorage.setItem("flagged_items", JSON.stringify(Array.from(flaggedIncidents)));
+  localStorage.setItem(
+    "flagged_items",
+    JSON.stringify(Array.from(flaggedIncidents)),
+  );
 
-  const checkbox = document.querySelector(`.incident-checkbox[data-index="${index}"]`);
+  const checkbox = document.querySelector(
+    `.incident-checkbox[data-index="${index}"]`,
+  );
   if (checkbox) checkbox.checked = flaggedIncidents.has(index);
 
   updateFlagCount();
@@ -581,7 +896,8 @@ function initScrollToTop() {
 
   function updateScrollBtn() {
     const scrollTop = scrollContainer.scrollTop;
-    const scrollHeight = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+    const scrollHeight =
+      scrollContainer.scrollHeight - scrollContainer.clientHeight;
     const scrollPct = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
 
     // Show / hide with .visible class (CSS handles fade + slide)
@@ -599,7 +915,9 @@ function initScrollToTop() {
   }
 
   // Listen on the inner scroll container, not window
-  scrollContainer.addEventListener("scroll", updateScrollBtn, { passive: true });
+  scrollContainer.addEventListener("scroll", updateScrollBtn, {
+    passive: true,
+  });
 
   // Click — smooth scroll to top of the container
   btn.addEventListener("click", () => {
@@ -608,4 +926,17 @@ function initScrollToTop() {
 
   // Run once on init
   updateScrollBtn();
+}
+function closeClearVaultModal() {
+  const modal = document.getElementById("clearVaultModal");
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+}
+
+function confirmClearVault() {
+  localStorage.setItem(CASES_KEY, "[]");
+  updateCaseBadge();
+  renderCaseHistory();
+  showToast("Vault Wiped");
+  closeClearVaultModal();
 }

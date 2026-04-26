@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 import shutil
 import os
 import asyncio
+import sys
 import json
 import logging
 import magic  # python-magic for MIME sniffing
@@ -25,6 +26,29 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 logger = logging.getLogger("evidence_protector")
+
+# ─── STARTUP SECRET VALIDATION ───────────────────────────────────────────────
+# Refuse to start if SECRET_KEY is missing or is a known insecure default.
+# This prevents silent JWT forgery when the env var is not configured.
+
+_SECRET_KEY = os.getenv("SECRET_KEY", "")
+_INSECURE_DEFAULTS = {
+    "",
+    "fallback-secret-change-me",
+    "fallback-secret-change-me-in-production",
+    "change-this-to-a-long-random-secret-in-production",
+    "REPLACE_WITH_A_STRONG_RANDOM_SECRET",
+}
+if _SECRET_KEY in _INSECURE_DEFAULTS:
+    print(
+        "\n[FATAL] SECRET_KEY is not set or is using an insecure default value.\n"
+        "        Generate a secure key with:\n"
+        "            python -c \"import secrets; print(secrets.token_hex(32))\"\n"
+        "        Then add it to your .env file.\n"
+        "        Never commit .env to version control.\n",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 # ─── FILE VALIDATION CONSTANTS ───────────────────────────────────────────────
 
@@ -42,7 +66,8 @@ MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
 
 # ─── AUTH CONFIGURATION ──────────────────────────────────────────────────────
 
-SECRET_KEY = os.getenv("SECRET_KEY", "fallback-secret-change-me-in-production")
+# Reuse the already-validated value — no insecure fallback
+SECRET_KEY = _SECRET_KEY
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 USERS_FILE = "users.json"
