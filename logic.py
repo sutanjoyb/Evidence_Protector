@@ -21,13 +21,15 @@ def parse_any_date(date_str):
     return None
 
 
-def analyze_logs(file_path, threshold_seconds=60, use_24_hour=True):
+def analyze_logs(file_path, threshold_seconds=60, use_24_hour=True,progress_callback=None):
     """
     Analyzes log file for temporal gaps and categorizes anomalies.
     Allows toggling between 12-hour and 24-hour time formats.
     """
 
     #  STEP 1: Decide time format based on toggle
+    if progress_callback:
+        progress_callback(10,"step1:deciding time format..")
     if use_24_hour:
         time_format = '%Y-%m-%d %H:%M:%S'
     else:
@@ -67,6 +69,8 @@ def analyze_logs(file_path, threshold_seconds=60, use_24_hour=True):
                             severity = "WARNING"
 
                         # STEP 2: Use dynamic format
+                        if progress_callback:
+                           progress_callback(60, "step 2 :detecting gaps in logs..")
                         incidents.append({
                             "start": last_time.strftime(time_format),
                             "end": current_time.strftime(time_format),
@@ -77,9 +81,11 @@ def analyze_logs(file_path, threshold_seconds=60, use_24_hour=True):
 
                 if current_time:
                     last_time = current_time
-
-    score = calculate_integrity_score(incidents)
-
+                if progress_callback:
+                   progress_callback(80,"step 3 : calculating intergrity score..")
+                score = calculate_integrity_score(incidents)
+    if progress_callback:
+        progress_callback(100,"Analysis completed.")
     return {
         "total_gaps": len(incidents),
         "integrity_score": round(score, 2),

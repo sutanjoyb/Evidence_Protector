@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse,StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import shutil
 import os
+import asyncio
 import sys
 import json
 import logging
@@ -279,7 +280,18 @@ async def upload_log(
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
-
+@app.get("analyze-process")
+async def analyze_process():
+    async def event_generator():
+        yield f"data: {json.dumps({'percent':10, 'message':'Starting analysis...'})}\n\n"
+        await asyncio.sleep(0.5)
+        yield f"data:{json.dumps({'percent':50, 'message': 'analyzing logs..'})}\n\n"
+        await asyncio.sleep(0.5)
+        yield f"data:{json.dumps({'percent':100, 'message': 'Analysis completed.'})}\n\n"
+    return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream"
+)
 
 if __name__ == "__main__":
     import uvicorn
