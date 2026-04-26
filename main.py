@@ -280,18 +280,55 @@ async def upload_log(
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
+
 @app.get("/analyze-process")
-async def analyze_process():
+async def analyze_process(
+    file_path: str,
+    threshold: int = 60,
+    current_user: str = Depends(get_current_user),
+):
+    """
+    SSE endpoint streaming real analysis progress from analyze_logs().
+    Fixes hardcoded progress messages by wiring progress_callback to the stream.
+    """
+    queue: asyncio.Queue = asyncio.Queue()
+
+    def progress_callback(percent: int, message: str):
+        queue.put_nowait({"percent": percent, "message": message})
+
     async def event_generator():
-        yield f"data: {json.dumps({'percent':10, 'message':'Starting analysis...'})}\n\n"
-        await asyncio.sleep(0.5)
-        yield f"data:{json.dumps({'percent':50, 'message': 'analyzing logs..'})}\n\n"
-        await asyncio.sleep(0.5)
-        yield f"data:{json.dumps({'percent':100, 'message': 'Analysis completed.'})}\n\n"
+        loop = asyncio.get_event_loop()
+        analysis_task = loop.run_in_executor(
+            None,
+            lambda: analyze_logs(
+                file_path,
+                threshold_seconds=threshold,
+                progress_callback=progress_callback,
+            ),
+        )
+
+        while True:
+            try:
+                event = await asyncio.wait_for(queue.get(), timeout=0.5)
+                yield f"data: {json.dumps(event)}\n\n"
+                if event.get("percent") == 100:
+                    break
+            except asyncio.TimeoutError:
+                if analysis_task.done():
+                    break
+
+        try:
+            result = await analysis_task
+            yield f"data: {json.dumps({'percent': 100, 'message': 'Analysis completed.', 'result': result})}\n\n"
+        except Exception as e:
+            logger.error("SSE analysis error: %s", e)
+            yield f"data: {json.dumps({'percent': 100, 'message': f'Error: {str(e)}'})}\n\n"
+
     return StreamingResponse(
-            event_generator(),
-            media_type="text/event-stream"
-)
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 if __name__ == "__main__":
     import uvicorn
