@@ -13,6 +13,7 @@ import shutil
 import os
 import json
 import logging
+import uuid
 import magic  # python-magic for MIME sniffing
 
 load_dotenv()
@@ -238,9 +239,10 @@ async def upload_log(
             detail=f"File content type '{detected_mime}' is not permitted. Only log/text files are accepted."
         )
 
-    # ── 4. SAFE FILENAME (prevent path traversal) ────────────────────────────
+    # ── 4. SAFE + UNIQUE FILENAME (prevent traversal and collisions) ─────────
     safe_name = os.path.basename(file.filename).replace("..", "").replace("/", "").replace("\\", "")
-    temp_path = os.path.join(UPLOAD_DIR, safe_name)
+    unique_name = f"{uuid.uuid4().hex}_{safe_name}"
+    temp_path = os.path.join(UPLOAD_DIR, unique_name)
 
     # ── 5. WRITE & ANALYZE ───────────────────────────────────────────────────
     try:
