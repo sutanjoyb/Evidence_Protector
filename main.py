@@ -182,6 +182,13 @@ async def register(request: Request, username: str = Form(...), password: str = 
     }
 
 
+@app.get("/verify")
+@limiter.limit("30/minute")
+async def verify_token(request: Request, current_user: str = Depends(get_current_user)):
+    """Validate bearer token and return authenticated user context."""
+    return {"valid": True, "user": current_user}
+
+
 @app.post("/analyze")
 @limiter.limit("30/minute")
 async def upload_log(

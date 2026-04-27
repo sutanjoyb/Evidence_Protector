@@ -16,17 +16,22 @@ const DEFAULT_ANALYSIS_SETTINGS = {
 let analysisSettings = { ...DEFAULT_ANALYSIS_SETTINGS };
 
 // ─── INITIALIZATION ──────────────────────────────────────────────────────────
-window.addEventListener("DOMContentLoaded", () => {
-  // 1. Unified Authentication Check
-  const hasAuth =
-    !!localStorage.getItem("access_token") ||
-    !!sessionStorage.getItem("isLoggedIn");
-  if (!hasAuth) {
+window.addEventListener("DOMContentLoaded", async () => {
+  // 1. Strict Authentication Check (JWT only)
+  const token = localStorage.getItem("access_token");
+  if (!token) {
     window.location.href = "index.html";
     return;
   }
 
-  // 2. Restore Flagged Items
+  // 2. Validate token server-side before rendering protected UI
+  const tokenIsValid = await verifyDashboardAccess(token);
+  if (!tokenIsValid) {
+    logout();
+    return;
+  }
+
+  // 3. Restore Flagged Items
   const savedFlags = localStorage.getItem("flagged_items");
   if (savedFlags) {
     try {
@@ -37,7 +42,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // 3. UI Bootstrap
+  // 4. UI Bootstrap
   loadAnalysisSettings();
   applyAnalysisSettingsToUI();
   updateGreeting();
@@ -46,13 +51,25 @@ window.addEventListener("DOMContentLoaded", () => {
   initDropZone();
   setupSelectAllCheckbox();
 
-  // 4. API Monitoring
+  // 5. API Monitoring
   checkApiStatus();
   setInterval(checkApiStatus, 5000);
 
-  // 5. Reactive Scroll-To-Top (dashboard scrolls inside #mainScroll)
+  // 6. Reactive Scroll-To-Top (dashboard scrolls inside #mainScroll)
   initScrollToTop();
 });
+
+async function verifyDashboardAccess(token) {
+  try {
+    const res = await fetch("http://localhost:8000/verify", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.ok;
+  } catch (_) {
+    return false;
+  }
+}
 
 // ─── SESSION PERSISTENCE ─────────────────────────────────────────────────────
 function loadLastSession() {
