@@ -33,8 +33,102 @@ window.addEventListener("DOMContentLoaded", () => {
     flaggedIncidents = new Set(JSON.parse(savedFlags));
     updateFlagCount();
   }
-  loadLastSession();
+  // Reset active analysis state on every dashboard entry,
+  // then restore only the last session metadata for display.
+  resetAnalysisState();
+  restoreLastSessionMeta();
 });
+
+// ─── ANALYSIS STATE RESET ────────────────────────────────────────────────────
+
+/**
+ * Resets all active analysis UI to a clean "no data" state.
+ * Called on every dashboard entry so stale results never mislead analysts.
+ * Preserves: last session timestamp/filename, case history vault.
+ */
+function resetAnalysisState() {
+  // Clear in-memory scan state
+  lastScanResults = null;
+
+  // Destroy active chart
+  if (chart) {
+    chart.destroy();
+    chart = null;
+  }
+
+  // Reset KPI cards
+  const kpiDefaults = {
+    integrityScoreCard: "No Data",
+    financialRisk: "—",
+    gapCount: "—",
+  };
+  Object.entries(kpiDefaults).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = val;
+  });
+
+  // Clear registry table
+  const tbody = document.getElementById("incidentBody");
+  if (tbody) tbody.innerHTML = "";
+
+  // Hide signature card
+  const signatureCard = document.getElementById("signatureCard");
+  if (signatureCard) signatureCard.classList.add("hidden");
+
+  // Clear heatmap
+  const heatmap = document.getElementById("forensicHeatmap");
+  if (heatmap) heatmap.innerHTML = "";
+
+  // Disable export buttons until a new scan is run
+  const exportBtns = document.querySelectorAll(
+    "#view-compliance button[onclick], button[onclick='exportForensicJSON()'], button[onclick='exportRegistryCSV()'], button[onclick='exportChartAsPNG()'], button[onclick='exportChartAsJPG()'], button[onclick='exportForensicPDF()']"
+  );
+  exportBtns.forEach((btn) => {
+    btn.disabled = true;
+    btn.classList.add("opacity-40", "cursor-not-allowed");
+  });
+
+  // Reset sort dropdown
+  const sorter = document.getElementById("durationSorter");
+  const placeholder = document.getElementById("sortPlaceholder");
+  if (sorter) sorter.value = "none";
+  if (placeholder) placeholder.disabled = true;
+
+  // Clear search input
+  const searchInput = document.getElementById("searchInput");
+  if (searchInput) searchInput.value = "";
+}
+
+/**
+ * Re-enables export buttons after a successful scan.
+ */
+function enableExportButtons() {
+  const exportBtns = document.querySelectorAll(
+    "#view-compliance button[onclick], button[onclick='exportForensicJSON()'], button[onclick='exportRegistryCSV()'], button[onclick='exportChartAsPNG()'], button[onclick='exportChartAsJPG()'], button[onclick='exportForensicPDF()']"
+  );
+  exportBtns.forEach((btn) => {
+    btn.disabled = false;
+    btn.classList.remove("opacity-40", "cursor-not-allowed");
+  });
+}
+
+/**
+ * Restores only the last session timestamp and filename for display.
+ * Does NOT restore scan results or render any charts/tables.
+ */
+function restoreLastSessionMeta() {
+  const savedMeta = localStorage.getItem("last_scan_metadata");
+  if (!savedMeta) return;
+  try {
+    const meta = JSON.parse(savedMeta);
+    const timeEl = document.getElementById("lastScanTime");
+    const fileEl = document.getElementById("lastFileName");
+    if (timeEl) timeEl.innerText = meta.timestamp || "—";
+    if (fileEl) fileEl.innerText = meta.fileName || "—";
+  } catch (e) {
+    console.warn("Could not restore last session metadata:", e);
+  }
+}
 
 function loadLastSession() {
   const savedData = localStorage.getItem("last_forensic_scan");
@@ -91,6 +185,7 @@ async function analyzeLogs(event) {
 
     lastScanResults = data;
     renderResults(data);
+    enableExportButtons();
     showToast("Analysis Finalized");
   } catch (e) {
     showToast("Backend Link Error: Ensure server is online");
