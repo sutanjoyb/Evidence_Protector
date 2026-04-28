@@ -17,6 +17,13 @@ const DEFAULT_ANALYSIS_SETTINGS = {
 };
 let analysisSettings = { ...DEFAULT_ANALYSIS_SETTINGS };
 
+// ─── BFCache Protection ───────────────────────────────────────────────────────
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted && !localStorage.getItem("access_token")) {
+    window.location.replace("index.html");
+  }
+});
+
 // ─── INITIALIZATION ──────────────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", () => {
   // 1. Unified Authentication Check
@@ -24,7 +31,7 @@ window.addEventListener("DOMContentLoaded", () => {
     !!localStorage.getItem("access_token") ||
     !!sessionStorage.getItem("isLoggedIn");
   if (!hasAuth) {
-    window.location.href = "index.html";
+    window.location.replace("index.html");
     return;
   }
 
@@ -814,9 +821,18 @@ function updateGreeting() {
 }
 
 function logout() {
+  // Clear auth state AND all sensitive forensic data
   localStorage.removeItem("access_token");
+  localStorage.removeItem("last_forensic_scan");
+  localStorage.removeItem("last_scan_metadata");
+  localStorage.removeItem("forensic_cases");
+  localStorage.removeItem("flagged_items");
+  localStorage.removeItem("analysis_settings");
+  
   sessionStorage.clear();
-  window.location.href = "index.html";
+  
+  // Use .replace() to prevent the user from using the browser's Back button to return to the dashboard
+  window.location.replace("index.html");
 }
 
 function showTOS() {
