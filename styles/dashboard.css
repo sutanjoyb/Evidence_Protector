@@ -22,43 +22,31 @@
 
 /* ══════════════════════════════════════════════════════════════════════════
    REVAMPED LIGHT MODE — Forensic Clarity Theme
-   Warm pearl base · sapphire accents · layered depth · editorial precision
    ══════════════════════════════════════════════════════════════════════════ */
 html[data-theme="light"] {
-  /* Canvas */
-  --bg-primary:      #f0f2f7;
-  --bg-secondary:    #e8ecf3;
-  --bg-sidebar:      #ffffff;
-  --bg-header:       rgba(255, 255, 255, 0.92);
-  --bg-card:         #ffffff;
-  --bg-input:        #f8fafc;
-
-  /* Borders */
-  --border-subtle:   #dde3ed;
-  --border-hover:    #3b82f6;
-
-  /* Text */
-  --text-main:       #111827;
-  --text-muted:      #4b5c77;
-  --text-faint:      #8896ad;
-  --text-bright:     #0a0f1e;
-
-  /* Accents */
-  --accent-blue:     #2563eb;
-  --accent-emerald:  #059669;
-  --accent-amber:    #d97706;
-  --accent-red:      #dc2626;
-
-  /* Shadows — the real magic */
-  --shadow-xs:       0 1px 3px rgba(17, 24, 39, 0.06), 0 1px 2px rgba(17, 24, 39, 0.04);
-  --shadow-card:     0 4px 16px rgba(17, 24, 39, 0.07), 0 1px 4px rgba(17, 24, 39, 0.04);
-  --shadow-hover:    0 12px 32px rgba(37, 99, 235, 0.14), 0 4px 12px rgba(17, 24, 39, 0.08);
-  --shadow-sidebar:  4px 0 24px rgba(17, 24, 39, 0.06);
-  --shadow-header:   0 2px 16px rgba(17, 24, 39, 0.07);
-
-  /* Misc */
+  --bg-primary: #f0f2f7;
+  --bg-secondary: #e8ecf3;
+  --bg-sidebar: #ffffff;
+  --bg-header: rgba(255, 255, 255, 0.92);
+  --bg-card: #ffffff;
+  --bg-input: #f8fafc;
+  --border-subtle: #dde3ed;
+  --border-hover: #3b82f6;
+  --text-main: #111827;
+  --text-muted: #4b5c77;
+  --text-faint: #8896ad;
+  --text-bright: #0a0f1e;
+  --accent-blue: #2563eb;
+  --accent-emerald: #059669;
+  --accent-amber: #d97706;
+  --accent-red: #dc2626;
+  --shadow-xs: 0 1px 3px rgba(17, 24, 39, 0.06), 0 1px 2px rgba(17, 24, 39, 0.04);
+  --shadow-card: 0 4px 16px rgba(17, 24, 39, 0.07), 0 1px 4px rgba(17, 24, 39, 0.04);
+  --shadow-hover: 0 12px 32px rgba(37, 99, 235, 0.14), 0 4px 12px rgba(17, 24, 39, 0.08);
+  --shadow-sidebar: 4px 0 24px rgba(17, 24, 39, 0.06);
+  --shadow-header: 0 2px 16px rgba(17, 24, 39, 0.07);
   --scrollbar-thumb: #c8d0df;
-  --nav-active-bg:   linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  --nav-active-bg: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
 }
 
 /* ── Base ────────────────────────────────────────────────────────────────── */
@@ -70,11 +58,9 @@ body {
   transition: background-color 0.35s ease, color 0.35s ease;
 }
 
-/* Light mode body — subtle mesh background */
 html[data-theme="light"] body {
   background-color: #f0f2f7 !important;
-  background-image:
-    radial-gradient(ellipse at 20% 10%, rgba(37, 99, 235, 0.06) 0%, transparent 55%),
+  background-image: radial-gradient(ellipse at 20% 10%, rgba(37, 99, 235, 0.06) 0%, transparent 55%),
     radial-gradient(ellipse at 85% 80%, rgba(5, 150, 105, 0.05) 0%, transparent 50%),
     linear-gradient(180deg, #f0f2f7 0%, #e8ecf3 100%) !important;
   color: #111827 !important;
@@ -98,7 +84,6 @@ html[data-theme="light"] #sidebar {
   box-shadow: var(--shadow-sidebar) !important;
 }
 
-/* Sidebar brand logo area */
 html[data-theme="light"] #sidebar .border-b {
   border-color: #dde3ed !important;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
@@ -157,7 +142,6 @@ html[data-theme="light"] .glass-card:hover {
   border-color: rgba(37, 99, 235, 0.25) !important;
 }
 
-/* KPI card top accent stripe */
 html[data-theme="light"] .glass-card::before {
   content: "";
   display: block;
@@ -286,7 +270,6 @@ html[data-theme="light"] .text-amber-500 {
   color: #d97706 !important;
 }
 
-/* All headings must be dark in light mode */
 html[data-theme="light"] h1,
 html[data-theme="light"] h2,
 html[data-theme="light"] h3,
@@ -296,13 +279,11 @@ html[data-theme="light"] h6 {
   color: #0a0f1e !important;
 }
 
-/* All paragraph / body text */
 html[data-theme="light"] p,
 html[data-theme="light"] span:not(.legal-tag):not([class*="text-blue"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-amber"]) {
   color: #1e293b !important;
 }
 
-/* Inside glass cards — everything readable */
 html[data-theme="light"] .glass-card *:not(button):not(input):not(select):not(.legal-tag):not([class*="text-blue"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-amber"]) {
   color: inherit;
 }
@@ -311,7 +292,6 @@ html[data-theme="light"] .glass-card {
   color: #111827 !important;
 }
 
-/* KPI values */
 html[data-theme="light"] .glass-card .text-2xl,
 html[data-theme="light"] .glass-card .text-3xl,
 html[data-theme="light"] .glass-card .text-4xl,
@@ -319,7 +299,6 @@ html[data-theme="light"] .glass-card .font-bold {
   color: #0a0f1e !important;
 }
 
-/* Muted label text inside cards */
 html[data-theme="light"] .glass-card .text-xs,
 html[data-theme="light"] .glass-card .text-sm {
   color: #4b5c77 !important;
@@ -381,7 +360,6 @@ html[data-theme="light"] button:not(.nav-item):not(#themeToggle):hover {
   transform: translateY(-1px) !important;
 }
 
-/* Ghost / icon buttons */
 html[data-theme="light"] button.text-slate-400,
 html[data-theme="light"] button.text-slate-500 {
   background: transparent !important;
@@ -503,14 +481,15 @@ html[data-theme="light"] .legal-tag {
 /* ─── REGISTRY: CARD VIEW ON MOBILE, TABLE ON DESKTOP ───────────────────── */
 
 /* Mobile: hide table rows, show cards */
-.registry-row { display: none; }
-.registry-card { display: table-row; }
+.registry-row { display: table-row; }
+.registry-card { display: none; }
 
 /* Desktop (sm+): show table rows, hide cards */
 @media (min-width: 640px) {
   .registry-row { display: table-row; }
   .registry-card { display: none; }
 }
+
 html[data-theme="light"] .signature-box {
   background: #fffbeb !important;
   border-left-color: #f59e0b !important;
@@ -578,15 +557,28 @@ html[data-theme="light"] .status-indicator.online {
   background-color: #059669 !important;
 }
 
-/* ── Toast ───────────────────────────────────────────────────────────────── */
+/* ── TOAST NOTIFICATION - FIXED FOR LIGHT MODE ───────────────────────────── */
 #toast {
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-html[data-theme="light"] #toast {
-  background: #1e293b !important;
-  color: #f8fafc !important;
-  box-shadow: 0 8px 32px rgba(17, 24, 39, 0.2) !important;
+html[data-theme="light"] #toast,
+html[data-theme="light"] .toast {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 32px rgba(17, 24, 39, 0.3) !important;
+}
+
+html[data-theme="light"] #toastMsg,
+html[data-theme="light"] .toast-message,
+html[data-theme="light"] #toast span,
+html[data-theme="light"] .toast span {
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] #toast i,
+html[data-theme="light"] .toast i {
+  color: #3b82f6 !important;
 }
 
 /* ── Empty States ────────────────────────────────────────────────────────── */
@@ -613,7 +605,7 @@ html[data-theme="light"] input[type="checkbox"] {
 
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */
@@ -670,27 +662,19 @@ html[data-theme="light"] .settings-type-option:hover {
   border-color: #2563eb !important;
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   TOS MODAL — CLEAN FIX (Dark + Light fully handled)
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ── TOS Modal ───────────────────────────────────────────────────────────── */
 .tos-modal {
   position: fixed;
   inset: 0;
   z-index: 10000;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   padding: 20px;
-
   background: rgba(2, 6, 23, 0.75);
   backdrop-filter: blur(10px);
-
   opacity: 0;
   pointer-events: none;
-
   transition: opacity 0.3s ease;
 }
 
@@ -699,23 +683,17 @@ html[data-theme="light"] .settings-type-option:hover {
   pointer-events: auto;
 }
 
-/* ── Modal Content ───────────────────────── */
 .tos-content {
   width: 100%;
   max-width: 600px;
   max-height: 80vh;
-
   overflow-y: auto;
-
   padding: 32px;
   border-radius: 20px;
-
   background: var(--bg-secondary);
   color: var(--text-main);
-
   border: 1px solid var(--border-subtle);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
-
   transform: translateY(20px) scale(0.98);
   transition: transform 0.3s ease, opacity 0.3s ease;
 }
@@ -724,7 +702,6 @@ html[data-theme="light"] .settings-type-option:hover {
   transform: translateY(0) scale(1);
 }
 
-/* ── Light Mode Fix ───────────────────────── */
 html[data-theme="light"] .tos-modal {
   background: rgba(15, 23, 42, 0.4);
 }
@@ -732,15 +709,10 @@ html[data-theme="light"] .tos-modal {
 html[data-theme="light"] .tos-content {
   background: #ffffff;
   color: #111827;
-
   border: 1px solid #dde3ed;
-
-  box-shadow:
-    0 24px 64px rgba(17, 24, 39, 0.18),
-    0 8px 20px rgba(17, 24, 39, 0.08);
+  box-shadow: 0 24px 64px rgba(17, 24, 39, 0.18), 0 8px 20px rgba(17, 24, 39, 0.08);
 }
 
-/* ── Typography inside modal ───────────────── */
 .tos-content h1,
 .tos-content h2,
 .tos-content h3 {
@@ -760,7 +732,6 @@ html[data-theme="light"] .tos-content p {
   color: #374151;
 }
 
-/* ── Scrollbar (clean) ───────────────────── */
 .tos-content::-webkit-scrollbar {
   width: 6px;
 }
@@ -772,4 +743,33 @@ html[data-theme="light"] .tos-content p {
 
 html[data-theme="light"] .tos-content::-webkit-scrollbar-thumb {
   background: #cbd5e1;
+}
+
+/* ── PROGRESS BAR LIGHT MODE FIX ─────────────────────────────────────────── */
+html[data-theme="light"] #progressStatus {
+  color: #1e40af !important;
+}
+
+html[data-theme="light"] #progressPercent {
+  color: #1e293b !important;
+}
+
+html[data-theme="light"] #uploadProgressContainer .text-slate-400 {
+  color: #334155 !important;
+}
+
+html[data-theme="light"] #cancelUploadBtn {
+  color: #dc2626 !important;
+}
+
+html[data-theme="light"] #cancelUploadBtn:hover {
+  color: #b91c1c !important;
+}
+
+html[data-theme="light"] .h-1.5.bg-slate-800 {
+  background-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"] #progressBarFill {
+  background: linear-gradient(90deg, #3b82f6, #10b981) !important;
 }

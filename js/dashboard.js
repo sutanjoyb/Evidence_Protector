@@ -8,12 +8,21 @@ let chart = null;
 let lastScanResults = null;
 let flaggedIncidents = new Set();
 const CASES_KEY = "forensic_cases";
+let currentUploadController = null;
+let isUploadCancelled = false;
 const ANALYSIS_SETTINGS_KEY = "analysis_settings";
 const DEFAULT_ANALYSIS_SETTINGS = {
   threshold: 60,
   fileTypes: [".log", ".txt", ".csv"],
 };
 let analysisSettings = { ...DEFAULT_ANALYSIS_SETTINGS };
+
+// ─── BFCache Protection ───────────────────────────────────────────────────────
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted && !localStorage.getItem("access_token")) {
+    window.location.replace("index.html");
+  }
+});
 
 // ─── INITIALIZATION ──────────────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", () => {
@@ -22,7 +31,7 @@ window.addEventListener("DOMContentLoaded", () => {
     !!localStorage.getItem("access_token") ||
     !!sessionStorage.getItem("isLoggedIn");
   if (!hasAuth) {
-    window.location.href = "index.html";
+    window.location.replace("index.html");
     return;
   }
 
@@ -52,6 +61,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // 5. Reactive Scroll-To-Top (dashboard scrolls inside #mainScroll)
   initScrollToTop();
+
+  // 6. Mobile Sidebar Setup
+  setupMobileSidebar();
 });
 
 // ─── SESSION PERSISTENCE ─────────────────────────────────────────────────────
@@ -76,8 +88,9 @@ function loadLastSession() {
   }
 }
 
-// ─── ANALYSIS & AUTO-ARCHIVING ───────────────────────────────────────────────
-async function analyzeLogs(event) {
+// ─── PROGRESS BAR FUNCTIONS ─────────────────────────────────────────────────
+
+async function analyzeLogsWithProgress(event) {
   if (event) event.preventDefault();
   const fileInput = document.getElementById("logFile");
   const file = fileInput.files[0] || fileInput._droppedFile;
@@ -93,6 +106,86 @@ async function analyzeLogs(event) {
     );
   }
 
+  // Show progress bar
+  const progressContainer = document.getElementById("uploadProgressContainer");
+  const progressFill = document.getElementById("progressBarFill");
+  const progressPercent = document.getElementById("progressPercent");
+  const progressStatus = document.getElementById("progressStatus");
+  const cancelBtn = document.getElementById("cancelUploadBtn");
+  
+  if (progressContainer) progressContainer.classList.remove("hidden");
+  if (cancelBtn) cancelBtn.classList.remove("hidden");
+  isUploadCancelled = false;
+  
+  // Simulated progress stages
+  const stages = [
+    { percent: 20, status: "Uploading file...", duration: 800 },
+    { percent: 40, status: "Hashing payload...", duration: 600 },
+    { percent: 60, status: "Mapping voids...", duration: 700 },
+    { percent: 80, status: "Analyzing patterns...", duration: 500 },
+    { percent: 95, status: "Finalizing report...", duration: 400 }
+  ];
+  
+  for (const stage of stages) {
+    if (isUploadCancelled) {
+      resetProgressBar();
+      showToast("Upload cancelled");
+      return;
+    }
+    
+    if (progressStatus) progressStatus.textContent = stage.status;
+    if (progressFill) progressFill.style.width = `${stage.percent}%`;
+    if (progressPercent) progressPercent.textContent = `${stage.percent}%`;
+    await new Promise(r => setTimeout(r, stage.duration));
+  }
+  
+  if (progressStatus) progressStatus.textContent = "Processing on server...";
+  if (progressFill) progressFill.style.width = "100%";
+  if (progressPercent) progressPercent.textContent = "100%";
+  
+  // Call actual analysis
+  const result = await analyzeLogsWithFile(file);
+  
+  if (result && !isUploadCancelled) {
+    if (progressStatus) progressStatus.textContent = "Complete!";
+    showToast("Analysis completed successfully");
+    setTimeout(() => resetProgressBar(), 1500);
+  } else if (!isUploadCancelled) {
+    if (progressStatus) progressStatus.textContent = "Failed!";
+    showToast("Analysis failed. Please try again.");
+    setTimeout(() => resetProgressBar(), 2000);
+  }
+}
+
+function resetProgressBar() {
+  const progressContainer = document.getElementById("uploadProgressContainer");
+  const progressFill = document.getElementById("progressBarFill");
+  const progressPercent = document.getElementById("progressPercent");
+  const progressStatus = document.getElementById("progressStatus");
+  const cancelBtn = document.getElementById("cancelUploadBtn");
+  
+  if (progressContainer) progressContainer.classList.add("hidden");
+  if (progressFill) progressFill.style.width = "0%";
+  if (progressPercent) progressPercent.textContent = "0%";
+  if (progressStatus) progressStatus.textContent = "Connecting...";
+  if (cancelBtn) cancelBtn.classList.add("hidden");
+  
+  isUploadCancelled = false;
+  currentUploadController = null;
+}
+
+function cancelUpload() {
+  isUploadCancelled = true;
+  if (currentUploadController) {
+    currentUploadController.abort();
+  }
+  resetProgressBar();
+  showToast("Upload cancelled");
+}
+
+// ─── ACTUAL ANALYSIS FUNCTION ────────────────────────────────────────────────
+
+async function analyzeLogsWithFile(file) {
   const overlay = document.getElementById("scanOverlay");
   const statusText = document.getElementById("loaderStatus");
   overlay.classList.remove("hidden");
@@ -111,7 +204,10 @@ async function analyzeLogs(event) {
       body: formData,
     });
 
-    if (res.status === 401) return logout();
+    if (res.status === 401) {
+      logout();
+      return null;
+    }
     const data = await res.json();
 
     statusText.innerText = "Finalizing Reports...";
@@ -129,11 +225,18 @@ async function analyzeLogs(event) {
     lastScanResults = data;
     renderResults(data);
     showToast("Analysis Finalized — Case Archived");
+    return data;
   } catch (e) {
     showToast("Backend Link Error");
+    return null;
   } finally {
     overlay.classList.add("hidden");
   }
+}
+
+// Legacy analyzeLogs function (kept for compatibility)
+async function analyzeLogs(event) {
+  return analyzeLogsWithProgress(event);
 }
 
 function loadAnalysisSettings() {
@@ -336,76 +439,20 @@ function clearAllHistory() {
   modal.classList.add("flex");
 }
 
-  tbody.innerHTML = incidents.map((inc, i) => {
-    const isFlagged = flaggedIncidents.has(i);
-    const startTime = inc.start.includes(" ") ? inc.start.split(" ")[1] : inc.start;
-    const endTime = inc.end.includes(" ") ? inc.end.split(" ")[1] : inc.end;
-    const isCritical = inc.duration > 300;
-    const severityColor = isCritical ? "text-red-400" : "text-amber-400";
-    const dotColor = isCritical ? "bg-red-500 animate-pulse" : "bg-amber-500";
-    const severityLabel = isCritical ? "Critical Void" : "Minor Anomaly";
-    const flagClass = isFlagged ? "text-blue-500" : "text-slate-700 hover:text-blue-400";
-    const flagIcon = isFlagged ? "fas" : "far";
+function closeClearVaultModal() {
+  const modal = document.getElementById("clearVaultModal");
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+}
 
-    return `
-      <!-- ── DESKTOP ROW (hidden on mobile) ── -->
-      <tr class="registry-row border-b border-white/5 hover:bg-white/5 transition-all">
-        <td class="p-6 font-mono">
-          <div class="flex flex-col gap-1">
-            <div class="flex items-center gap-2"><span class="text-[8px] text-slate-600 uppercase font-bold w-8">From:</span><span class="text-blue-400 text-[10px] tracking-wider">${startTime}</span></div>
-            <div class="flex items-center gap-2"><span class="text-[8px] text-slate-600 uppercase font-bold w-8">To:</span><span class="text-emerald-400 text-[10px] tracking-wider">${endTime}</span></div>
-          </div>
-        </td>
-        <td class="p-6 text-center font-bold text-white text-sm">${inc.duration}<span class="text-[10px] text-slate-500 ml-1 font-light">s</span></td>
-        <td class="p-6">
-          <div class="flex items-center gap-3">
-            <div class="w-1.5 h-1.5 rounded-full ${dotColor}"></div>
-            <span class="text-[10px] uppercase font-bold ${severityColor}">${severityLabel}</span>
-          </div>
-        </td>
-        <td class="p-6 text-right">
-          <button onclick="toggleFlag(${i})" class="${flagClass} transition-colors">
-            <i class="${flagIcon} fa-flag text-base"></i>
-          </button>
-        </td>
-      </tr>
+function confirmClearVault() {
+  localStorage.setItem(CASES_KEY, "[]");
+  updateCaseBadge();
+  renderCaseHistory();
+  showToast("Vault Wiped");
+  closeClearVaultModal();
+}
 
-      <!-- ── MOBILE CARD (hidden on desktop) ── -->
-      <tr class="registry-card border-b border-white/5">
-        <td colspan="4" class="p-0">
-          <div class="m-3 rounded-xl border border-white/5 bg-slate-900/40 p-4 space-y-3">
-            <!-- Header row: severity badge + flag -->
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div class="w-1.5 h-1.5 rounded-full ${dotColor}"></div>
-                <span class="text-[10px] uppercase font-black ${severityColor} tracking-wider">${severityLabel}</span>
-              </div>
-              <button onclick="toggleFlag(${i})" class="${flagClass} transition-colors">
-                <i class="${flagIcon} fa-flag text-sm"></i>
-              </button>
-            </div>
-            <!-- Time window -->
-            <div class="grid grid-cols-2 gap-2 font-mono">
-              <div class="bg-slate-950/60 rounded-lg p-2.5">
-                <p class="text-[8px] text-slate-600 uppercase font-bold mb-1">From</p>
-                <p class="text-blue-400 text-[11px] tracking-wider">${startTime}</p>
-                <p class="text-[9px] text-slate-600 mt-0.5">${inc.start.split(" ")[0]}</p>
-              </div>
-              <div class="bg-slate-950/60 rounded-lg p-2.5">
-                <p class="text-[8px] text-slate-600 uppercase font-bold mb-1">To</p>
-                <p class="text-emerald-400 text-[11px] tracking-wider">${endTime}</p>
-                <p class="text-[9px] text-slate-600 mt-0.5">${inc.end.split(" ")[0]}</p>
-              </div>
-            </div>
-            <!-- Duration -->
-            <div class="flex items-center justify-between pt-1 border-t border-white/5">
-              <span class="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Gap Duration</span>
-              <span class="font-black text-white text-sm">${inc.duration}<span class="text-[10px] text-slate-500 ml-1 font-light">s</span></span>
-            </div>
-          </div>
-        </td>
-      </tr>`;
-  }).join("");
 // ─── REGISTRY SEARCH & SORT ──────────────────────────────────────────────────
 function filterRegistry() {
   const term = document.getElementById("searchInput")?.value.toLowerCase();
@@ -633,18 +680,16 @@ async function exportForensicPDF() {
   const doc = new jsPDF();
   const timestamp = new Date().toLocaleString();
 
-  // ─── PDF HEADER ──────────────────────────────────────────────────────────
   doc.setFontSize(20);
-  doc.setTextColor(40, 116, 240); // Evidence Blue
+  doc.setTextColor(40, 116, 240);
   doc.text("EVIDENCE PROTECTOR PRO", 14, 22);
 
   doc.setFontSize(10);
   doc.setTextColor(100);
   doc.text("OFFICIAL FORENSIC ANALYSIS REPORT", 14, 30);
   doc.text(`Generated on: ${timestamp}`, 14, 35);
-  doc.line(14, 40, 196, 40); // Divider
+  doc.line(14, 40, 196, 40);
 
-  // ─── SUMMARY SECTION ─────────────────────────────────────────────────────
   doc.setFontSize(12);
   doc.setTextColor(0);
   doc.text("Executive Summary", 14, 50);
@@ -657,7 +702,6 @@ async function exportForensicPDF() {
   ];
   doc.text(summary, 14, 60);
 
-  // ─── INCIDENT TABLE ──────────────────────────────────────────────────────
   const tableData = lastScanResults.incidents.map((inc, index) => [
     index + 1,
     inc.start,
@@ -675,7 +719,6 @@ async function exportForensicPDF() {
     alternateRowStyles: { fillColor: [245, 245, 245] },
   });
 
-  // ─── FOOTER ──────────────────────────────────────────────────────────────
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
@@ -700,7 +743,6 @@ function switchTab(tabId) {
     .forEach((v) => v.classList.add("hidden"));
   document.getElementById(`view-${tabId}`)?.classList.remove("hidden");
 
-  // ISSUE #72: Hide greeting panel on non-dashboard tabs
   const greetingPanel = document.querySelector('.glass-card.p-6.border-l-4.border-blue-500.flex.items-center.justify-between');
   if (greetingPanel) {
     greetingPanel.style.display = tabId === 'dashboard' ? 'flex' : 'none';
@@ -715,13 +757,6 @@ function updateCaseBadge() {
   const badge = document.getElementById("case-count-badge");
   const count = JSON.parse(localStorage.getItem(CASES_KEY) || "[]").length;
   if (badge) badge.innerText = count;
-}
-
-function toggleSidebar() {
-  const sidebar = document.getElementById("sidebar");
-  const overlay = document.getElementById("sidebarOverlay");
-  sidebar.classList.toggle("-translate-x-full");
-  overlay.classList.toggle("hidden");
 }
 
 function showToast(msg) {
@@ -786,9 +821,18 @@ function updateGreeting() {
 }
 
 function logout() {
+  // Clear auth state AND all sensitive forensic data
   localStorage.removeItem("access_token");
+  localStorage.removeItem("last_forensic_scan");
+  localStorage.removeItem("last_scan_metadata");
+  localStorage.removeItem("forensic_cases");
+  localStorage.removeItem("flagged_items");
+  localStorage.removeItem("analysis_settings");
+  
   sessionStorage.clear();
-  window.location.href = "index.html";
+  
+  // Use .replace() to prevent the user from using the browser's Back button to return to the dashboard
+  window.location.replace("index.html");
 }
 
 function showTOS() {
@@ -840,7 +884,7 @@ function updateRegistryTable(incidents) {
                     <i class="fas fa-flag"></i>
                 </button>
             </td>
-        </tr>`,
+        </td>`,
     )
     .join("");
 
@@ -882,7 +926,6 @@ function updateFlagCount() {
 }
 
 // ─── REACTIVE SCROLL TO TOP (DASHBOARD) ──────────────────────────────────────
-// Dashboard scrolls inside #mainScroll div, NOT window — so we listen on that.
 
 function initScrollToTop() {
   const btn = document.getElementById("scrollTopBtn");
@@ -890,9 +933,8 @@ function initScrollToTop() {
   const scrollContainer = document.getElementById("mainScroll");
   if (!btn || !scrollContainer) return;
 
-  // Ring circumference for r=19 circle: 2 * π * 19 ≈ 119.38
   const CIRCUMFERENCE = 119.38;
-  const SHOW_THRESHOLD = 300; // px scrolled before button appears
+  const SHOW_THRESHOLD = 300;
 
   function updateScrollBtn() {
     const scrollTop = scrollContainer.scrollTop;
@@ -900,37 +942,46 @@ function initScrollToTop() {
       scrollContainer.scrollHeight - scrollContainer.clientHeight;
     const scrollPct = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
 
-    // Show / hide with .visible class (CSS handles fade + slide)
     if (scrollTop > SHOW_THRESHOLD) {
       btn.classList.add("visible");
     } else {
       btn.classList.remove("visible");
     }
 
-    // Update progress ring stroke
     if (ring) {
       const offset = CIRCUMFERENCE - scrollPct * CIRCUMFERENCE;
       ring.style.strokeDashoffset = offset;
     }
   }
 
-  // Listen on the inner scroll container, not window
   scrollContainer.addEventListener("scroll", updateScrollBtn, {
     passive: true,
   });
 
-  // Click — smooth scroll to top of the container
   btn.addEventListener("click", () => {
     scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
   });
 
-  // Run once on init
   updateScrollBtn();
 }
-function closeClearVaultModal() {
-  const modal = document.getElementById("clearVaultModal");
-  modal.classList.add("hidden");
-  modal.classList.remove("flex");
+
+// ─── MOBILE SIDEBAR TOGGLE ───────────────────────────────────────────────────
+
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  
+  if (!sidebar || !overlay) return;
+  
+  sidebar.classList.toggle("-translate-x-full");
+  overlay.classList.toggle("hidden");
+  
+  // Prevent body scroll when sidebar is open on mobile
+  if (!sidebar.classList.contains("-translate-x-full")) {
+    document.body.style.overflow = "hidden";
+  } else {
+    document.body.style.overflow = "";
+  }
 }
 
 function showTost(message, type="success") {
@@ -965,4 +1016,19 @@ function confirmClearVault() {
   renderCaseHistory();
   showToast("Vault Wiped");
   closeClearVaultModal();
+function setupMobileSidebar() {
+  const navLinks = document.querySelectorAll("#sidebar .nav-item, #sidebar a, #sidebar button");
+  navLinks.forEach(link => {
+    link.addEventListener("click", () => {
+      if (window.innerWidth < 1024) {
+        const sidebar = document.getElementById("sidebar");
+        const overlay = document.getElementById("sidebarOverlay");
+        if (sidebar && overlay) {
+          sidebar.classList.add("-translate-x-full");
+          overlay.classList.add("hidden");
+          document.body.style.overflow = "";
+        }
+      }
+    });
+  });
 }
