@@ -877,7 +877,7 @@
 
         window.previewLogFile = function() {
             if (!currentLogContent) {
-                alert("Please select a log file first!");
+                showToast("Please select a log file first!" , "error");
                 return;
             }
             const lines = currentLogContent.split('\n');

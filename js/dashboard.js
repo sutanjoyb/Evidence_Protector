@@ -933,6 +933,32 @@ function closeClearVaultModal() {
   modal.classList.remove("flex");
 }
 
+function showTost(message, type="success") {
+  const tost = document.createElement("div");
+  tost.textContent = message;
+  tost.style.cssText=`
+  position:fixed;
+  top:20px;
+  right:20px;
+  padding:14px 20px;
+  border-radius:8px;
+  color:white;
+  font-size:14px;
+  z-index:9999;
+  box-shadow:0 4px 12px rgba(0,0,0,0.3);
+  background:${type==="sucess" ? "#22c55e" :"#ef4444"};
+  transition : opacity 0.5s;
+  `;
+  document.body.appendChild(tost);
+  setTimeout(()=> {
+    tost.style.opacity="0";
+    setTimeout(() => tost.remove(),500);
+  },3000);
+
+
+  }
+
+
 function confirmClearVault() {
   localStorage.setItem(CASES_KEY, "[]");
   updateCaseBadge();
