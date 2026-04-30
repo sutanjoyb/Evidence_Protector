@@ -773,3 +773,33 @@ html[data-theme="light"] .h-1.5.bg-slate-800 {
 html[data-theme="light"] #progressBarFill {
   background: linear-gradient(90deg, #3b82f6, #10b981) !important;
 }
+/* Skeleton Loading */
+.skeleton {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-card {
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 20px;
+  border-top: 2px solid #334155;
+}
+
+.skeleton-title {
+  height: 10px;
+  width: 60%;
+  margin-bottom: 12px;
+}
+
+.skeleton-value {
+  height: 28px;
+  width: 40%;
+}

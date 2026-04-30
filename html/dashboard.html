@@ -152,6 +152,25 @@
         </div>
 
         <div id="view-dashboard" class="tab-view space-y-6">
+          <!-- Skeleton Loading -->
+       <div id="skeletonLoader" class="grid grid-cols-2 lg:grid-cols-4 gap-4" style="display:none">
+      <div class="skeleton-card">
+      <div class="skeleton skeleton-title"></div>
+      <div class="skeleton skeleton-value"></div>
+     </div>
+      <div class="skeleton-card">
+    <div class="skeleton skeleton-title"></div>
+    <div class="skeleton skeleton-value"></div>
+     </div>
+        <div class="skeleton-card">
+       <div class="skeleton skeleton-title"></div>
+       <div class="skeleton skeleton-value"></div>
+      </div>
+       <div class="skeleton-card">
+    <div class="skeleton skeleton-title"></div>
+    <div class="skeleton skeleton-value"></div>
+    </div>
+      </div>
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="glass-card p-5 border-t-2 border-blue-500">
               <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Integrity Score</p>
@@ -459,6 +478,7 @@
             });
         }
     })();
+    
     </script>
   </body>
 </html>

@@ -198,6 +198,7 @@ async function analyzeLogsWithFile(file) {
 
   try {
     const token = localStorage.getItem("access_token");
+    document.getElementById('skeletonLoader').style.display = 'grid';
     const res = await fetch("http://localhost:8000/analyze", {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -857,7 +858,7 @@ async function checkApiStatus() {
 
 function renderResults(data) {
   if (!data) return;
-  document.getElementById("integrityScoreCard").innerText =
+  document.getElementById('skeletonLoader').style.display = 'none';
     parseFloat(data.integrity_score).toFixed(1) + "%";
   document.getElementById("financialRisk").innerText =
     (100 - parseFloat(data.integrity_score)).toFixed(1) + "%";
