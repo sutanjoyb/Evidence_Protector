@@ -1,0 +1,11 @@
+2026-05-02 08:00:00 [INFO] User admin logged in from 192.168.1.100
+2026-05-02 08:00:15 [INFO] Authentication successful for user admin
+2026-05-02 08:00:30 [INFO] Session created: session_12345
+2026-05-02 08:01:00 [INFO] User admin accessed /dashboard
+2026-05-02 08:01:30 [INFO] User admin accessed /reports
+2026-05-02 08:02:00 [INFO] User admin accessed /settings
+2026-05-02 08:04:30 [WARN] Failed login attempt for user guest from 192.168.1.200
+2026-05-02 08:04:45 [WARN] Failed login attempt for user guest from 192.168.1.200
+2026-05-02 08:05:00 [WARN] IP 192.168.1.200 blocked due to multiple failed attempts
+2026-05-02 08:15:00 [INFO] User admin logged out
+2026-05-02 08:15:15 [INFO] Session terminated: session_12345

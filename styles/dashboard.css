@@ -167,6 +167,49 @@ header {
   border-radius: 0 12px 12px 0;
 }
 
+/* ── Threshold Slider ────────────────────────────────────────────────────── */
+#thresholdSlider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--bg-secondary);
+  outline: none;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+#thresholdSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: var(--accent-blue);
+  cursor: pointer;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+  transition: all 0.2s ease;
+}
+
+#thresholdSlider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.8);
+}
+
+#thresholdSlider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: var(--accent-blue);
+  cursor: pointer;
+  border-radius: 50%;
+  border: none;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+  transition: all 0.2s ease;
+}
+
+#thresholdSlider::-moz-range-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.8);
+}
+
 /* ── Light mode table rows ───────────────────────────────────────────────── */
 html[data-theme="light"] #incidentBody tr:hover {
   background: rgba(37, 99, 235, 0.05) !important;

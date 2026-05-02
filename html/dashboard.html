@@ -85,11 +85,34 @@
             <div class="col-span-12 lg:col-span-4 space-y-6">
               <div class="glass-card p-6 border-l-4 border-blue-500">
                 <h4 class="text-[10px] font-bold uppercase text-slate-500 mb-4 tracking-widest">Evidence Ingestion</h4>
-                <div class="border-2 border-dashed border-slate-800 rounded-xl p-6 text-center hover:border-blue-500 transition-all cursor-pointer">
-                  <input type="file" id="logFile" class="hidden" onchange="updateFileName()" />
-                  <label for="logFile" class="cursor-pointer"><i class="fas fa-cloud-arrow-up text-xl text-slate-600 mb-2 block"></i><p id="fileNameDisplay" class="text-[10px] text-slate-500 font-bold uppercase">Select Log Source</p></label>
+                
+                <!-- Threshold Control -->
+                <div class="mb-4 p-4 bg-slate-900/50 rounded-lg border border-white/5">
+                  <div class="flex justify-between items-center mb-2">
+                    <label class="text-[9px] font-bold uppercase text-slate-400 tracking-wider">Gap Threshold</label>
+                    <span id="thresholdValue" class="text-blue-400 font-mono text-sm font-bold">60s</span>
+                  </div>
+                  <input type="range" id="thresholdSlider" min="5" max="3600" value="60" step="5" 
+                    class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                    oninput="updateThresholdDisplay(this.value)" />
+                  <div class="flex justify-between text-[8px] text-slate-600 font-mono mt-1">
+                    <span>5s</span>
+                    <span>1h</span>
+                  </div>
+                  <p class="text-[8px] text-slate-500 mt-2 leading-relaxed">Gaps exceeding this threshold will be flagged as anomalies</p>
                 </div>
-                <button onclick="analyzeLogs(event)" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all mt-4">Analyze stream</button>
+
+                <div class="border-2 border-dashed border-slate-800 rounded-xl p-6 text-center hover:border-blue-500 transition-all cursor-pointer">
+                  <input type="file" id="logFile" class="hidden" multiple onchange="updateFileName()" accept=".log,.txt" />
+                  <label for="logFile" class="cursor-pointer">
+                    <i class="fas fa-cloud-arrow-up text-xl text-slate-600 mb-2 block"></i>
+                    <p id="fileNameDisplay" class="text-[10px] text-slate-500 font-bold uppercase">Select Log Source(s)</p>
+                    <p class="text-[8px] text-slate-600 mt-1">Multiple files supported</p>
+                  </label>
+                </div>
+                <button onclick="analyzeLogs(event)" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all mt-4">
+                  <i class="fas fa-play mr-2"></i>Analyze stream
+                </button>
               </div>
               <div id="signatureCard" class="hidden glass-card p-6 border-l-4 border-amber-500"><h4 class="text-[10px] font-bold uppercase text-amber-500 mb-4 flex items-center gap-2"><i class="fas fa-crosshairs"></i> Tactical Anomaly Signature</h4><div id="tacticalReasoning" class="signature-box text-[10px] text-slate-300 leading-relaxed font-mono"></div></div>
             </div>
@@ -128,10 +151,20 @@
             </div>
             <span id="flag-count" class="text-[10px] bg-blue-600 px-3 py-1 rounded-full text-white font-black">0 Flagged</span>
           </div>
+          
+          <!-- Batch Summary Section (shown when multiple files analyzed) -->
+          <div id="batchSummary" class="hidden p-6 border-b border-white/5 bg-blue-950/10">
+            <h5 class="text-[10px] font-bold uppercase text-blue-400 mb-3 tracking-widest flex items-center gap-2">
+              <i class="fas fa-layer-group"></i> Batch Analysis Summary
+            </h5>
+            <div id="batchSummaryContent" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+          </div>
+
           <div class="max-h-[600px] overflow-y-auto custom-scroll">
             <table class="w-full text-left" id="incidentTable">
               <thead class="sticky top-0 bg-slate-900 border-b border-white/5">
                 <tr class="text-slate-500 text-[9px] uppercase tracking-widest">
+                  <th class="p-6">File Source</th>
                   <th class="p-6">Time Window</th>
                   <th class="p-6 text-center">Duration</th>
                   <th class="p-6">Analysis Signature</th>

@@ -94,6 +94,14 @@ async def upload_log(
     try:
         numeric_threshold = int(threshold)
         results = analyze_logs(temp_path, numeric_threshold)
+        
+        # Add metadata to response
+        results["metadata"] = {
+            "filename": file.filename,
+            "threshold_used": numeric_threshold,
+            "analyzed_at": datetime.utcnow().isoformat()
+        }
+        
         return results
     except Exception as e:
         print(f"Analysis Error: {e}")

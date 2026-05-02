@@ -1,6 +1,8 @@
 let chart;
 let lastScanResults = null;
 let flaggedIncidents = new Set();
+let batchResults = []; // Store results from multiple files
+let currentThreshold = 60; // Default threshold value
 
 // 1. IMPROVED VERTICAL SCANNER PLUGIN
 const verticalLinePlugin = {
@@ -33,13 +35,27 @@ window.addEventListener("DOMContentLoaded", () => {
     flaggedIncidents = new Set(JSON.parse(savedFlags));
     updateFlagCount();
   }
+  
+  // Load saved threshold
+  const savedThreshold = localStorage.getItem("analysis_threshold");
+  if (savedThreshold) {
+    currentThreshold = parseInt(savedThreshold);
+    document.getElementById("thresholdSlider").value = currentThreshold;
+    updateThresholdDisplay(currentThreshold);
+  }
+  
   loadLastSession();
 });
 
 function loadLastSession() {
   const savedData = localStorage.getItem("last_forensic_scan");
   const savedMeta = localStorage.getItem("last_scan_metadata");
-  if (savedData && savedMeta) {
+  const savedBatch = localStorage.getItem("last_batch_results");
+  
+  if (savedBatch) {
+    batchResults = JSON.parse(savedBatch);
+    renderBatchResults(batchResults);
+  } else if (savedData && savedMeta) {
     lastScanResults = JSON.parse(savedData);
     const meta = JSON.parse(savedMeta);
     const timeEl = document.getElementById("lastScanTime");
@@ -50,34 +66,84 @@ function loadLastSession() {
   }
 }
 
+// Update threshold display
+function updateThresholdDisplay(value) {
+  currentThreshold = parseInt(value);
+  const display = document.getElementById("thresholdValue");
+  
+  // Format display based on value
+  let displayText;
+  if (currentThreshold >= 3600) {
+    displayText = (currentThreshold / 3600).toFixed(1) + "h";
+  } else if (currentThreshold >= 60) {
+    displayText = Math.floor(currentThreshold / 60) + "m";
+  } else {
+    displayText = currentThreshold + "s";
+  }
+  
+  if (display) display.innerText = displayText;
+  
+  // Save to localStorage
+  localStorage.setItem("analysis_threshold", currentThreshold);
+}
+
 async function analyzeLogs(event) {
   const fileInput = document.getElementById("logFile");
-  const file = fileInput.files[0];
-  if (!file) return showToast("Critical: No source file selected");
+  const files = Array.from(fileInput.files);
+  
+  if (files.length === 0) {
+    return showToast("Critical: No source file selected");
+  }
 
   const overlay = document.getElementById("scanOverlay");
   const statusText = document.getElementById("loaderStatus");
   overlay.classList.remove("hidden");
 
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("threshold", 60);
-
+  const token = localStorage.getItem("access_token");
+  batchResults = []; // Reset batch results
+  
   try {
-    const token = localStorage.getItem("access_token");
-    const res = await fetch("http://localhost:8000/analyze", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${token}` },
-      body: formData,
-    });
-    if (res.status === 401) {
-      localStorage.removeItem("access_token");
-      window.location.href = "index.html";
-      return;
-    }
-    if (!res.ok) throw new Error("Connection Refused");
-    const data = await res.json();
+    // Process each file sequentially
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      statusText.innerText = `Processing file ${i + 1}/${files.length}: ${file.name}`;
+      
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("threshold", currentThreshold);
 
+      try {
+        const res = await fetch("http://localhost:8000/analyze", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` },
+          body: formData,
+        });
+        
+        if (res.status === 401) {
+          localStorage.removeItem("access_token");
+          window.location.href = "index.html";
+          return;
+        }
+        
+        if (!res.ok) throw new Error("Connection Refused");
+        
+        const data = await res.json();
+        
+        // Add file metadata to results
+        batchResults.push({
+          fileName: file.name,
+          timestamp: new Date().toLocaleString().toUpperCase(),
+          data: data,
+          threshold: currentThreshold
+        });
+        
+      } catch (e) {
+        console.error(`Error processing ${file.name}:`, e);
+        showToast(`Error processing ${file.name}`);
+      }
+    }
+
+    // Animation steps
     const steps = [
       "Hashing Payload...",
       "Mapping Voids...",
@@ -89,20 +155,117 @@ async function analyzeLogs(event) {
       await new Promise((r) => setTimeout(r, 400));
     }
 
-    const meta = {
-      timestamp: new Date().toLocaleString().toUpperCase(),
-      fileName: file.name,
-    };
-    localStorage.setItem("last_forensic_scan", JSON.stringify(data));
-    localStorage.setItem("last_scan_metadata", JSON.stringify(meta));
-
-    lastScanResults = data;
-    renderResults(data);
-    showToast("Analysis Finalized");
+    // Save results
+    if (batchResults.length === 1) {
+      // Single file - use legacy format
+      const result = batchResults[0];
+      const meta = {
+        timestamp: result.timestamp,
+        fileName: result.fileName,
+      };
+      localStorage.setItem("last_forensic_scan", JSON.stringify(result.data));
+      localStorage.setItem("last_scan_metadata", JSON.stringify(meta));
+      localStorage.removeItem("last_batch_results");
+      
+      lastScanResults = result.data;
+      renderResults(result.data);
+    } else {
+      // Multiple files - batch mode
+      localStorage.setItem("last_batch_results", JSON.stringify(batchResults));
+      localStorage.removeItem("last_forensic_scan");
+      localStorage.removeItem("last_scan_metadata");
+      
+      renderBatchResults(batchResults);
+    }
+    
+    showToast(`Analysis Complete: ${batchResults.length} file(s) processed`);
+    
   } catch (e) {
     showToast("Backend Link Error: Ensure server is online");
+    console.error(e);
   } finally {
     overlay.classList.add("hidden");
+  }
+}
+
+function renderBatchResults(results) {
+  if (!results || results.length === 0) return;
+  
+  // Calculate aggregate statistics
+  let totalGaps = 0;
+  let totalScore = 0;
+  let allIncidents = [];
+  
+  results.forEach(result => {
+    totalGaps += result.data.total_gaps;
+    totalScore += result.data.integrity_score;
+    
+    // Add file name to each incident
+    result.data.incidents.forEach(incident => {
+      allIncidents.push({
+        ...incident,
+        fileName: result.fileName
+      });
+    });
+  });
+  
+  const avgScore = (totalScore / results.length).toFixed(1);
+  const avgRisk = (100 - avgScore).toFixed(1);
+  
+  // Update KPI cards with aggregate data
+  document.getElementById("integrityScoreCard").innerText = avgScore + "%";
+  document.getElementById("financialRisk").innerText = avgRisk + "%";
+  document.getElementById("gapCount").innerText = totalGaps;
+  
+  // Update metadata
+  document.getElementById("lastScanTime").innerText = results[0].timestamp;
+  document.getElementById("lastFileName").innerText = `${results.length} files analyzed`;
+  
+  // Show batch summary
+  const batchSummary = document.getElementById("batchSummary");
+  const summaryContent = document.getElementById("batchSummaryContent");
+  
+  if (batchSummary && summaryContent) {
+    batchSummary.classList.remove("hidden");
+    
+    summaryContent.innerHTML = results.map(result => {
+      const score = result.data.integrity_score;
+      const scoreColor = score >= 90 ? "text-emerald-400" : score >= 70 ? "text-amber-400" : "text-red-400";
+      
+      return `
+        <div class="bg-slate-900/50 p-4 rounded-lg border border-white/5">
+          <div class="flex items-center gap-2 mb-2">
+            <i class="fas fa-file-alt text-blue-400 text-xs"></i>
+            <p class="text-[9px] font-mono text-slate-400 truncate">${result.fileName}</p>
+          </div>
+          <div class="flex justify-between items-end">
+            <div>
+              <p class="text-[8px] text-slate-500 uppercase">Integrity</p>
+              <p class="${scoreColor} text-lg font-black">${score}%</p>
+            </div>
+            <div class="text-right">
+              <p class="text-[8px] text-slate-500 uppercase">Gaps</p>
+              <p class="text-white text-lg font-black">${result.data.total_gaps}</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+  
+  // Update registry with all incidents
+  updateRegistryTable(allIncidents, true);
+  
+  // Update heatmap with first file's data
+  updateHeatmapBar(results[0].data.incidents);
+  
+  // Update chart with aggregate view
+  updateChart(allIncidents);
+  
+  // Hide signature card for batch mode
+  const signatureCard = document.getElementById("signatureCard");
+  if (signatureCard) {
+    signatureCard.classList.add("hidden");
   }
 }
 
@@ -191,7 +354,7 @@ function renderResults(data) {
   updateChart(data.incidents);
 }
 
-function updateRegistryTable(incidents) {
+function updateRegistryTable(incidents, isBatch = false) {
   const tbody = document.getElementById("incidentBody");
   if (!tbody) return;
 
@@ -205,6 +368,14 @@ function updateRegistryTable(incidents) {
 
       return `
             <tr class="border-b border-white/5 hover:bg-white/5 transition-all">
+                ${isBatch ? `
+                <td class="p-6">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-file-alt text-blue-400 text-xs"></i>
+                        <span class="text-[9px] font-mono text-slate-400 truncate max-w-[150px]">${inc.fileName || 'N/A'}</span>
+                    </div>
+                </td>
+                ` : ''}
                 <td class="p-6 font-mono">
                     <div class="flex flex-col gap-1">
                         <div class="flex items-center gap-2">
@@ -369,21 +540,41 @@ function updateChart(incidents) {
 }
 
 function handleSortChange(criteria) {
-  if (!lastScanResults || !lastScanResults.incidents) {
+  let allIncidents;
+  let isBatch = false;
+  
+  // Determine if we're in batch mode or single file mode
+  if (batchResults.length > 0) {
+    isBatch = true;
+    allIncidents = [];
+    batchResults.forEach(result => {
+      result.data.incidents.forEach(incident => {
+        allIncidents.push({
+          ...incident,
+          fileName: result.fileName
+        });
+      });
+    });
+  } else if (lastScanResults && lastScanResults.incidents) {
+    allIncidents = lastScanResults.incidents;
+  } else {
     showToast("No data to sort");
     return;
   }
+  
   const placeholder = document.getElementById("sortPlaceholder");
+  
   if (criteria === "high") {
-    lastScanResults.incidents.sort((a, b) => b.duration - a.duration);
+    allIncidents.sort((a, b) => b.duration - a.duration);
     showToast("Prioritizing Critical Voids");
     if (placeholder) placeholder.disabled = true;
   } else if (criteria === "low") {
-    lastScanResults.incidents.sort((a, b) => a.duration - b.duration);
+    allIncidents.sort((a, b) => a.duration - b.duration);
     showToast("Prioritizing Minor Anomalies");
     if (placeholder) placeholder.disabled = true;
   }
-  updateRegistryTable(lastScanResults.incidents);
+  
+  updateRegistryTable(allIncidents, isBatch);
 }
 
 function toggleFlag(index) {
@@ -419,11 +610,17 @@ function updateFileName() {
   const fileInput = document.getElementById("logFile");
   const fileNameDisplay = document.getElementById("fileNameDisplay");
   if (fileInput.files.length > 0) {
-    fileNameDisplay.innerText = fileInput.files[0].name;
+    if (fileInput.files.length === 1) {
+      fileNameDisplay.innerText = fileInput.files[0].name;
+    } else {
+      fileNameDisplay.innerText = `${fileInput.files.length} files selected`;
+    }
     fileNameDisplay.classList.remove("text-slate-500");
     fileNameDisplay.classList.add("text-blue-400");
   } else {
-    fileNameDisplay.innerText = "Select Log Source";
+    fileNameDisplay.innerText = "Select Log Source(s)";
+    fileNameDisplay.classList.remove("text-blue-400");
+    fileNameDisplay.classList.add("text-slate-500");
   }
 }
 
@@ -433,21 +630,57 @@ function logout() {
 }
 
 function exportForensicJSON() {
-  if (!lastScanResults) return showToast("Critical: No scan data available");
-  const report = {
-    header: {
-      session_id: `CERT-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-      timestamp: new Date().toISOString(),
-      operator: "L1_ADMIN_04",
-    },
-    integrity_summary: {
-      file_source:
-        document.getElementById("lastFileName")?.innerText || "Unknown",
-      score: document.getElementById("integrityScoreCard")?.innerText || "0%",
-      sha256_hash: `3A7C${Math.random().toString(16).substr(2, 12).toUpperCase()}`,
-    },
-    void_data: lastScanResults.incidents,
-  };
+  if (!lastScanResults && batchResults.length === 0) {
+    return showToast("Critical: No scan data available");
+  }
+  
+  let report;
+  
+  if (batchResults.length > 0) {
+    // Batch mode export
+    report = {
+      header: {
+        session_id: `CERT-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+        timestamp: new Date().toISOString(),
+        operator: "L1_ADMIN_04",
+        mode: "BATCH_ANALYSIS"
+      },
+      batch_summary: {
+        total_files: batchResults.length,
+        threshold_used: currentThreshold,
+        files: batchResults.map(r => ({
+          filename: r.fileName,
+          integrity_score: r.data.integrity_score,
+          total_gaps: r.data.total_gaps,
+          sha256_hash: `3A7C${Math.random().toString(16).substr(2, 12).toUpperCase()}`
+        }))
+      },
+      detailed_results: batchResults.map(r => ({
+        file_source: r.fileName,
+        analyzed_at: r.timestamp,
+        integrity_score: r.data.integrity_score,
+        void_data: r.data.incidents
+      }))
+    };
+  } else {
+    // Single file mode export
+    report = {
+      header: {
+        session_id: `CERT-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+        timestamp: new Date().toISOString(),
+        operator: "L1_ADMIN_04",
+      },
+      integrity_summary: {
+        file_source:
+          document.getElementById("lastFileName")?.innerText || "Unknown",
+        score: document.getElementById("integrityScoreCard")?.innerText || "0%",
+        threshold_used: currentThreshold,
+        sha256_hash: `3A7C${Math.random().toString(16).substr(2, 12).toUpperCase()}`,
+      },
+      void_data: lastScanResults.incidents,
+    };
+  }
+  
   const blob = new Blob([JSON.stringify(report, null, 4)], {
     type: "application/json",
   });
@@ -460,12 +693,38 @@ function exportForensicJSON() {
 }
 
 function exportRegistryCSV() {
-  if (!lastScanResults || !lastScanResults.incidents.length)
+  let allIncidents = [];
+  let isBatch = false;
+  
+  if (batchResults.length > 0) {
+    isBatch = true;
+    batchResults.forEach(result => {
+      result.data.incidents.forEach(incident => {
+        allIncidents.push({
+          ...incident,
+          fileName: result.fileName
+        });
+      });
+    });
+  } else if (lastScanResults && lastScanResults.incidents.length) {
+    allIncidents = lastScanResults.incidents;
+  } else {
     return showToast("Notice: Incident Registry is empty");
-  let csv = "Incident,Start,End,Duration(s),Severity\n";
-  lastScanResults.incidents.forEach((inc, i) => {
-    csv += `VOID-${i + 1},${inc.start},${inc.end},${inc.duration},${inc.duration > 300 ? "CRITICAL" : "WARNING"}\n`;
-  });
+  }
+  
+  let csv;
+  if (isBatch) {
+    csv = "File,Incident,Start,End,Duration(s),Severity\n";
+    allIncidents.forEach((inc, i) => {
+      csv += `${inc.fileName},VOID-${i + 1},${inc.start},${inc.end},${inc.duration},${inc.duration > 300 ? "CRITICAL" : "WARNING"}\n`;
+    });
+  } else {
+    csv = "Incident,Start,End,Duration(s),Severity\n";
+    allIncidents.forEach((inc, i) => {
+      csv += `VOID-${i + 1},${inc.start},${inc.end},${inc.duration},${inc.duration > 300 ? "CRITICAL" : "WARNING"}\n`;
+    });
+  }
+  
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -514,20 +773,43 @@ function exportChartAsJPG() {
 // Search/Filter functionality for Incident Registry
 function filterRegistry() {
     const searchTerm = document.getElementById("searchInput").value.toLowerCase();
-    if (!lastScanResults || !lastScanResults.incidents) return;
     
-    let filteredIncidents = lastScanResults.incidents;
+    let allIncidents;
+    let isBatch = false;
+    
+    // Determine if we're in batch mode or single file mode
+    if (batchResults.length > 0) {
+        isBatch = true;
+        allIncidents = [];
+        batchResults.forEach(result => {
+            result.data.incidents.forEach(incident => {
+                allIncidents.push({
+                    ...incident,
+                    fileName: result.fileName
+                });
+            });
+        });
+    } else if (lastScanResults && lastScanResults.incidents) {
+        allIncidents = lastScanResults.incidents;
+    } else {
+        return;
+    }
+    
+    let filteredIncidents = allIncidents;
     
     if (searchTerm) {
-        filteredIncidents = lastScanResults.incidents.filter(inc => {
+        filteredIncidents = allIncidents.filter(inc => {
             // Search by timestamp (start or end time)
             const timeMatch = inc.start.toLowerCase().includes(searchTerm) || 
                               inc.end.toLowerCase().includes(searchTerm);
             // Search by duration
             const durationMatch = inc.duration.toString().includes(searchTerm);
-            return timeMatch || durationMatch;
+            // Search by filename (if in batch mode)
+            const fileMatch = isBatch && inc.fileName && inc.fileName.toLowerCase().includes(searchTerm);
+            
+            return timeMatch || durationMatch || fileMatch;
         });
     }
     
-    updateRegistryTable(filteredIncidents);
+    updateRegistryTable(filteredIncidents, isBatch);
 }
