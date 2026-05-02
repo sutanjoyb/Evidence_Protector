@@ -172,6 +172,21 @@
             </div>
           </div>
 
+          <div id="chainStatusBanner" class="glass-card p-5 border-l-4 border-emerald-500 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <div id="chainStatusIndicator" class="status-indicator online"></div>
+              <div>
+                <p class="text-[9px] text-slate-500 font-bold uppercase">Chain of Custody</p>
+                <p id="chainStatusText" class="text-sm font-bold text-white">Chain intact</p>
+                <p id="chainStatusHint" class="text-[9px] text-slate-500">Session manifest verified locally.</p>
+              </div>
+            </div>
+            <div class="text-left lg:text-right">
+              <p class="text-[9px] text-slate-500 font-bold uppercase">Latest Chain Hash</p>
+              <p id="chainStatusHash" class="text-[10px] font-mono text-blue-400 truncate">--</p>
+            </div>
+          </div>
+
           <div class="grid grid-cols-12 gap-6">
             <div class="col-span-12 lg:col-span-4 space-y-6">
               <div class="glass-card p-6 border-l-4 border-blue-500">
