@@ -748,6 +748,16 @@ function switchTab(tabId) {
     greetingPanel.style.display = tabId === 'dashboard' ? 'flex' : 'none';
   }
 
+  if (window.innerWidth < 1024) {
+    const sidebar = document.getElementById("sidebar");
+    const overlay = document.getElementById("sidebarOverlay");
+    if (sidebar && overlay) {
+      sidebar.classList.add("-translate-x-full");
+      overlay.classList.add("hidden");
+      document.body.style.overflow = "";
+    }
+  }
+
   if (tabId === "history") renderCaseHistory();
   if (tabId === "dashboard" && lastScanResults)
     setTimeout(() => updateChart(lastScanResults.incidents), 50);
@@ -874,12 +884,12 @@ function updateRegistryTable(incidents) {
     .map(
       (inc, i) => `
         <tr class="border-b border-white/5 hover:bg-white/5 transition-all">
-            <td class="p-6 w-10">
+            <td class="p-3 lg:p-6 w-10">
                 <input type="checkbox" class="incident-checkbox rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-0" data-index="${i}" ${flaggedIncidents.has(i) ? "checked" : ""} />
             </td>
-            <td class="p-6 text-blue-400 font-mono text-[10px]">${inc.start} → ${inc.end}</td>
-            <td class="p-6 text-center font-bold text-white">${inc.duration}s</td>
-            <td class="p-6 text-right">
+            <td class="p-3 lg:p-6 text-blue-400 font-mono text-[10px] whitespace-nowrap">${inc.start} → ${inc.end}</td>
+            <td class="p-3 lg:p-6 text-center font-bold text-white whitespace-nowrap">${inc.duration}s</td>
+            <td class="p-3 lg:p-6 text-right">
                 <button onclick="toggleFlag(${i})" class="${flaggedIncidents.has(i) ? "text-blue-500" : "text-slate-700"}">
                     <i class="fas fa-flag"></i>
                 </button>
