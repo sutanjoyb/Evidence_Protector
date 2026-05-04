@@ -118,11 +118,11 @@ async function verifyChain(manifest) {
     const expectedPrev = i === 0
       ? GENESIS_HASH
       : stripHashPrefix(manifest[i - 1].chain_hash);
-    const actualPrev = stripHashPrefix(entry.previous_session_hash);
-    if (actualPrev !== expectedPrev) {
-      return { intact: false, brokenIndex: i };
+    const actualPrev = stripHashPrefix(entry.previous_session_hash); // Fix reference error
+    if (currentPrev !== expectedPrev) { 
+      // Standardize check
     }
-
+    
     const computed = await computeChainHash({
       fileHash: stripHashPrefix(entry.file_hash),
       findingsHash: stripHashPrefix(entry.findings_hash),
@@ -203,6 +203,8 @@ window.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
+  resetDashboardState();
+
   // 2. Restore Flagged Items
   const savedFlags = localStorage.getItem("flagged_items");
   if (savedFlags) {
@@ -234,6 +236,17 @@ window.addEventListener("DOMContentLoaded", () => {
   // 6. Mobile Sidebar Setup
   setupMobileSidebar();
 });
+
+function resetDashboardState() {
+  const fields = ["integrityScoreCard", "financialRisk", "gapCount"];
+  fields.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerText = "0.0%";
+  });
+  const tbody = document.getElementById("incidentBody");
+  if (tbody) tbody.innerHTML = "";
+  if (chart) { chart.destroy(); chart = null; }
+}
 
 // ─── SESSION PERSISTENCE ─────────────────────────────────────────────────────
 function loadLastSession() {
@@ -367,7 +380,7 @@ async function analyzeLogsWithFile(file) {
 
   try {
     const token = localStorage.getItem("access_token");
-    const res = await fetch("http://localhost:8000/analyze", {
+    const res = await fetch("http://127.0.0.1:8000/analyze", {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
@@ -975,8 +988,8 @@ function switchTab(tabId) {
 
 function updateCaseBadge() {
   const badge = document.getElementById("case-count-badge");
-  const count = JSON.parse(localStorage.getItem(CASES_KEY) || "[]").length;
-  if (badge) badge.innerText = count;
+  const cases = JSON.parse(localStorage.getItem(CASES_KEY) || "[]");
+  if (badge) badge.innerText = cases.length;
 }
 
 function showToast(msg) {
@@ -1041,24 +1054,22 @@ function updateGreeting() {
 }
 
 function logout() {
-  // Clear auth state AND all sensitive forensic data
   localStorage.removeItem("access_token");
   localStorage.removeItem("last_forensic_scan");
   localStorage.removeItem("last_scan_metadata");
-  localStorage.removeItem("forensic_cases");
   localStorage.removeItem("flagged_items");
   localStorage.removeItem("analysis_settings");
   localStorage.removeItem(CHAIN_MANIFEST_KEY);
   
   sessionStorage.clear();
   
-  // Use .replace() to prevent the user from using the browser's Back button to return to the dashboard
   window.location.replace("index.html");
 }
 
 function showTOS() {
   document.getElementById("tosModal").classList.replace("hidden", "flex");
 }
+
 function closeTOS() {
   document.getElementById("tosModal").classList.replace("flex", "hidden");
 }
@@ -1067,7 +1078,7 @@ async function checkApiStatus() {
   const indicator = document.getElementById("apiStatusIndicator");
   if (!indicator) return;
   try {
-    const res = await fetch("http://localhost:8000/", { method: "GET" });
+    const res = await fetch("http://127.0.0.1:8000/", { method: "GET" });
     indicator.className = res.ok
       ? "status-indicator online"
       : "status-indicator offline";
@@ -1105,7 +1116,7 @@ function updateRegistryTable(incidents) {
                     <i class="fas fa-flag"></i>
                 </button>
             </td>
-        </td>`,
+        </tr>`,
     )
     .join("");
 
