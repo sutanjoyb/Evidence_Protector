@@ -123,7 +123,7 @@
       </button>
     </nav>
 
-    <main class="flex-1 flex flex-col h-screen overflow-hidden lg:ml-0">
+    <main class="flex-1 flex flex-col lg:h-screen lg:overflow-hidden">
       <header class="h-20 border-b border-white/5 bg-slate-950/20 backdrop-blur-md flex items-center justify-between px-8 shrink-0">
         <h2 id="viewTitle" class="text-lg font-bold text-white">Executive Overview</h2>
         <div class="flex items-center gap-3">
@@ -139,7 +139,7 @@
         </div>
       </header>
 
-      <div id="mainScroll" class="flex-1 overflow-y-auto p-8 space-y-8 custom-scroll">
+      <div id="mainScroll" class="flex-1 lg:overflow-y-auto p-4 lg:p-8 space-y-8 custom-scroll">
         <div class="glass-card p-6 border-l-4 border-blue-500 flex items-center justify-between animate-slideUp">
           <div>
             <span id="userGreeting" class="text-sm font-black text-white uppercase tracking-widest">Good Morning, Operator</span>
@@ -261,14 +261,14 @@
               <span id="flag-count" class="text-[10px] bg-blue-600 px-3 py-1 rounded-full text-white font-black">0 Flagged</span>
             </div>
           </div>
-          <div class="max-h-[500px] overflow-y-auto custom-scroll relative">
+          <div class="registry-table-wrapper max-h-[500px] overflow-y-auto custom-scroll relative">
             <table class="w-full text-left">
               <thead class="sticky top-0 bg-slate-900 text-[9px] uppercase text-slate-500">
                 <tr class="border-b border-white/5">
-                  <th class="p-6 w-10"><input type="checkbox" id="selectAllCheckbox" class="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-0" /></th>
-                  <th class="p-6">Time Window</th>
-                  <th class="p-6 text-center">Duration</th>
-                  <th class="p-6 text-right">Triage</th>
+                  <th class="p-4 lg:p-6 w-10"><input type="checkbox" id="selectAllCheckbox" class="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-0" /></th>
+                  <th class="p-4 lg:p-6 whitespace-nowrap">Time Window</th>
+                  <th class="p-4 lg:p-6 text-center whitespace-nowrap">Duration</th>
+                  <th class="p-4 lg:p-6 text-right whitespace-nowrap">Triage</th>
                 </tr>
               </thead>
               <tbody id="incidentBody"></tbody>
@@ -297,14 +297,14 @@
             <h4 class="text-xs font-bold uppercase text-slate-400">Forensic Case Vault</h4>
             <button id="clearVaultBtn" onclick="clearAllHistory()" disabled class="text-[9px] font-bold uppercase tracking-widest transition-all disabled:opacity-20 disabled:cursor-not-allowed text-red-400 hover:text-red-300">Clear Vault</button>
           </div>
-          <div class="max-h-[600px] overflow-y-auto custom-scroll relative">
+          <div class="registry-table-wrapper max-h-[600px] overflow-y-auto custom-scroll relative">
             <table id="caseHistoryTable" class="w-full text-left">
               <thead class="sticky top-0 bg-slate-900 text-[9px] uppercase text-slate-500">
                 <tr class="border-b border-white/5">
-                  <th class="p-6">Case Name</th>
-                  <th class="p-6">Timestamp</th>
-                  <th class="p-6 text-center">Score</th>
-                  <th class="p-6 text-right">Actions</th>
+                  <th class="p-4 lg:p-6 whitespace-nowrap">Case Name</th>
+                  <th class="p-4 lg:p-6 whitespace-nowrap">Timestamp</th>
+                  <th class="p-4 lg:p-6 text-center whitespace-nowrap">Score</th>
+                  <th class="p-4 lg:p-6 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody id="caseHistoryBody"></tbody>
