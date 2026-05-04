@@ -15,6 +15,7 @@ import asyncio
 import sys
 import json
 import logging
+import uuid
 import magic  # python-magic for MIME sniffing
 
 load_dotenv()
@@ -36,6 +37,7 @@ _INSECURE_DEFAULTS = {
     "",
     "fallback-secret-change-me",
     "fallback-secret-change-me-in-production",
+    "change-this-to-a-long-random-secret-in-production",
     "change-this-to-a-long-random-secret-in-production",
     "REPLACE_WITH_A_STRONG_RANDOM_SECRET",
 }
@@ -257,9 +259,10 @@ async def upload_log(
             detail=f"File content type '{detected_mime}' is not permitted. Only log/text files are accepted."
         )
 
-    # ── 4. SAFE FILENAME (prevent path traversal) ────────────────────────────
+    # ── 4. SAFE + UNIQUE FILENAME (prevent path traversal and collisions) ─────────
     safe_name = os.path.basename(file.filename).replace("..", "").replace("/", "").replace("\\", "")
-    temp_path = os.path.join(UPLOAD_DIR, safe_name)
+    unique_name = f"{uuid.uuid4().hex}_{safe_name}"
+    temp_path = os.path.join(UPLOAD_DIR, unique_name)
 
     # ── 5. WRITE & ANALYZE ───────────────────────────────────────────────────
     try:
@@ -280,6 +283,7 @@ async def upload_log(
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
+
 
 @app.get("/analyze-process")
 async def analyze_process(
@@ -332,7 +336,7 @@ async def analyze_process(
 
 
 @app.post("/verify-chain")
-@limiter.limit("30/minute")
+#@limiter.limit("30/minute")
 async def verify_chain_manifest(
     request: Request,
     manifest: list = None,
@@ -341,16 +345,6 @@ async def verify_chain_manifest(
     """
     Optional backend verification endpoint for chain of custody manifest.
     Accepts a chain manifest (array of session entries) from frontend and validates integrity.
-    
-    Returns:
-    {
-        "is_intact": bool,
-        "broken_index": int or null,
-        "verified_entries": int,
-        "verification_details": [
-            {"entry_index": 0, "valid": true, "notes": "..."}
-        ]
-    }
     """
     try:
         from chain_of_custody import verify_chain_manifest
@@ -378,7 +372,6 @@ async def verify_chain_manifest(
     try:
         is_intact, broken_index = verify_chain_manifest(manifest)
         
-        # Build detailed verification report
         verification_details = []
         for i, entry in enumerate(manifest):
             entry_detail = {
@@ -429,6 +422,7 @@ async def verify_chain_manifest(
 @app.get("/chain-status")
 @limiter.limit("30/minute")
 async def get_chain_status(
+    request: Request,
     current_user: str = Depends(get_current_user),
 ):
     """
