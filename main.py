@@ -74,6 +74,11 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 USERS_FILE = "users.json"
 
+from threading import Lock
+
+users_cache = None
+file_lock = Lock()
+
 # ─── RATE LIMITER ────────────────────────────────────────────────────────────
 
 limiter = Limiter(key_func=get_remote_address)
@@ -130,23 +135,44 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # ─── USER STORE ──────────────────────────────────────────────────────────────
 
 def load_users() -> dict:
-    if not os.path.exists(USERS_FILE):
-        default_hash = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt()).decode()
-        default_users = {"admin": default_hash}
-        with open(USERS_FILE, "w") as f:
-            json.dump(default_users, f, indent=4)
-        return default_users
-    try:
-        with open(USERS_FILE, "r") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return {}
+    global users_cache
+
+    if users_cache is not None:
+        return users_cache
+
+    with file_lock:
+        if users_cache is not None:
+            return users_cache
+
+        if not os.path.exists(USERS_FILE):
+            default_hash = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt()).decode()
+            users_cache = {"admin": default_hash}
+            with open(USERS_FILE, "w") as f:
+                json.dump(users_cache, f, indent=4)
+            return users_cache
+
+        try:
+            with open(USERS_FILE, "r") as f:
+                users_cache = json.load(f)
+                return users_cache
+        except (json.JSONDecodeError, IOError):
+            users_cache = {}
+            return users_cache
 
 def save_user(username: str, hashed_password: str):
-    users = load_users()
-    users[username] = hashed_password
-    with open(USERS_FILE, "w") as f:
-        json.dump(users, f, indent=4)
+    global users_cache
+
+    with file_lock:
+        users = load_users().copy()
+        users[username] = hashed_password
+        users_cache = users
+
+        temp_file = USERS_FILE + ".tmp"
+
+        with open(temp_file, "w") as f:
+            json.dump(users, f, indent=4)
+
+        os.replace(temp_file, USERS_FILE)
 
 # ─── JWT HELPERS ─────────────────────────────────────────────────────────────
 
