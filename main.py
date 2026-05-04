@@ -330,6 +330,129 @@ async def analyze_process(
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
+
+@app.post("/verify-chain")
+@limiter.limit("30/minute")
+async def verify_chain_manifest(
+    request: Request,
+    manifest: list = None,
+    current_user: str = Depends(get_current_user),
+):
+    """
+    Optional backend verification endpoint for chain of custody manifest.
+    Accepts a chain manifest (array of session entries) from frontend and validates integrity.
+    
+    Returns:
+    {
+        "is_intact": bool,
+        "broken_index": int or null,
+        "verified_entries": int,
+        "verification_details": [
+            {"entry_index": 0, "valid": true, "notes": "..."}
+        ]
+    }
+    """
+    try:
+        from chain_of_custody import verify_chain_manifest
+    except ImportError:
+        raise HTTPException(
+            status_code=501,
+            detail="Chain of custody module not available. Ensure chain_of_custody.py exists."
+        )
+    
+    if manifest is None or not isinstance(manifest, list):
+        raise HTTPException(
+            status_code=400,
+            detail="Manifest must be a non-empty list of session entries."
+        )
+    
+    if len(manifest) == 0:
+        return {
+            "is_intact": True,
+            "broken_index": None,
+            "verified_entries": 0,
+            "verification_details": [],
+            "message": "Empty manifest — no entries to verify."
+        }
+    
+    try:
+        is_intact, broken_index = verify_chain_manifest(manifest)
+        
+        # Build detailed verification report
+        verification_details = []
+        for i, entry in enumerate(manifest):
+            entry_detail = {
+                "entry_index": i,
+                "session_id": entry.get("session_id", "unknown"),
+                "timestamp": entry.get("timestamp", "unknown"),
+                "valid": i < broken_index if broken_index is not None else True,
+            }
+            
+            if i == 0:
+                entry_detail["notes"] = "Genesis entry (first session)"
+            elif broken_index is not None and i == broken_index:
+                entry_detail["notes"] = "❌ Chain broken at this entry — previous link failed"
+            elif broken_index is not None and i > broken_index:
+                entry_detail["notes"] = "❌ Invalid (downstream of broken link)"
+            else:
+                entry_detail["notes"] = "✓ Valid — linked to previous session"
+            
+            verification_details.append(entry_detail)
+        
+        logger.info(
+            "Chain verification for user '%s': is_intact=%s, broken_index=%s",
+            current_user, is_intact, broken_index
+        )
+        
+        return {
+            "is_intact": is_intact,
+            "broken_index": broken_index,
+            "verified_entries": len(manifest),
+            "verification_details": verification_details,
+            "message": (
+                "✓ Chain integrity verified" if is_intact 
+                else f"❌ Chain broken at entry #{broken_index}"
+            )
+        }
+    
+    except Exception as e:
+        logger.error(
+            "Chain verification error for user '%s': %s",
+            current_user, e
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Verification failed: {str(e)}"
+        )
+
+
+@app.get("/chain-status")
+@limiter.limit("30/minute")
+async def get_chain_status(
+    current_user: str = Depends(get_current_user),
+):
+    """
+    Optional endpoint to retrieve chain manifest storage instructions.
+    Useful for documentation and debugging chain setup.
+    """
+    return {
+        "storage_location": "Browser localStorage['analysis_chain_manifest']",
+        "chain_type": "SHA-256 hash chaining",
+        "features": [
+            "File integrity (SHA-256 of uploaded log)",
+            "Findings integrity (SHA-256 of analysis output)",
+            "Session linking (cryptographic chain)",
+            "Tampering detection (broken chain indicates modification)",
+            "Export integration (PDF/JSON include manifest)"
+        ],
+        "endpoints": {
+            "verify": "POST /verify-chain",
+            "info": "GET /chain-status"
+        },
+        "documentation": "See CHAIN_OF_CUSTODY.md for full details"
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)

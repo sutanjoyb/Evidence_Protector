@@ -11,11 +11,179 @@ const CASES_KEY = "forensic_cases";
 let currentUploadController = null;
 let isUploadCancelled = false;
 const ANALYSIS_SETTINGS_KEY = "analysis_settings";
+const CHAIN_MANIFEST_KEY = "analysis_chain_manifest";
+const GENESIS_HASH = "GENESIS";
 const DEFAULT_ANALYSIS_SETTINGS = {
   threshold: 60,
   fileTypes: [".log", ".txt", ".csv"],
 };
 let analysisSettings = { ...DEFAULT_ANALYSIS_SETTINGS };
+
+// ─── CHAIN OF CUSTODY (HASH CHAINING) ─────────────────────────────────────
+function getChainManifest() {
+  try {
+    const raw = localStorage.getItem(CHAIN_MANIFEST_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveChainManifest(manifest) {
+  localStorage.setItem(CHAIN_MANIFEST_KEY, JSON.stringify(manifest));
+}
+
+function stripHashPrefix(value) {
+  if (!value) return "";
+  return value.startsWith("sha256:") ? value.slice(7) : value;
+}
+
+function canonicalize(value) {
+  if (value === null || value === undefined) return value;
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (typeof value === "object") {
+    return Object.keys(value)
+      .sort()
+      .reduce((acc, key) => {
+        acc[key] = canonicalize(value[key]);
+        return acc;
+      }, {});
+  }
+  return value;
+}
+
+async function sha256Hex(input) {
+  const data = input instanceof ArrayBuffer
+    ? input
+    : new TextEncoder().encode(String(input));
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function computeChainHash({ fileHash, findingsHash, previousHash, sessionId, timestamp }) {
+  const payload = [fileHash, findingsHash, previousHash, sessionId, timestamp].join("|");
+  return sha256Hex(payload);
+}
+
+async function appendChainEntry(file, findings) {
+  const manifest = getChainManifest();
+  const previousChainHash = manifest.length
+    ? stripHashPrefix(manifest[manifest.length - 1].chain_hash)
+    : GENESIS_HASH;
+  const sessionId = crypto.randomUUID
+    ? crypto.randomUUID()
+    : `session-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+  const timestamp = new Date().toISOString();
+
+  const fileBuffer = await file.arrayBuffer();
+  const fileHash = await sha256Hex(fileBuffer);
+  const findingsPayload = JSON.stringify(canonicalize({
+    incidents: findings.incidents,
+    integrity_score: findings.integrity_score,
+    total_gaps: findings.total_gaps,
+  }));
+  const findingsHash = await sha256Hex(findingsPayload);
+
+  const chainHash = await computeChainHash({
+    fileHash,
+    findingsHash,
+    previousHash: previousChainHash,
+    sessionId,
+    timestamp,
+  });
+
+  const entry = {
+    session_id: sessionId,
+    timestamp,
+    file_hash: `sha256:${fileHash}`,
+    findings_hash: `sha256:${findingsHash}`,
+    previous_session_hash: `sha256:${previousChainHash}`,
+    chain_hash: `sha256:${chainHash}`,
+  };
+
+  manifest.push(entry);
+  saveChainManifest(manifest);
+  return entry;
+}
+
+async function verifyChain(manifest) {
+  if (!manifest.length) {
+    return { intact: true, brokenIndex: null };
+  }
+
+  for (let i = 0; i < manifest.length; i += 1) {
+    const entry = manifest[i];
+    const expectedPrev = i === 0
+      ? GENESIS_HASH
+      : stripHashPrefix(manifest[i - 1].chain_hash);
+    const actualPrev = stripHashPrefix(entry.previous_session_hash);
+    if (actualPrev !== expectedPrev) {
+      return { intact: false, brokenIndex: i };
+    }
+
+    const computed = await computeChainHash({
+      fileHash: stripHashPrefix(entry.file_hash),
+      findingsHash: stripHashPrefix(entry.findings_hash),
+      previousHash: expectedPrev,
+      sessionId: entry.session_id,
+      timestamp: entry.timestamp,
+    });
+
+    if (computed !== stripHashPrefix(entry.chain_hash)) {
+      return { intact: false, brokenIndex: i };
+    }
+  }
+
+  return { intact: true, brokenIndex: null };
+}
+
+function formatHashPreview(hashValue) {
+  const raw = stripHashPrefix(hashValue);
+  if (!raw) return "--";
+  return `${raw.slice(0, 10)}...${raw.slice(-10)}`;
+}
+
+async function refreshChainStatus() {
+  const banner = document.getElementById("chainStatusBanner");
+  const indicator = document.getElementById("chainStatusIndicator");
+  const text = document.getElementById("chainStatusText");
+  const hint = document.getElementById("chainStatusHint");
+  const hashEl = document.getElementById("chainStatusHash");
+  if (!banner || !indicator || !text || !hint || !hashEl) return;
+
+  const manifest = getChainManifest();
+  const status = await verifyChain(manifest);
+  const lastHash = manifest.length ? manifest[manifest.length - 1].chain_hash : "";
+
+  if (!manifest.length) {
+    indicator.className = "status-indicator offline";
+    banner.classList.remove("border-emerald-500", "border-red-500");
+    banner.classList.add("border-blue-500");
+    text.innerText = "No chain data yet";
+    hint.innerText = "Run an analysis to generate the first chain entry.";
+    hashEl.innerText = "--";
+    return;
+  }
+
+  if (status.intact) {
+    indicator.className = "status-indicator online";
+    banner.classList.remove("border-red-500", "border-blue-500");
+    banner.classList.add("border-emerald-500");
+    text.innerText = "Chain intact";
+    hint.innerText = "Session manifest verified locally.";
+    hashEl.innerText = formatHashPreview(lastHash);
+  } else {
+    indicator.className = "status-indicator offline";
+    banner.classList.remove("border-emerald-500", "border-blue-500");
+    banner.classList.add("border-red-500");
+    text.innerText = "Chain broken";
+    hint.innerText = `Mismatch detected at entry #${status.brokenIndex + 1}.`;
+    hashEl.innerText = formatHashPreview(lastHash);
+    showToast("Warning: Chain of custody verification failed");
+  }
+}
 
 // ─── BFCache Protection ───────────────────────────────────────────────────────
 window.addEventListener("pageshow", (event) => {
@@ -52,6 +220,7 @@ window.addEventListener("DOMContentLoaded", () => {
   updateGreeting();
   updateCaseBadge();
   loadLastSession();
+  refreshChainStatus();
   initDropZone();
   setupSelectAllCheckbox();
 
@@ -220,10 +389,18 @@ async function analyzeLogsWithFile(file) {
     localStorage.setItem("last_forensic_scan", JSON.stringify(data));
     localStorage.setItem("last_scan_metadata", JSON.stringify(meta));
 
+    try {
+      const chainEntry = await appendChainEntry(file, data);
+      data.chain_manifest_entry = chainEntry;
+    } catch (e) {
+      showToast("Chain manifest update failed");
+    }
+
     saveToVault(data, file.name);
 
     lastScanResults = data;
     renderResults(data);
+    await refreshChainStatus();
     showToast("Analysis Finalized — Case Archived");
     return data;
   } catch (e) {
@@ -649,7 +826,12 @@ function exportChartAsJPG() {
 // ─── EXPORT CENTER ───────────────────────────────────────────────────────────
 function exportForensicJSON() {
   if (!lastScanResults) return showToast("No data available");
-  const blob = new Blob([JSON.stringify(lastScanResults, null, 4)], {
+  const manifest = getChainManifest();
+  const payload = {
+    report: lastScanResults,
+    chain_manifest: manifest,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 4)], {
     type: "application/json",
   });
   const a = document.createElement("a");
@@ -679,6 +861,10 @@ async function exportForensicPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   const timestamp = new Date().toLocaleString();
+  const manifest = getChainManifest();
+  const chainStatus = await verifyChain(manifest);
+  const lastChainHash = manifest.length ? manifest[manifest.length - 1].chain_hash : "--";
+  const shortChainHash = formatHashPreview(lastChainHash);
 
   doc.setFontSize(20);
   doc.setTextColor(40, 116, 240);
@@ -699,8 +885,32 @@ async function exportForensicPDF() {
     `Integrity Score: ${lastScanResults.integrity_score}%`,
     `Total Gaps Detected: ${lastScanResults.total_gaps}`,
     `Source File: ${document.getElementById("lastFileName")?.innerText || "Unknown"}`,
+    `Chain Status: ${chainStatus.intact ? "Intact" : "Broken"}`,
+    `Latest Chain Hash: ${shortChainHash}`,
   ];
   doc.text(summary, 14, 60);
+
+  doc.setFontSize(12);
+  doc.setTextColor(0);
+  doc.text("Chain of Custody Manifest", 14, 75);
+
+  const chainTable = manifest.map((entry) => [
+    entry.session_id,
+    entry.timestamp,
+    formatHashPreview(entry.file_hash),
+    formatHashPreview(entry.findings_hash),
+    formatHashPreview(entry.previous_session_hash),
+    formatHashPreview(entry.chain_hash),
+  ]);
+
+  doc.autoTable({
+    startY: 80,
+    head: [["Session", "Timestamp", "File", "Findings", "Prev", "Chain"]],
+    body: chainTable.length ? chainTable : [["--", "--", "--", "--", "--", "--"]],
+    theme: "grid",
+    headStyles: { fillStyle: [16, 185, 129], textColor: [255, 255, 255] },
+    styles: { fontSize: 7 },
+  });
 
   const tableData = lastScanResults.incidents.map((inc, index) => [
     index + 1,
@@ -711,7 +921,7 @@ async function exportForensicPDF() {
   ]);
 
   doc.autoTable({
-    startY: 85,
+    startY: doc.lastAutoTable ? doc.lastAutoTable.finalY + 8 : 85,
     head: [["ID", "Start Window", "End Window", "Duration", "Severity"]],
     body: tableData,
     theme: "grid",
@@ -838,6 +1048,7 @@ function logout() {
   localStorage.removeItem("forensic_cases");
   localStorage.removeItem("flagged_items");
   localStorage.removeItem("analysis_settings");
+  localStorage.removeItem(CHAIN_MANIFEST_KEY);
   
   sessionStorage.clear();
   
