@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Request
-from fastapi.responses import HTMLResponse,StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -7,7 +7,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from jose import JWTError, jwt
 import bcrypt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 import shutil
 import os
@@ -16,7 +16,10 @@ import sys
 import json
 import logging
 import uuid
-import magic  # python-magic for MIME sniffing
+import magic
+import secrets
+import threading
+import re
 
 load_dotenv()
 
@@ -29,15 +32,12 @@ logging.basicConfig(
 logger = logging.getLogger("evidence_protector")
 
 # ─── STARTUP SECRET VALIDATION ───────────────────────────────────────────────
-# Refuse to start if SECRET_KEY is missing or is a known insecure default.
-# This prevents silent JWT forgery when the env var is not configured.
 
 _SECRET_KEY = os.getenv("SECRET_KEY", "")
 _INSECURE_DEFAULTS = {
     "",
     "fallback-secret-change-me",
     "fallback-secret-change-me-in-production",
-    "change-this-to-a-long-random-secret-in-production",
     "change-this-to-a-long-random-secret-in-production",
     "REPLACE_WITH_A_STRONG_RANDOM_SECRET",
 }
@@ -62,17 +62,18 @@ ALLOWED_MIME_TYPES = {
     "application/xml",
     "text/xml",
     "text/x-log",
-    "application/octet-stream",  # fallback for .log/.evtx on some systems
+    "application/octet-stream",
 }
-MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
+MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024
 
 # ─── AUTH CONFIGURATION ──────────────────────────────────────────────────────
 
-# Reuse the already-validated value — no insecure fallback
 SECRET_KEY = _SECRET_KEY
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 USERS_FILE = "users.json"
+users_lock = threading.Lock()
+token_blacklist = set()
 
 # ─── RATE LIMITER ────────────────────────────────────────────────────────────
 
@@ -85,13 +86,13 @@ try:
 except ImportError:
     logger.warning("logic.py not found. Ensure it is in the same directory.")
 
-app = FastAPI(title="Evidence Protector Pro")
+app = FastAPI(title="Evidence Protector Pro", description="Forensic Log Analysis API", version="1.0.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:5500", "http://127.0.0.1:5500"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -101,52 +102,49 @@ app.add_middleware(
 
 @app.exception_handler(404)
 async def custom_404_handler(request: Request, __):
-    try:
-        base_path = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.join(base_path, "html", "404.html")
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        return HTMLResponse(content=content, status_code=404)
-    except Exception:
-        return HTMLResponse(content="<h1>404 | Data Void Detected</h1>", status_code=404)
+    return HTMLResponse(content="<h1>404 | Data Void Detected</h1>", status_code=404)
 
 @app.exception_handler(Exception)
 async def custom_exception_handler(request: Request, exc: Exception):
     logger.error("CRITICAL SYSTEM ERROR: %s", exc)
-    try:
-        base_path = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.join(base_path, "html", "404.html")
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        return HTMLResponse(content=content, status_code=500)
-    except Exception:
-        return HTMLResponse(content="<h1>500 | System Breach Detected</h1>", status_code=500)
+    return HTMLResponse(content="<h1>500 | System Breach Detected</h1>", status_code=500)
 
 # ─── UPLOAD DIR ──────────────────────────────────────────────────────────────
 
-UPLOAD_DIR = "uploads"
+UPLOAD_DIR = os.path.abspath("uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Startup cleanup of uploads
+for f in os.listdir(UPLOAD_DIR):
+    try:
+        os.remove(os.path.join(UPLOAD_DIR, f))
+    except Exception:
+        pass
 
 # ─── USER STORE ──────────────────────────────────────────────────────────────
 
 def load_users() -> dict:
-    if not os.path.exists(USERS_FILE):
-        default_hash = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt()).decode()
-        default_users = {"admin": default_hash}
-        with open(USERS_FILE, "w") as f:
-            json.dump(default_users, f, indent=4)
-        return default_users
-    try:
-        with open(USERS_FILE, "r") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return {}
+    with users_lock:
+        if not os.path.exists(USERS_FILE):
+            default_pass = secrets.token_urlsafe(12)
+            default_hash = bcrypt.hashpw(default_pass.encode(), bcrypt.gensalt()).decode()
+            default_users = {"admin": default_hash}
+            with open(USERS_FILE, "w") as f:
+                json.dump(default_users, f, indent=4)
+            logger.info(f"Created default admin account. Password: {default_pass}")
+            return default_users
+        try:
+            with open(USERS_FILE, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return {}
 
 def save_user(username: str, hashed_password: str):
-    users = load_users()
-    users[username] = hashed_password
-    with open(USERS_FILE, "w") as f:
-        json.dump(users, f, indent=4)
+    with users_lock:
+        users = load_users()
+        users[username] = hashed_password
+        with open(USERS_FILE, "w") as f:
+            json.dump(users, f, indent=4)
 
 # ─── JWT HELPERS ─────────────────────────────────────────────────────────────
 
@@ -154,14 +152,15 @@ bearer_scheme = HTTPBearer()
 
 def create_access_token(data: dict) -> str:
     payload = data.copy()
-    payload["exp"] = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    payload["exp"] = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> str:
-    """JWT dependency — validates token and returns username. Raises 401 on failure."""
     token = credentials.credentials
+    if token in token_blacklist:
+        raise HTTPException(status_code=401, detail="Token has been revoked")
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
@@ -177,11 +176,9 @@ def get_current_user(
 async def root():
     return {"status": "online", "system": "Evidence Protector Pro"}
 
-
-@app.post("/login")
+@app.post("/login", summary="Authenticate Operator")
 @limiter.limit("10/minute")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    """Authenticate operator and return a signed JWT."""
     users = load_users()
     hashed = users.get(username)
     if not hashed or not bcrypt.checkpw(password.encode(), hashed.encode()):
@@ -191,11 +188,18 @@ async def login(request: Request, username: str = Form(...), password: str = For
     logger.info("Successful login: %s from %s", username, request.client.host)
     return {"access_token": token, "token_type": "bearer"}
 
+@app.post("/logout", summary="Logout Operator")
+async def logout(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+    token = credentials.credentials
+    token_blacklist.add(token)
+    return {"message": "Logged out successfully"}
 
-@app.post("/register")
+@app.post("/register", summary="Register Operator")
 @limiter.limit("5/minute")
 async def register(request: Request, username: str = Form(...), password: str = Form(...)):
-    """Register a new operator account."""
+    if len(password) < 8 or not re.search(r"\d", password) or not re.search(r"[A-Z]", password):
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters, with 1 uppercase and 1 number.")
+    
     users = load_users()
     if username in users:
         raise HTTPException(status_code=400, detail="Operator ID already registered in the system.")
@@ -209,26 +213,22 @@ async def register(request: Request, username: str = Form(...), password: str = 
         "token_type": "bearer",
     }
 
-
-@app.post("/analyze")
+@app.post("/analyze", summary="Analyze Log File")
 @limiter.limit("30/minute")
 async def upload_log(
     request: Request,
     file: UploadFile = File(...),
     threshold: str = Form("60"),
-    current_user: str = Depends(get_current_user),  # 🔒 JWT required
+    current_user: str = Depends(get_current_user),
 ):
-    """
-    Protected forensic analysis endpoint.
-    Requires a valid Bearer token issued by /login or /register.
-    Rate-limited to 30 requests/minute per IP.
-    """
     logger.info("Analyze request from user '%s' | file: %s | ip: %s",
                 current_user, file.filename, request.client.host)
 
-    # ── 1. FILENAME / EXTENSION VALIDATION ──────────────────────────────────
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided.")
+
+    if file.content_type and "multipart" in file.content_type:
+        pass # Allow multipart
 
     _, ext = os.path.splitext(file.filename.lower())
     if ext not in ALLOWED_EXTENSIONS:
@@ -237,7 +237,6 @@ async def upload_log(
             detail=f"File type '{ext}' is not allowed. Accepted types: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
         )
 
-    # ── 2. FILE SIZE VALIDATION ──────────────────────────────────────────────
     contents = await file.read()
     if len(contents) == 0:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
@@ -247,7 +246,6 @@ async def upload_log(
             detail=f"File exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB."
         )
 
-    # ── 3. MIME TYPE VALIDATION (magic-byte sniffing) ────────────────────────
     try:
         detected_mime = magic.from_buffer(contents, mime=True)
     except Exception:
@@ -259,12 +257,10 @@ async def upload_log(
             detail=f"File content type '{detected_mime}' is not permitted. Only log/text files are accepted."
         )
 
-    # ── 4. SAFE + UNIQUE FILENAME (prevent path traversal and collisions) ─────────
-    safe_name = os.path.basename(file.filename).replace("..", "").replace("/", "").replace("\\", "")
+    safe_name = os.path.basename(file.filename)
     unique_name = f"{uuid.uuid4().hex}_{safe_name}"
     temp_path = os.path.join(UPLOAD_DIR, unique_name)
 
-    # ── 5. WRITE & ANALYZE ───────────────────────────────────────────────────
     try:
         with open(temp_path, "wb") as buffer:
             buffer.write(contents)
@@ -273,7 +269,8 @@ async def upload_log(
 
     try:
         numeric_threshold = int(threshold)
-        results = analyze_logs(temp_path, numeric_threshold)
+        loop = asyncio.get_event_loop()
+        results = await loop.run_in_executor(None, analyze_logs, temp_path, numeric_threshold)
         logger.info("Analysis complete for user '%s' | gaps: %s | score: %s",
                     current_user, results.get("total_gaps"), results.get("integrity_score"))
         return results
@@ -284,17 +281,19 @@ async def upload_log(
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
-
-@app.get("/analyze-process")
+@app.get("/analyze-process", summary="Streaming Process Analysis")
 async def analyze_process(
     file_path: str,
     threshold: int = 60,
     current_user: str = Depends(get_current_user),
 ):
-    """
-    SSE endpoint streaming real analysis progress from analyze_logs().
-    Fixes hardcoded progress messages by wiring progress_callback to the stream.
-    """
+    abs_file_path = os.path.abspath(file_path)
+    if not abs_file_path.startswith(UPLOAD_DIR):
+        raise HTTPException(status_code=403, detail="Path traversal detected.")
+
+    if not os.path.exists(abs_file_path):
+        raise HTTPException(status_code=404, detail="File not found.")
+
     queue: asyncio.Queue = asyncio.Queue()
 
     def progress_callback(percent: int, message: str):
@@ -305,7 +304,7 @@ async def analyze_process(
         analysis_task = loop.run_in_executor(
             None,
             lambda: analyze_logs(
-                file_path,
+                abs_file_path,
                 threshold_seconds=threshold,
                 progress_callback=progress_callback,
             ),
@@ -334,18 +333,13 @@ async def analyze_process(
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
-
-@app.post("/verify-chain")
-#@limiter.limit("30/minute")
+@app.post("/verify-chain", summary="Verify Custody Chain")
+@limiter.limit("30/minute")
 async def verify_chain_manifest(
     request: Request,
     manifest: list = None,
     current_user: str = Depends(get_current_user),
 ):
-    """
-    Optional backend verification endpoint for chain of custody manifest.
-    Accepts a chain manifest (array of session entries) from frontend and validates integrity.
-    """
     try:
         from chain_of_custody import verify_chain_manifest
     except ImportError:
@@ -366,7 +360,7 @@ async def verify_chain_manifest(
             "broken_index": None,
             "verified_entries": 0,
             "verification_details": [],
-            "message": "Empty manifest — no entries to verify."
+            "message": "Empty manifest - no entries to verify."
         }
     
     try:
@@ -384,11 +378,11 @@ async def verify_chain_manifest(
             if i == 0:
                 entry_detail["notes"] = "Genesis entry (first session)"
             elif broken_index is not None and i == broken_index:
-                entry_detail["notes"] = "❌ Chain broken at this entry — previous link failed"
+                entry_detail["notes"] = "Chain broken at this entry - previous link failed"
             elif broken_index is not None and i > broken_index:
-                entry_detail["notes"] = "❌ Invalid (downstream of broken link)"
+                entry_detail["notes"] = "Invalid (downstream of broken link)"
             else:
-                entry_detail["notes"] = "✓ Valid — linked to previous session"
+                entry_detail["notes"] = "Valid - linked to previous session"
             
             verification_details.append(entry_detail)
         
@@ -403,8 +397,8 @@ async def verify_chain_manifest(
             "verified_entries": len(manifest),
             "verification_details": verification_details,
             "message": (
-                "✓ Chain integrity verified" if is_intact 
-                else f"❌ Chain broken at entry #{broken_index}"
+                "Chain integrity verified" if is_intact 
+                else f"Chain broken at entry #{broken_index}"
             )
         }
     
@@ -418,17 +412,12 @@ async def verify_chain_manifest(
             detail=f"Verification failed: {str(e)}"
         )
 
-
-@app.get("/chain-status")
+@app.get("/chain-status", summary="Get Chain Status")
 @limiter.limit("30/minute")
 async def get_chain_status(
     request: Request,
     current_user: str = Depends(get_current_user),
 ):
-    """
-    Optional endpoint to retrieve chain manifest storage instructions.
-    Useful for documentation and debugging chain setup.
-    """
     return {
         "storage_location": "Browser localStorage['analysis_chain_manifest']",
         "chain_type": "SHA-256 hash chaining",
@@ -445,7 +434,6 @@ async def get_chain_status(
         },
         "documentation": "See CHAIN_OF_CUSTODY.md for full details"
     }
-
 
 if __name__ == "__main__":
     import uvicorn
