@@ -7,9 +7,12 @@
 
     // Update the Icon
     const icon = document.querySelector("#themeToggle i");
+    
     if (icon) {
-      icon.className = theme === "light" ? "fas fa-moon" : "fas fa-sun";
-    }
+    icon.className = theme === "light"
+    ? "fas fa-sun"
+    : "fas fa-moon";
+}
 
     // SPECIAL: Update Chart.js Global Defaults for readability
     if (window.Chart) {

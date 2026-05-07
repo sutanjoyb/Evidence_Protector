@@ -728,4 +728,81 @@ html[data-theme="light"] .tos-content {
 @keyframes pulseText {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.4; }
-}
+}
+/* =========================
+   LIGHT MODE FOOTER FIX
+========================= */
+
+html[data-theme="light"] footer {
+  background: #f8fafc; /* light background */
+  border-top: 1px solid rgba(0,0,0,0.08);
+}
+
+/* Main footer headings */
+html[data-theme="light"] footer h5,
+html[data-theme="light"] footer span,
+html[data-theme="light"] footer strong {
+  color: #0f172a !important;
+}
+
+/* Footer paragraph + links */
+html[data-theme="light"] footer p,
+html[data-theme="light"] footer li,
+html[data-theme="light"] footer a {
+  color: #475569 !important;
+}
+
+/* Footer bottom copyright */
+html[data-theme="light"] footer .text-slate-600 {
+  color: #64748b !important;
+}
+
+/* Hover states */
+html[data-theme="light"] footer a:hover {
+  color: #2563eb !important;
+}
+
+/* Footer icons */
+html[data-theme="light"] footer i {
+  color: #334155;
+}
+
+html[data-theme="light"] footer i:hover {
+  color: #2563eb;
+}
+
+/* ===================================
+   DEEPDIVE SECTION LIGHT MODE FIX
+=================================== */
+
+html[data-theme="light"] #deepdive {
+  /*background: #f8fafc !important;*/
+  background: light gray !important;
+}
+
+/* Fix muted gray texts */
+html[data-theme="light"] #deepdive .text-slate-400,
+html[data-theme="light"] #deepdive .text-slate-500 {
+  color: whitesmoke !important;
+}
+
+/* Fix headings */
+html[data-theme="light"] #deepdive .text-white {
+  color: #0f172a !important;
+}
+
+/* Fix numbered circles */
+html[data-theme="light"] #deepdive .bg-blue-600\/10 {
+  background: rgba(37, 99, 235, 0.12) !important;
+}
+
+/* Improve quote block visibility */
+html[data-theme="light"] #deepdive .bg-blue-600\/5 {
+  background: rgba(37, 99, 235, 0.08) !important;
+}
+
+/* Improve borders */
+html[data-theme="light"] #deepdive .border-blue-600 {
+  border-color: #2563eb !important;
+}
+
