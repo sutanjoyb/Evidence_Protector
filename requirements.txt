@@ -1,7 +1,7 @@
 fastapi
 uvicorn
 python-multipart
-python-magic
+python-magic-bin
 slowapi
 python-jose[cryptography]
 bcrypt

@@ -18,7 +18,8 @@ import logging
 import uuid
 import magic  # python-magic for MIME sniffing
 
-load_dotenv()
+# Support UTF-8 BOM in .env files commonly saved by Windows tools.
+load_dotenv(encoding="utf-8-sig")
 
 # ─── LOGGING ─────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ ALLOWED_MIME_TYPES = {
     "application/xml",
     "text/xml",
     "text/x-log",
+    "unknown",  # windows/libmagic fallback; extension checks still enforce allowed file types
     "application/octet-stream",  # fallback for .log/.evtx on some systems
 }
 MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
