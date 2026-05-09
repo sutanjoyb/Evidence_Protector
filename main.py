@@ -17,7 +17,8 @@ import json
 import logging
 import uuid
 import magic  # python-magic for MIME sniffing
-
+import io
+import zipfile
 load_dotenv()
 
 # ─── LOGGING ─────────────────────────────────────────────────────────────────
@@ -445,6 +446,39 @@ async def get_chain_status(
         },
         "documentation": "See CHAIN_OF_CUSTODY.md for full details"
     }
+
+
+@app.post("/export/zip")
+async def export_zip(
+    request: Request,
+    pdf_file: UploadFile = File(...),
+    csv_file: UploadFile = File(...),
+    json_file: UploadFile = File(...),
+    current_user: str = Depends(get_current_user),
+):
+    """
+    Creates an in-memory ZIP archive containing the generated PDF, CSV, and JSON reports.
+    Streams the ZIP file back to the client.
+    """
+    try:
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            zip_file.writestr("report.pdf", await pdf_file.read())
+            zip_file.writestr("registry.csv", await csv_file.read())
+            zip_file.writestr("report.json", await json_file.read())
+            
+        zip_buffer.seek(0)
+        
+        return StreamingResponse(
+            iter([zip_buffer.getvalue()]),
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": "attachment; filename=Evidence_Package.zip"
+            }
+        )
+    except Exception as e:
+        logger.error("ZIP export failed for user '%s': %s", current_user, str(e))
+        raise HTTPException(status_code=500, detail="Failed to generate ZIP archive.")
 
 
 if __name__ == "__main__":
