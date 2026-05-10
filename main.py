@@ -295,6 +295,17 @@ async def analyze_process(
     SSE endpoint streaming real analysis progress from analyze_logs().
     Fixes hardcoded progress messages by wiring progress_callback to the stream.
     """
+    # ── FIX 1: PATH TRAVERSAL PROTECTION ────────────────────────────────────
+    # Resolve the real absolute path and ensure it stays inside UPLOAD_DIR.
+    # Prevents attacks like file_path=../../etc/passwd
+    safe_path = os.path.realpath(file_path)
+    upload_dir_real = os.path.realpath(UPLOAD_DIR)
+    if not safe_path.startswith(upload_dir_real + os.sep):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file path. Access outside upload directory is not permitted."
+        )
+
     queue: asyncio.Queue = asyncio.Queue()
 
     def progress_callback(percent: int, message: str):
@@ -305,7 +316,7 @@ async def analyze_process(
         analysis_task = loop.run_in_executor(
             None,
             lambda: analyze_logs(
-                file_path,
+                safe_path,
                 threshold_seconds=threshold,
                 progress_callback=progress_callback,
             ),
@@ -336,9 +347,9 @@ async def analyze_process(
 
 
 @app.post("/verify-chain")
-#@limiter.limit("30/minute")
+@limiter.limit("30/minute")  # FIX 2: re-enabled rate limiting (was commented out)
 async def verify_chain_manifest(
-    request: Request,
+    request: Request,          # required by slowapi for IP-based rate limiting
     manifest: list = None,
     current_user: str = Depends(get_current_user),
 ):
