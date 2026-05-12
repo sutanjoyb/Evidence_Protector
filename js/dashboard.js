@@ -837,7 +837,7 @@ function exportChartAsJPG() {
 }
 
 // ─── EXPORT CENTER ───────────────────────────────────────────────────────────
-function exportForensicJSON() {
+function exportForensicJSON(returnBlob = false) {
   if (!lastScanResults) return showToast("No data available");
   const manifest = getChainManifest();
   const payload = {
@@ -847,6 +847,7 @@ function exportForensicJSON() {
   const blob = new Blob([JSON.stringify(payload, null, 4)], {
     type: "application/json",
   });
+  if (returnBlob) return blob;
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `Forensic_Report_${Date.now()}.json`;
@@ -854,13 +855,14 @@ function exportForensicJSON() {
   showToast("JSON Exported");
 }
 
-function exportRegistryCSV() {
+function exportRegistryCSV(returnBlob = false) {
   if (!lastScanResults) return showToast("Registry empty");
   let csv = "Start,End,Duration\n";
   lastScanResults.incidents.forEach(
     (i) => (csv += `${i.start},${i.end},${i.duration}\n`),
   );
   const blob = new Blob([csv], { type: "text/csv" });
+  if (returnBlob) return blob;
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `Registry_${Date.now()}.csv`;
@@ -868,7 +870,7 @@ function exportRegistryCSV() {
   showToast("CSV Exported");
 }
 
-async function exportForensicPDF() {
+async function exportForensicPDF(returnBlob = false) {
   if (!lastScanResults) return showToast("No scan data available for PDF");
 
   const { jsPDF } = window.jspdf;
@@ -949,8 +951,46 @@ async function exportForensicPDF() {
     doc.text(`Page ${i} of ${pageCount} - Confidential Forensic Data`, 14, 285);
   }
 
+  if (returnBlob) return doc.output("blob");
+
   doc.save(`Forensic_Report_${Date.now()}.pdf`);
   showToast("PDF Report Generated Successfully");
+}
+
+async function exportEvidenceZIP() {
+  if (!lastScanResults) return showToast("No data to export");
+  
+  showToast("Generating Evidence Package...");
+  
+  const jsonBlob = exportForensicJSON(true);
+  const csvBlob = exportRegistryCSV(true);
+  const pdfBlob = await exportForensicPDF(true);
+  
+  const formData = new FormData();
+  formData.append("pdf_file", pdfBlob, "report.pdf");
+  formData.append("csv_file", csvBlob, "registry.csv");
+  formData.append("json_file", jsonBlob, "report.json");
+  
+  try {
+    const token = localStorage.getItem("access_token");
+    const res = await fetch("http://127.0.0.1:8000/export/zip", {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData
+    });
+    
+    if (!res.ok) throw new Error("ZIP export failed");
+    
+    const zipBlob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(zipBlob);
+    a.download = `Evidence_Package_${Date.now()}.zip`;
+    a.click();
+    showToast("Evidence Package Downloaded");
+  } catch (e) {
+    console.error(e);
+    showToast("ZIP Export Error");
+  }
 }
 
 // ─── UI & NAVIGATION UTILS ───────────────────────────────────────────────────
