@@ -274,18 +274,22 @@ function loadLastSession() {
 
 async function analyzeLogsWithProgress(event) {
   if (event) event.preventDefault();
-  const fileInput = document.getElementById("logFile");
-  const file = fileInput.files[0] || fileInput._droppedFile;
 
-  if (!file) {
+  const fileInput = document.getElementById("logFile");
+  const files = Array.from(fileInput?.files || []);
+
+  if (!files.length) {
     document.getElementById("dropArea")?.classList.add("border-red-500/50");
     return showToast("Critical: No source file selected");
   }
 
-  if (!isFileAllowedBySettings(file)) {
-    return showToast(
-      `File type not allowed: ${getFileExtension(file.name) || "unknown"}`,
-    );
+  // Validate all selected files (separately so user can spot bad types)
+  for (const file of files) {
+    if (!isFileAllowedBySettings(file)) {
+      return showToast(
+        `File type not allowed: ${getFileExtension(file.name) || "unknown"}`,
+      );
+    }
   }
 
   // Show progress bar
@@ -294,49 +298,109 @@ async function analyzeLogsWithProgress(event) {
   const progressPercent = document.getElementById("progressPercent");
   const progressStatus = document.getElementById("progressStatus");
   const cancelBtn = document.getElementById("cancelUploadBtn");
-  
+
   if (progressContainer) progressContainer.classList.remove("hidden");
   if (cancelBtn) cancelBtn.classList.remove("hidden");
   isUploadCancelled = false;
-  
-  // Simulated progress stages
+
+  // Simulated progress stages (single overall bar)
   const stages = [
-    { percent: 20, status: "Uploading file...", duration: 800 },
-    { percent: 40, status: "Hashing payload...", duration: 600 },
-    { percent: 60, status: "Mapping voids...", duration: 700 },
-    { percent: 80, status: "Analyzing patterns...", duration: 500 },
-    { percent: 95, status: "Finalizing report...", duration: 400 }
+    { percent: 10, status: "Preparing batch scan...", duration: 500 },
+    { percent: 30, status: "Hashing payloads...", duration: 550 },
+    { percent: 55, status: "Mapping voids...", duration: 650 },
+    { percent: 75, status: "Analyzing patterns...", duration: 650 },
+    { percent: 90, status: "Finalizing batch report...", duration: 600 },
   ];
-  
+
   for (const stage of stages) {
     if (isUploadCancelled) {
       resetProgressBar();
       showToast("Upload cancelled");
       return;
     }
-    
     if (progressStatus) progressStatus.textContent = stage.status;
     if (progressFill) progressFill.style.width = `${stage.percent}%`;
     if (progressPercent) progressPercent.textContent = `${stage.percent}%`;
-    await new Promise(r => setTimeout(r, stage.duration));
+    await new Promise((r) => setTimeout(r, stage.duration));
   }
-  
-  if (progressStatus) progressStatus.textContent = "Processing on server...";
+
+  if (progressStatus) {
+    progressStatus.textContent = "Processing on server (batch)...";
+  }
+  if (progressFill) progressFill.style.width = "95%";
+  if (progressPercent) progressPercent.textContent = "95%";
+
+  // Sequential analysis (one /analyze call per file)
+  const batchResults = [];
+  let aggregatedIntegrity = [];
+  let aggregatedTotalGaps = 0;
+  let aggregatedIncidents = [];
+
+  for (let i = 0; i < files.length; i += 1) {
+    if (isUploadCancelled) break;
+
+    if (progressStatus) {
+      progressStatus.textContent = `Scanning ${i + 1}/${files.length}: ${files[i].name}`;
+    }
+
+    // Real analysis for this file
+    const data = await analyzeLogsWithFile(files[i]);
+
+    if (data) {
+      batchResults.push({ fileName: files[i].name, thresholdUsed: Number(document.getElementById("thresholdInput")?.value || analysisSettings.threshold), ...data });
+      aggregatedIntegrity.push(Number.parseFloat(data.integrity_score));
+      aggregatedTotalGaps += Number(data.total_gaps);
+      aggregatedIncidents = aggregatedIncidents.concat(
+        (data.incidents || []).map((inc) => ({ ...inc, source_file: files[i].name })),
+      );
+
+      // Keep progress moving while server does work
+      if (progressFill) progressFill.style.width = `${95 - (files.length - (i + 1)) * 3}%`;
+      if (progressPercent) progressPercent.textContent = `${95 - (files.length - (i + 1)) * 3}%`;
+    }
+  }
+
+  if (!batchResults.length || isUploadCancelled) {
+    if (!isUploadCancelled && progressStatus) progressStatus.textContent = "Failed!";
+    showToast(isUploadCancelled ? "Upload cancelled" : "Analysis failed. Please try again.");
+    setTimeout(() => resetProgressBar(), 2000);
+    return;
+  }
+
+  const avgIntegrity = aggregatedIntegrity.length
+    ? aggregatedIntegrity.reduce((a, b) => a + b, 0) / aggregatedIntegrity.length
+    : 0;
+
+  const combinedReport = {
+    integrity_score: Number(avgIntegrity.toFixed(2)),
+    total_gaps: aggregatedTotalGaps,
+    incidents: aggregatedIncidents,
+    batch: {
+      thresholdUsed: Number(document.getElementById("thresholdInput")?.value || analysisSettings.threshold),
+      results: batchResults.map((r) => ({
+        fileName: r.fileName,
+        integrity_score: r.integrity_score,
+        total_gaps: r.total_gaps,
+        incidents_count: (r.incidents || []).length,
+      })),
+    },
+  };
+
+  localStorage.setItem("last_forensic_batch_scan", JSON.stringify(combinedReport));
+
+  // Update main dashboard cards + registry table with combined incidents
+  lastScanResults = combinedReport;
+  renderResults(combinedReport);
+  updateBatchSummaryTable(combinedReport.batch.results);
+  resetFlagsForBatchIncidents();
+
+
+  if (progressStatus) progressStatus.textContent = "Complete!";
   if (progressFill) progressFill.style.width = "100%";
   if (progressPercent) progressPercent.textContent = "100%";
-  
-  // Call actual analysis
-  const result = await analyzeLogsWithFile(file);
-  
-  if (result && !isUploadCancelled) {
-    if (progressStatus) progressStatus.textContent = "Complete!";
-    showToast("Analysis completed successfully");
-    setTimeout(() => resetProgressBar(), 1500);
-  } else if (!isUploadCancelled) {
-    if (progressStatus) progressStatus.textContent = "Failed!";
-    showToast("Analysis failed. Please try again.");
-    setTimeout(() => resetProgressBar(), 2000);
-  }
+
+  showToast("Batch analysis completed successfully");
+  setTimeout(() => resetProgressBar(), 1500);
 }
 
 function resetProgressBar() {

@@ -81,7 +81,7 @@
     </div>
 
     <!-- Hamburger Menu Button (mobile only) -->
-    <button id="mobileMenuBtn" onclick="toggleSidebar()" class="lg:hidden fixed top-4 left-4 z-[60] bg-slate-900 border border-white/10 p-2.5 rounded-xl text-slate-400 hover:text-blue-400 transition-all">
+    <button id="mobileMenuBtn" onclick="toggleSidebar()" class="lg:hidden fixed top-4 left-4 z-[60] bg-slate-900 border border-white/10 p-2.5 rounded-xl text-slate-400 hover:text-blue-400 transition-all" title="Open/Close Sidebar" aria-label="Open/Close Sidebar">
       <i class="fas fa-bars text-sm"></i>
     </button>
 
@@ -192,24 +192,46 @@
               <div class="glass-card p-6 border-l-4 border-blue-500">
                 <h4 class="text-[10px] font-bold uppercase text-slate-500 mb-4 tracking-widest">Evidence Ingestion</h4>
                 <div id="dropArea" class="border-2 border-dashed border-slate-800 rounded-xl p-8 text-center hover:border-blue-500 cursor-pointer">
-                  <input type="file" id="logFile" class="hidden" accept=".log,.txt,.csv" />
-                  <label for="logFile" class="cursor-pointer block">
+<input type="file" id="logFile" class="hidden" accept=".log,.txt,.csv" multiple title="Select one or more log files for analysis" />
+                  <label for="logFile" class="cursor-pointer block" title="Upload log files for analysis">
                     <i class="fas fa-cloud-arrow-up text-2xl text-slate-600 mb-2 block"></i>
                     <p id="fileNameDisplay" class="text-[10px] text-slate-500 font-bold uppercase">Select Log File</p>
                   </label>
                 </div>
                 <div class="mt-4">
-                  <label class="text-[10px] text-slate-400 font-bold uppercase">
+                  <div class="flex items-center justify-between gap-3">
+                  <label
+                    for="thresholdInput"
+                    id="thresholdLabel"
+                    class="text-[10px] text-slate-400 font-bold uppercase"
+                  >
                     Threshold
                     <span class="ml-2 text-blue-400 cursor-pointer" title="Maximum allowed seconds between log entries before flagging a gap.">❓</span>
                   </label>
-                  <input type="number" id="thresholdInput" value="60" class="w-full mt-2 px-3 py-2 bg-slate-900 border border-white/10 rounded text-white text-sm" />
+                    <div class="text-[9px] font-mono text-blue-400 font-bold uppercase">
+                      Active: <span id="activeThresholdValue">60</span>s
+                    </div>
+                  </div>
+                  <input
+                    type="number"
+                    id="thresholdInput"
+                    name="thresholdInput"
+                    value="60"
+                    min="1"
+                    max="3600"
+                    step="1"
+                    class="w-full mt-2 px-3 py-2 bg-slate-900 border border-white/10 rounded text-white text-sm"
+                    aria-labelledby="thresholdLabel"
+                    aria-describedby="thresholdHelpText"
+                    title="Gap detection threshold in seconds"
+                  />
+                  <p id="thresholdHelpText" class="sr-only">Maximum allowed seconds between log entries before flagging a gap.</p>
                 </div>
                 <div class="flex gap-3 mt-4">
-                  <button onclick="analyzeLogsWithProgress(event)" class="flex-1 bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all">
+                  <button onclick="analyzeLogsWithProgress(event)" class="flex-1 bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all" title="Analyze selected log file(s)" aria-label="Analyze selected log file(s)">
                     <i class="fas fa-chart-line mr-2"></i> Analyze
                   </button>
-                  <button onclick="previewLogFile()" id="previewBtn" disabled class="flex-1 bg-slate-700 hover:bg-slate-600 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                  <button onclick="previewLogFile()" id="previewBtn" disabled class="flex-1 bg-slate-700 hover:bg-slate-600 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed" title="Preview first 10 lines of the selected log file" aria-label="Preview first 10 lines of selected log file">
                     <i class="fas fa-eye mr-2"></i> Preview
                   </button>
                 </div>
@@ -217,8 +239,8 @@
                 <!-- Progress Bar Section -->
                 <div id="uploadProgressContainer" class="hidden mt-4">
                   <div class="flex justify-between items-center mb-2">
-                    <span id="progressStatus" class="text-[9px] font-bold uppercase text-blue-400">Connecting...</span>
-                    <span id="progressPercent" class="text-[9px] font-mono text-slate-400">0%</span>
+                    <span id="progressStatus" class="text-[9px] font-bold uppercase text-blue-400" title="Upload status">Connecting...</span>
+                    <span id="progressPercent" class="text-[9px] font-mono text-slate-400" title="Upload percentage">0%</span>
                   </div>
                   <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
                     <div id="progressBarFill" class="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full transition-all duration-300" style="width: 0%"></div>
@@ -232,7 +254,7 @@
                     <h4 class="text-[10px] font-bold uppercase text-blue-500 tracking-widest flex items-center gap-2">
                       <i class="fas fa-code"></i> Log Preview (First 10 lines)
                     </h4>
-                    <button onclick="closePreview()" class="text-slate-500 hover:text-red-400 transition-colors">
+                    <button onclick="closePreview()" class="text-slate-500 hover:text-red-400 transition-colors" aria-label="Close preview" title="Close preview">
                       <i class="fas fa-times text-xs"></i>
                     </button>
                   </div>
@@ -265,7 +287,7 @@
           <div class="p-6 border-b border-white/5 bg-slate-900/20 flex flex-wrap justify-between items-center gap-4">
             <div class="flex items-center gap-4">
               <h4 class="text-xs font-bold uppercase text-slate-400">Incident Registry</h4>
-              <select id="durationSorter" onchange="handleSortChange(this.value)" class="bg-slate-950 border border-white/10 text-[10px] text-blue-400 font-bold uppercase py-1 px-3 rounded-lg outline-none focus:border-blue-500 cursor-pointer">
+                  <select id="durationSorter" onchange="handleSortChange(this.value)" class="bg-slate-950 border border-white/10 text-[10px] text-blue-400 font-bold uppercase py-1 px-3 rounded-lg outline-none focus:border-blue-500 cursor-pointer" aria-label="Sort incidents by duration">
                 <option id="sortPlaceholder" value="none">Sort By</option>
                 <option value="high">Longest Gaps First (Critical)</option>
                 <option value="low">Shortest Gaps First (Minor)</option>
@@ -276,11 +298,37 @@
               <span id="flag-count" class="text-[10px] bg-blue-600 px-3 py-1 rounded-full text-white font-black">0 Flagged</span>
             </div>
           </div>
+          <!-- Per-file batch comparison summary -->
+          <div id="batchSummaryCard" class="p-6 border-b border-white/5 bg-slate-900/10 hidden">
+            <div class="flex items-center justify-between gap-4 mb-3">
+              <h4 class="text-xs font-bold uppercase text-slate-400">Batch Comparison (Per File)</h4>
+              <div class="text-[9px] font-mono text-blue-400 font-bold uppercase">
+                Threshold: <span id="batchSummaryThresholdValue">60</span>s
+              </div>
+            </div>
+            <div class="registry-table-wrapper max-h-[220px] overflow-y-auto custom-scroll relative rounded-xl border border-white/5">
+              <table class="w-full text-left">
+                <thead class="sticky top-0 bg-slate-900/80 text-[9px] uppercase text-slate-500">
+                  <tr class="border-b border-white/5">
+                    <th class="p-3 lg:p-4 whitespace-nowrap">File</th>
+                    <th class="p-3 lg:p-4 text-center whitespace-nowrap">Integrity</th>
+                    <th class="p-3 lg:p-4 text-center whitespace-nowrap">Gaps</th>
+                    <th class="p-3 lg:p-4 text-center whitespace-nowrap">Incidents</th>
+                  </tr>
+                </thead>
+                <tbody id="batchSummaryBody"></tbody>
+              </table>
+              <div id="batchSummaryEmpty" class="hidden p-8 text-center">
+                <p class="text-slate-500 text-xs font-bold uppercase">No batch summary available</p>
+              </div>
+            </div>
+          </div>
+
           <div class="registry-table-wrapper max-h-[500px] overflow-y-auto custom-scroll relative">
             <table class="w-full text-left">
               <thead class="sticky top-0 bg-slate-900 text-[9px] uppercase text-slate-500">
                 <tr class="border-b border-white/5">
-                  <th class="p-4 lg:p-6 w-10"><input type="checkbox" id="selectAllCheckbox" class="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-0" /></th>
+                  <th class="p-4 lg:p-6 w-10"><input type="checkbox" id="selectAllCheckbox" class="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-0" title="Select all incidents" /></th>
                   <th class="p-4 lg:p-6 whitespace-nowrap">Time Window</th>
                   <th class="p-4 lg:p-6 text-center whitespace-nowrap">Duration</th>
                   <th class="p-4 lg:p-6 text-right whitespace-nowrap">Triage</th>
