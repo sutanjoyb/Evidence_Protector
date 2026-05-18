@@ -595,7 +595,6 @@ html[data-theme="light"] .tos-content {
   border: 1px solid #dde3ed !important;
   box-shadow: 0 32px 64px rgba(17, 24, 39, 0.14) !important;
 }
-
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .glass-card {
@@ -606,7 +605,6 @@ html[data-theme="light"] .tos-content {
     font-size: 1.25rem;
   }
 }
-
 @media (max-width: 767px) {
   body {
     overflow-x: hidden;
@@ -728,4 +726,4 @@ html[data-theme="light"] .tos-content {
 @keyframes pulseText {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.4; }
-}
+}
